@@ -1,0 +1,29 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 400 440">
+  <defs>
+    <clipPath id="land-clip">
+      <path d="M0 0 L34 0 L22 30 L0 42 Z M0 70 L40 52 L90 72 L150 95 L200 108 L240 116 L262 104 L265 95 L262 60 L285 25 L330 8 L380 12 L400 30 L400 70 L370 90 L320 96 L300 100 L296 140 L294 184 L318 250 L340 322 L382 440 L0 440 Z"/>
+    </clipPath>
+  </defs>
+  <rect width="400" height="440" fill="#CFE3E6"/>
+  <path d="M330 150 q10 -6 20 0 t20 0 M344 200 q10 -6 20 0 t20 0 M358 250 q10 -6 20 0 t20 0" stroke="#A9CBD1" stroke-width="1.5" fill="none"/>
+  <path d="M0 0 L34 0 L22 30 L0 42 Z M0 70 L40 52 L90 72 L150 95 L200 108 L240 116 L262 104 L265 95 L262 60 L285 25 L330 8 L380 12 L400 30 L400 70 L370 90 L320 96 L300 100 L296 140 L294 184 L318 250 L340 322 L382 440 L0 440 Z" fill="#F4ECDC" stroke="#D9C9A6" stroke-width="1.5"/>
+  <g clip-path="url(#land-clip)" stroke="#E3D6BD" stroke-width="0.8">
+    <path d="M40 0 V440 M80 0 V440 M120 0 V440 M160 0 V440 M200 0 V440 M240 0 V440 M280 0 V440 M320 0 V440 M360 0 V440 M0 40 H400 M0 80 H400 M0 120 H400 M0 160 H400 M0 200 H400 M0 240 H400 M0 280 H400 M0 320 H400 M0 360 H400 M0 400 H400"/>
+  </g>
+  <path d="M280 40 Q320 20 360 34 Q340 60 300 66 Z" fill="#C9D3AD" opacity="0.8"/>
+  <path d="M0 4 L24 4 L14 26 L0 34 Z" fill="#C9D3AD" opacity="0.8"/>
+  <path d="M245 114 Q248 150 252 180 T262 260 T280 350 L290 440" stroke="#9CC4CC" stroke-width="9" fill="none" stroke-linecap="round"/>
+  <path d="M256 224 Q200 238 150 250 T0 282" stroke="#9CC4CC" stroke-width="6" fill="none"/>
+  <path d="M30 70 Q140 160 230 170 M150 400 L230 170 L310 170 M300 100 L320 330" stroke="#E8DCC0" stroke-width="3" fill="none"/>
+  <g font-family="serif" font-style="italic" fill="#5F8790" font-size="13">
+    <text x="110" y="40">Vịnh Đà Nẵng</text>
+    <text x="352" y="250" transform="rotate(68 352 250)">Biển Đông</text>
+  </g>
+  <g font-family="sans-serif" font-size="10" fill="#8B7A5C" font-weight="600" letter-spacing="1.5">
+    <text x="300" y="52">SƠN TRÀ</text>
+    <text x="6" y="22" font-size="9">HẢI VÂN</text>
+    <text x="130" y="200">HẢI CHÂU</text>
+    <text x="120" y="300">CẨM LỆ</text>
+    <text x="40" y="410">HÒA VANG</text>
+  </g>
+</svg>

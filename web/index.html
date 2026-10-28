@@ -1,0 +1,67 @@
+<!DOCTYPE html>
+<html lang="vi">
+<head>
+  <!--
+    Nếu deploy ở đường dẫn con, giá trị này được thay bằng tham số --base-href khi `flutter build web`.
+  -->
+  <base href="$FLUTTER_BASE_HREF">
+
+  <meta charset="UTF-8">
+  <meta content="IE=Edge" http-equiv="X-UA-Compatible">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0, viewport-fit=cover">
+  <meta name="description" content="Local Passport — Hộ chiếu trải nghiệm văn hóa Đà Nẵng. Quét QR tại di tích, nhìn xuyên thời gian và sưu tầm dấu mộc.">
+  <meta name="theme-color" content="#7C2D12">
+
+  <meta name="mobile-web-app-capable" content="yes">
+  <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
+  <meta name="apple-mobile-web-app-title" content="Local Passport">
+  <link rel="apple-touch-icon" href="icons/Icon-192.png">
+  <link rel="icon" type="image/png" href="favicon.png"/>
+
+  <title>Local Passport — Đà Nẵng</title>
+  <link rel="manifest" href="manifest.json">
+
+  <style>
+    html, body { margin: 0; height: 100%; background: #7C2D12; }
+    /* Màn chờ trong lúc Flutter engine tải (tránh màn hình trắng khi mở từ mã QR) */
+    #splash {
+      position: fixed; inset: 0; display: flex; flex-direction: column; align-items: center; justify-content: center; gap: 20px;
+      background:
+        repeating-radial-gradient(circle at 50% 120%, rgba(233,196,106,.10) 0 1px, transparent 1px 9px),
+        repeating-radial-gradient(circle at 50% -20%, rgba(233,196,106,.07) 0 1px, transparent 1px 11px),
+        #7C2D12;
+      color: #E9C46A; font-family: Georgia, "Times New Roman", serif; text-align: center;
+      transition: opacity .35s ease;
+    }
+    #splash .eyebrow { font: 600 12px/1 system-ui, sans-serif; letter-spacing: .35em; }
+    #splash h1 { margin: 0; font-size: 44px; font-weight: 600; line-height: 1.1; }
+    #splash .ring { width: 96px; height: 96px; border: 2px solid rgba(233,196,106,.7); border-radius: 50%; position: relative; }
+    #splash .ring::after {
+      content: ""; position: absolute; inset: -2px; border-radius: 50%;
+      border: 2px solid transparent; border-top-color: #E9C46A; animation: spin 1s linear infinite;
+    }
+    #splash .hint { font: 400 13px/1.4 system-ui, sans-serif; color: rgba(251,246,236,.75); }
+    @keyframes spin { to { transform: rotate(360deg); } }
+    @media (prefers-reduced-motion: reduce) { #splash .ring::after { animation: none; } }
+  </style>
+</head>
+<body>
+  <div id="splash" role="status" aria-label="Đang tải Local Passport">
+    <div class="eyebrow">HỘ CHIẾU TRẢI NGHIỆM</div>
+    <h1>Local<br>Passport</h1>
+    <div class="ring"></div>
+    <div class="hint">Đang mở hộ chiếu Đà Nẵng…</div>
+  </div>
+
+  <script>
+    // Ẩn màn chờ khi Flutter vẽ khung hình đầu tiên.
+    window.addEventListener('flutter-first-frame', function () {
+      var s = document.getElementById('splash');
+      if (!s) return;
+      s.style.opacity = '0';
+      setTimeout(function () { s.remove(); }, 400);
+    });
+  </script>
+  <script src="flutter_bootstrap.js" async></script>
+</body>
+</html>
