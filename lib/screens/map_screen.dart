@@ -73,30 +73,25 @@ class _MapScreenState extends State<MapScreen> {
         ),
         const SizedBox(height: 16),
 
-        // Bộ lọc cảm hứng
-        SizedBox(
-          height: 44,
-          child: ListView(
-            scrollDirection: Axis.horizontal,
-            clipBehavior: Clip.none,
-            children: [
+        // Bộ lọc cảm hứng — xuống dòng thay vì cuộn ngang để thấy đủ mọi tuyến.
+        Wrap(
+          spacing: 8,
+          runSpacing: 8,
+          children: [
+            FilterPill(
+              label: 'Tất cả',
+              selected: _filter == 'all',
+              onTap: () => _changeFilter('all'),
+            ),
+            for (final r in routes)
               FilterPill(
-                label: 'Tất cả',
-                selected: _filter == 'all',
-                onTap: () => _changeFilter('all'),
+                label: r.short,
+                icon: r.icon,
+                color: r.color,
+                selected: _filter == r.id,
+                onTap: () => _changeFilter(r.id),
               ),
-              for (final r in routes) ...[
-                const SizedBox(width: 8),
-                FilterPill(
-                  label: r.short,
-                  icon: r.icon,
-                  color: r.color,
-                  selected: _filter == r.id,
-                  onTap: () => _changeFilter(r.id),
-                ),
-              ],
-            ],
-          ),
+          ],
         ),
         const SizedBox(height: 16),
 
