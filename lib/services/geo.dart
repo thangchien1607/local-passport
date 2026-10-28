@@ -47,16 +47,6 @@ Future<LatLng> currentPosition() async {
   }
 }
 
-/// Đã được cấp quyền vị trí chưa — chỉ kiểm tra, không bật hộp thoại xin quyền.
-Future<bool> hasLocationPermission() async {
-  try {
-    final p = await Geolocator.checkPermission();
-    return p == LocationPermission.always || p == LocationPermission.whileInUse;
-  } catch (_) {
-    return false;
-  }
-}
-
 /// Theo dõi vị trí liên tục cho chấm "Bạn ở đây" trên bản đồ.
 Stream<LatLng> watchPosition() => Geolocator.getPositionStream(
   locationSettings: const LocationSettings(
