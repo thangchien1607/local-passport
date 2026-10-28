@@ -1,3 +1,5 @@
+import 'dart:ui' show PointerDeviceKind;
+
 import 'package:flutter/material.dart';
 
 import 'screens/community_screen.dart';
@@ -36,6 +38,7 @@ class LocalPassportApp extends StatelessWidget {
         title: 'Local Passport — Đà Nẵng',
         debugShowCheckedModeBanner: false,
         theme: buildTheme(),
+        scrollBehavior: const _DragScrollBehavior(),
         // Trên web/tablet: giữ khung mobile 440px ở giữa màn hình.
         builder: (context, child) => ColoredBox(
           color: AppColors.outside,
@@ -50,6 +53,20 @@ class LocalPassportApp extends StatelessWidget {
       ),
     );
   }
+}
+
+/// Flutter Web mặc định chỉ cho kéo cuộn bằng cảm ứng; bật thêm chuột/touchpad
+/// để thanh bộ lọc, thẻ câu chuyện… kéo ngang được trên máy tính.
+class _DragScrollBehavior extends MaterialScrollBehavior {
+  const _DragScrollBehavior();
+
+  @override
+  Set<PointerDeviceKind> get dragDevices => {
+    PointerDeviceKind.touch,
+    PointerDeviceKind.mouse,
+    PointerDeviceKind.trackpad,
+    PointerDeviceKind.stylus,
+  };
 }
 
 class _Root extends StatelessWidget {
