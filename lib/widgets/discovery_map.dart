@@ -52,7 +52,7 @@ class DiscoveryMap extends StatelessWidget {
                 children: [
                   Positioned.fill(
                     child: SvgPicture.asset(
-                      'assets/map/danang.svg',
+                      'assets/map/danang_map.svg',
                       fit: BoxFit.fill,
                       excludeFromSemantics: true,
                     ),
@@ -109,8 +109,8 @@ class DiscoveryMap extends StatelessWidget {
 
 bool _onMap(Offset p) => p.dx >= 0 && p.dx <= _w && p.dy >= 0 && p.dy <= _h;
 
-/// Chấm "Bạn ở đây" theo GPS thật + nút định vị. Nếu đã có quyền vị trí thì tự
-/// bật; nếu chưa thì chỉ xin quyền khi người dùng bấm nút.
+/// Chấm "Bạn ở đây" theo GPS thật + nút định vị. Mở bản đồ là xin quyền vị trí
+/// ngay; từ chối thì không hiện chấm (bấm nút định vị để thử lại).
 class _MyLocationLayer extends StatefulWidget {
   const _MyLocationLayer({required this.scale});
 
@@ -128,9 +128,18 @@ class _MyLocationLayerState extends State<_MyLocationLayer> {
   @override
   void initState() {
     super.initState();
-    hasLocationPermission().then((ok) {
-      if (ok && mounted) _watch();
-    });
+    _autoLocate();
+  }
+
+  Future<void> _autoLocate() async {
+    try {
+      final p = await currentPosition();
+      if (!mounted) return;
+      setState(() => _me = p);
+      _watch();
+    } catch (_) {
+      // Không cho phép / không lấy được vị trí → không hiện chấm, không làm phiền.
+    }
   }
 
   @override
@@ -143,7 +152,10 @@ class _MyLocationLayerState extends State<_MyLocationLayer> {
     _sub?.cancel();
     _sub = watchPosition().listen(
       (p) => setState(() => _me = p),
-      onError: (_) => _sub?.cancel(),
+      onError: (_) {
+        _sub?.cancel();
+        if (mounted) setState(() => _me = null);
+      },
     );
   }
 

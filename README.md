@@ -58,7 +58,7 @@ lib/
   screens/                     Welcome, Map, Location, QR Scanner, Stamp Ceremony, Passport, Community, Leaderboard
 assets/
   scenes/<scene>_<past|present>.svg   Tranh xưa/nay của từng địa điểm
-  map/danang.svg                      Nền bản đồ
+  map/danang_map.svg                     Nền bản đồ
 ```
 
 ## Mã QR dán tại di tích
