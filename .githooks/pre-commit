@@ -1,0 +1,47 @@
+#!/bin/sh
+# Trước mỗi commit: kiểm tra nhánh và tác giả, chặn file bí mật, kiểm tra dart format và flutter analyze.
+
+branch=$(git symbolic-ref --short -q HEAD)
+if { [ "$branch" = main ] || [ "$branch" = develop ]; } && [ "$ALLOW_PROTECTED" != 1 ]; then
+  echo "✗ Không commit thẳng lên $branch. Tạo nhánh mới từ develop:" >&2
+  echo "    git switch -c feature/<ten>   (hoặc fix/<ten>, chore/<ten>...)" >&2
+  exit 1
+fi
+
+if ! ident="$(git var GIT_AUTHOR_IDENT) $(git var GIT_COMMITTER_IDENT)"; then
+  echo "✗ Chưa cấu hình tác giả. Chạy: git config user.name \"<tên GitHub>\" và git config user.email \"<email GitHub>\"" >&2
+  exit 1
+fi
+if printf '%s\n' "$ident" | grep -qiE 'claude|anthropic|copilot|cursor|chatgpt|openai|codex|gemini|devin'; then
+  echo "✗ Tác giả commit đang là AI: $ident" >&2
+  echo "  Đặt lại bằng tài khoản GitHub của bạn: git config user.name / user.email" >&2
+  exit 1
+fi
+
+staged=$(git diff --cached --name-only --diff-filter=ACMR)
+[ -z "$staged" ] && exit 0
+
+secrets=$(printf '%s\n' "$staged" \
+  | grep -E '(^|/)(\.env(\..+)?|key\.properties|service-account[^/]*\.json|[^/]+\.(jks|keystore|p12|pem))$' \
+  | grep -vE '\.env\.example$')
+if [ -n "$secrets" ]; then
+  echo "✗ Đang commit file có thể chứa bí mật:" >&2
+  printf '    %s\n' $secrets >&2
+  echo "  Gỡ khỏi stage bằng: git restore --staged <file>" >&2
+  exit 1
+fi
+
+dart_files=$(printf '%s\n' "$staged" | grep -E '\.dart$')
+if [ -n "$dart_files" ]; then
+  if ! dart format --output=none --set-exit-if-changed $dart_files >/dev/null; then
+    echo "✗ Có file Dart chưa format. Chạy: dart format lib test  rồi git add lại." >&2
+    exit 1
+  fi
+fi
+
+if [ -n "$dart_files" ] || printf '%s\n' "$staged" | grep -qE '^(pubspec\.yaml|analysis_options\.yaml)$'; then
+  if ! flutter analyze; then
+    echo "✗ flutter analyze còn lỗi. Sửa xong rồi commit lại." >&2
+    exit 1
+  fi
+fi
