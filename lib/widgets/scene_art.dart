@@ -15,7 +15,7 @@ const _sepia = ColorFilter.matrix(<double>[
 
 /// Tranh minh họa giữ chỗ cho TimeLens khi chưa có ảnh tư liệu thật.
 /// Era.past: phủ sepia + hạt phim + vết xước + vignette (Vintage Analog).
-/// Nếu truyền [imageUrl], hiển thị ảnh thật thay cho tranh.
+/// Nếu truyền [imageUrl] (URL hoặc asset `assets/...`), hiển thị ảnh thật thay cho tranh.
 class SceneArt extends StatelessWidget {
   const SceneArt({
     super.key,
@@ -33,15 +33,22 @@ class SceneArt extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     final url = imageUrl;
-    final Widget base = url != null
-        ? Image.network(
+    final Widget base = url == null
+        ? SvgPicture.asset(
+            'assets/scenes/${scene}_${era == Era.past ? 'past' : 'present'}.svg',
+            fit: BoxFit.cover,
+            width: double.infinity,
+            height: double.infinity,
+          )
+        : url.startsWith('assets/')
+        ? Image.asset(
             url,
             fit: BoxFit.cover,
             width: double.infinity,
             height: double.infinity,
           )
-        : SvgPicture.asset(
-            'assets/scenes/${scene}_${era == Era.past ? 'past' : 'present'}.svg',
+        : Image.network(
+            url,
             fit: BoxFit.cover,
             width: double.infinity,
             height: double.infinity,

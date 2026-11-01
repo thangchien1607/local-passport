@@ -70,7 +70,7 @@ class _TimeLensState extends State<TimeLens>
   @override
   Widget build(BuildContext context) {
     final lens = widget.location.timeLens;
-    return Semantics(
+    final slider = Semantics(
       slider: true,
       label: 'Lăng kính thời gian ${widget.location.name}',
       value: '${(_pos * 100).round()}% ảnh xưa',
@@ -161,6 +161,38 @@ class _TimeLensState extends State<TimeLens>
           ),
         ),
       ),
+    );
+    // Con trỏ kéo ngang khi dùng chuột (web/desktop).
+    final lensView = MouseRegion(
+      cursor: SystemMouseCursors.resizeColumn,
+      child: slider,
+    );
+    final caption = lens.caption;
+    final credit = lens.credit;
+    if (caption == null && credit == null) return lensView;
+    return Column(
+      crossAxisAlignment: CrossAxisAlignment.stretch,
+      mainAxisSize: MainAxisSize.min,
+      children: [
+        lensView,
+        if (caption != null) ...[
+          const SizedBox(height: 8),
+          Text(
+            caption,
+            style: bodyStyle(13, color: AppColors.inkSoft, height: 1.4),
+          ),
+        ],
+        if (credit != null) ...[
+          const SizedBox(height: 4),
+          Text(
+            credit,
+            style: bodyStyle(
+              11,
+              color: AppColors.inkSoft.withValues(alpha: 0.8),
+            ),
+          ),
+        ],
+      ],
     );
   }
 }
