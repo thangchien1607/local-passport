@@ -5,6 +5,8 @@ import '../state/passport_store.dart';
 import '../theme.dart';
 import '../widgets/common.dart';
 import '../widgets/discovery_map.dart';
+import '../widgets/scene_art.dart';
+import 'timelens_screen.dart';
 
 class MapScreen extends StatefulWidget {
   const MapScreen({super.key, required this.onOpenLocation});
@@ -25,6 +27,14 @@ class _MapScreenState extends State<MapScreen> {
       final sel = _selectedId == null ? null : locationById[_selectedId];
       if (sel != null && id != 'all' && sel.routeId != id) _selectedId = null;
     });
+  }
+
+  void _openTimeLens() {
+    Navigator.of(context).push(
+      MaterialPageRoute(
+        builder: (_) => TimeLensScreen(onOpenLocation: widget.onOpenLocation),
+      ),
+    );
   }
 
   @override
@@ -117,6 +127,9 @@ class _MapScreenState extends State<MapScreen> {
                   ),
                 ),
         ),
+
+        const SizedBox(height: 16),
+        _TimeLensBanner(onTap: _openTimeLens),
 
         const SizedBox(height: 24),
         const SectionTitle('Tiến độ tuyến'),
@@ -218,6 +231,69 @@ class _SelectedCard extends StatelessWidget {
                 ),
               ),
               const Icon(Icons.chevron_right_rounded, color: AppColors.primary),
+            ],
+          ),
+        ),
+      ),
+    );
+  }
+}
+
+/// Lối vào Lăng kính thời gian xem trước (cùng màn với bản demo public).
+class _TimeLensBanner extends StatelessWidget {
+  const _TimeLensBanner({required this.onTap});
+
+  final VoidCallback onTap;
+
+  @override
+  Widget build(BuildContext context) {
+    final preview = locationById[timeLensFeaturedIds.first]!;
+    return Material(
+      color: AppColors.primary,
+      borderRadius: BorderRadius.circular(18),
+      clipBehavior: Clip.antiAlias,
+      child: InkWell(
+        onTap: onTap,
+        child: Padding(
+          padding: const EdgeInsets.all(12),
+          child: Row(
+            children: [
+              ClipRRect(
+                borderRadius: BorderRadius.circular(12),
+                child: SizedBox(
+                  width: 72,
+                  height: 56,
+                  child: SceneArt(
+                    scene: preview.scene,
+                    era: Era.past,
+                    imageUrl: preview.timeLens.pastImageUrl,
+                  ),
+                ),
+              ),
+              const SizedBox(width: 12),
+              Expanded(
+                child: Column(
+                  crossAxisAlignment: CrossAxisAlignment.start,
+                  children: [
+                    Text(
+                      'Lăng kính thời gian',
+                      style: displayStyle(17, color: AppColors.goldLight),
+                    ),
+                    const SizedBox(height: 2),
+                    Text(
+                      'Xem trước Đà Nẵng xưa & nay ở ${timeLensFeaturedIds.length} di tích',
+                      style: bodyStyle(
+                        13,
+                        color: AppColors.paper.withValues(alpha: 0.8),
+                      ),
+                    ),
+                  ],
+                ),
+              ),
+              const Icon(
+                Icons.chevron_right_rounded,
+                color: AppColors.goldLight,
+              ),
             ],
           ),
         ),
