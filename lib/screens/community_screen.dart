@@ -45,7 +45,7 @@ class _CommunityScreenState extends State<CommunityScreen> {
             const SizedBox(width: 6),
             Expanded(
               child: Text(
-                'Cảm nhận thật, được AI kiểm duyệt, có thể ẩn danh.',
+                'Bài mẫu và cảm nhận trên thiết bị · có thể chia sẻ ẩn danh.',
                 style: bodyStyle(14, color: AppColors.inkSoft),
               ),
             ),
@@ -62,7 +62,7 @@ class _CommunityScreenState extends State<CommunityScreen> {
                 selected: _filter == 'all',
                 onTap: () => setState(() => _filter = 'all'),
               ),
-              for (final r in routes) ...[
+              for (final r in publishedRoutes) ...[
                 const SizedBox(width: 8),
                 FilterPill(
                   label: r.short,

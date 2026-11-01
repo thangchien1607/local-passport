@@ -1,6 +1,8 @@
+import 'dart:convert';
 import 'dart:ui';
 
 import 'package:flutter/material.dart';
+import 'package:image_picker/image_picker.dart';
 
 import '../data/community.dart';
 import '../data/routes.dart';
@@ -53,6 +55,33 @@ class LocationScreen extends StatelessWidget {
     ).setTask(locationId, taskId, done);
     if (stamped && context.mounted) {
       await showStampCeremony(context, locationId);
+    }
+  }
+
+  Future<void> _captureTaskPhoto(BuildContext context, String taskId) async {
+    try {
+      final image = await ImagePicker().pickImage(
+        source: ImageSource.camera,
+        maxWidth: 720,
+        maxHeight: 720,
+        imageQuality: 65,
+      );
+      if (image == null || !context.mounted) return;
+      final bytes = await image.readAsBytes();
+      if (!context.mounted) return;
+      final stamped = PassportScope.read(
+        context,
+      ).setTaskPhoto(locationId, taskId, base64Encode(bytes));
+      if (stamped && context.mounted) {
+        await showStampCeremony(context, locationId);
+      }
+    } catch (_) {
+      if (!context.mounted) return;
+      ScaffoldMessenger.maybeOf(context)?.showSnackBar(
+        const SnackBar(
+          content: Text('Không chụp hoặc lưu được ảnh. Hãy thử lại.'),
+        ),
+      );
     }
   }
 
@@ -370,8 +399,37 @@ class LocationScreen extends StatelessWidget {
                               _CheckRow(
                                 title: t.title,
                                 done: store.isTaskDone(locationId, t.id),
-                                enabled: unlocked,
-                                trailing: t.type == TaskType.manual
+                                enabled: unlocked && t.type == TaskType.manual,
+                                trailing: t.type == TaskType.photo
+                                    ? TextButton.icon(
+                                        onPressed: unlocked
+                                            ? () =>
+                                                  store.isTaskDone(
+                                                    locationId,
+                                                    t.id,
+                                                  )
+                                                  ? _showTaskPhoto(
+                                                      context,
+                                                      t.id,
+                                                    )
+                                                  : _captureTaskPhoto(
+                                                      context,
+                                                      t.id,
+                                                    )
+                                            : null,
+                                        icon: Icon(
+                                          store.isTaskDone(locationId, t.id)
+                                              ? Icons.photo_outlined
+                                              : Icons.camera_alt_outlined,
+                                          size: 17,
+                                        ),
+                                        label: Text(
+                                          store.isTaskDone(locationId, t.id)
+                                              ? 'Xem ảnh'
+                                              : 'Chụp ảnh',
+                                        ),
+                                      )
+                                    : t.type == TaskType.manual
                                     ? null
                                     : Text(
                                         'tự động',
@@ -507,6 +565,44 @@ class LocationScreen extends StatelessWidget {
               ),
           ],
         ),
+      ),
+    );
+  }
+
+  Future<void> _removeTaskPhoto(BuildContext context, String taskId) async {
+    final stamped = PassportScope.read(
+      context,
+    ).setTaskPhoto(locationId, taskId, null);
+    if (stamped && context.mounted) {
+      await showStampCeremony(context, locationId);
+    }
+  }
+
+  Future<void> _showTaskPhoto(BuildContext context, String taskId) async {
+    final encoded = PassportScope.read(context).taskPhoto(locationId, taskId);
+    if (encoded == null || !context.mounted) return;
+    await showDialog<void>(
+      context: context,
+      builder: (dialogContext) => AlertDialog(
+        title: const Text('Ảnh nhiệm vụ'),
+        content: ClipRRect(
+          borderRadius: BorderRadius.circular(14),
+          child: Image.memory(base64Decode(encoded), fit: BoxFit.contain),
+        ),
+        actions: [
+          TextButton(
+            onPressed: () => Navigator.of(dialogContext).pop(),
+            child: const Text('Đóng'),
+          ),
+          TextButton.icon(
+            onPressed: () {
+              Navigator.of(dialogContext).pop();
+              _removeTaskPhoto(context, taskId);
+            },
+            icon: const Icon(Icons.delete_outline),
+            label: const Text('Xóa ảnh'),
+          ),
+        ],
       ),
     );
   }

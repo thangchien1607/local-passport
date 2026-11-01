@@ -37,17 +37,24 @@ class UserProfile {
 }
 
 class LocationProgress {
-  LocationProgress({this.unlocked = false, this.unlockedAt, Set<String>? tasks})
-    : tasks = tasks ?? {};
+  LocationProgress({
+    this.unlocked = false,
+    this.unlockedAt,
+    Set<String>? tasks,
+    Map<String, String>? taskPhotos,
+  }) : tasks = tasks ?? {},
+       taskPhotos = taskPhotos ?? {};
 
   bool unlocked;
   DateTime? unlockedAt;
   final Set<String> tasks;
+  final Map<String, String> taskPhotos;
 
   Map<String, dynamic> toJson() => {
     'unlocked': unlocked,
     'unlockedAt': unlockedAt?.toIso8601String(),
     'tasks': tasks.toList(),
+    'taskPhotos': taskPhotos,
   };
 
   factory LocationProgress.fromJson(Map<String, dynamic> j) => LocationProgress(
@@ -56,6 +63,9 @@ class LocationProgress {
         ? null
         : DateTime.parse(j['unlockedAt'] as String),
     tasks: {...(j['tasks'] as List? ?? const []).cast<String>()},
+    taskPhotos: (j['taskPhotos'] as Map<String, dynamic>? ?? {}).map(
+      (k, v) => MapEntry(k, v as String),
+    ),
   );
 }
 
@@ -114,12 +124,17 @@ class PassportStore extends ChangeNotifier {
     _prefs.setString(_storageKey, jsonEncode(data)).catchError((_) => false);
   }
 
-  int get totalStamps => stamps.length;
-  int get totalLocations => locations.length;
+  int get totalStamps => stamps.keys
+      .where((id) => publishedLocations.any((l) => l.id == id))
+      .length;
+  int get totalLocations => publishedLocations.length;
 
   bool isUnlocked(String id) => progress[id]?.unlocked ?? false;
   bool isTaskDone(String id, String taskId) =>
       progress[id]?.tasks.contains(taskId) ?? false;
+
+  String? taskPhoto(String id, String taskId) =>
+      progress[id]?.taskPhotos[taskId];
 
   /// Progress_location = (QR + số mục checklist xong) / (1 + tổng số mục checklist) × 100%
   int locationProgress(String id) {
@@ -135,6 +150,7 @@ class PassportStore extends ChangeNotifier {
   RouteProgress routeProgress(String routeId) {
     final locs = locationsOfRoute(routeId);
     final stamped = locs.where((l) => stamps.containsKey(l.id)).length;
+    if (locs.isEmpty) return (stamped: 0, total: 0, percent: 0);
     return (
       stamped: stamped,
       total: locs.length,
@@ -172,10 +188,31 @@ class PassportStore extends ChangeNotifier {
 
   bool setTask(String id, String taskId, bool done) {
     final p = progress[id];
+    final task = locationById[id]?.tasks
+        .where((t) => t.id == taskId)
+        .firstOrNull;
     if (p == null || !p.unlocked || p.tasks.contains(taskId) == done) {
       return false;
     }
+    if (task?.type == TaskType.photo) return false;
     done ? p.tasks.add(taskId) : p.tasks.remove(taskId);
+    final stamped = _checkStamp(id);
+    _commit();
+    return stamped;
+  }
+
+  bool setTaskPhoto(String id, String taskId, String? photoBase64) {
+    final p = progress[id];
+    final location = locationById[id];
+    final task = location?.tasks.where((t) => t.id == taskId).firstOrNull;
+    if (p == null || !p.unlocked || task?.type != TaskType.photo) return false;
+    if (photoBase64 == null) {
+      p.taskPhotos.remove(taskId);
+      p.tasks.remove(taskId);
+    } else {
+      p.taskPhotos[taskId] = photoBase64;
+      p.tasks.add(taskId);
+    }
     final stamped = _checkStamp(id);
     _commit();
     return stamped;

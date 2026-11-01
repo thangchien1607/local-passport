@@ -4,8 +4,7 @@ import '../state/passport_store.dart';
 import '../theme.dart';
 import '../widgets/passport_cover.dart';
 
-/// Bìa hộ chiếu + đăng nhập. Nút Google hiện là mô phỏng;
-/// khi nối Firebase Auth thay bằng signInWithGoogle().
+/// Bìa hộ chiếu và tạo hồ sơ demo lưu cục bộ trên thiết bị.
 class WelcomeScreen extends StatefulWidget {
   const WelcomeScreen({super.key});
 
@@ -176,8 +175,8 @@ class _WelcomeScreenState extends State<WelcomeScreen> {
                         ),
                         const SizedBox(height: 12),
                         PrimaryButton(
-                          label: 'Đăng nhập bằng Google',
-                          icon: Icons.login_rounded,
+                          label: 'Tạo hộ chiếu trên thiết bị',
+                          icon: Icons.auto_stories_outlined,
                           background: Colors.white,
                           foreground: AppColors.ink,
                           onPressed: () => store.login(_name.text.trim()),
@@ -193,7 +192,7 @@ class _WelcomeScreenState extends State<WelcomeScreen> {
                             minimumSize: const Size.fromHeight(48),
                           ),
                           child: Text(
-                            'Dùng thử không cần đăng nhập',
+                            'Vào nhanh với khách demo',
                             style: bodyStyle(
                               14,
                               weight: FontWeight.w500,
