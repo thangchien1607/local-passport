@@ -14,7 +14,7 @@ main ─────────●───────────────
                ↖ PR (release)          ↖ PR
 develop ──●────●────●────●────●────────●──────  nhánh tích hợp của cả nhóm
           │    ↑    │    ↑    │    ↑
-          │   PR    │   PR    │   PR             mỗi PR cần @thangchien1607 duyệt
+          │   PR    │   PR    │   PR             mỗi PR cần 1 người khác trong nhóm duyệt
           └ feature/a  └ fix/b   └ feature/c     nhánh riêng của từng người
 ```
 
@@ -22,7 +22,7 @@ Năm điều cần nhớ:
 
 1. **Không ai commit hay push thẳng vào `main` và `develop`.** Mọi thay đổi đi qua Pull Request (PR).
 2. Mỗi việc là một nhánh, **tạo từ `develop` mới nhất**.
-3. Mọi PR (vào `develop` và `main`) phải được **@thangchien1607 duyệt** rồi mới merge. AI phải **hỏi người dùng trước khi tạo PR**.
+3. Mọi PR (vào `develop` và `main`) phải được **1 người khác trong nhóm duyệt** rồi mới merge (@thangchien1607, @monster9k hoặc @NNA11111111, không tính người tạo PR). AI phải **hỏi người dùng trước khi tạo PR**.
 4. Merge bằng **Squash and merge**, xong thì xóa nhánh.
 5. **Không có tên AI trên GitHub**: không `Co-Authored-By` AI, không "Generated with ...", tác giả commit luôn là tài khoản GitHub của bạn.
 
@@ -81,7 +81,7 @@ git push -u origin feature/leaderboard-filter
 # lần push sau khi đã rebase: git push --force-with-lease
 
 # 6. Mở link GitHub in ra sau khi push → tạo PR vào develop
-#    Tiêu đề PR theo định dạng commit. GitHub tự gán @thangchien1607 duyệt
+#    Tiêu đề PR theo định dạng commit. GitHub tự gán 2 người còn lại làm người duyệt
 ```
 
 Sau khi PR được merge:
@@ -145,7 +145,7 @@ refactor(state): tách PassportStore thành các hàm nhỏ
 - **Tiêu đề** theo đúng định dạng commit, vì khi Squash and merge, tiêu đề PR sẽ thành commit trên `develop`.
 - **Mô tả**: làm gì, vì sao, cách test (ảnh chụp màn hình nếu đổi giao diện). Không ghi công cho AI.
 - PR nhỏ, một mục đích. Một PR quá 400 dòng thì nên tách ra.
-- Người duyệt: **@thangchien1607** (cài trong [.github/CODEOWNERS](.github/CODEOWNERS), GitHub tự gán). Kiểm tra: chạy được, đúng yêu cầu, không có file thừa (`build/`, `.env`...). Cần sửa thì để lại comment, người tạo PR sửa và push tiếp lên cùng nhánh.
+- Người duyệt: **1 trong 3 người** @thangchien1607, @monster9k, @NNA11111111, trừ người tạo PR (cài trong [.github/CODEOWNERS](.github/CODEOWNERS), GitHub tự gán). Ai duyệt trước cũng được, người duyệt bấm merge luôn. Kiểm tra: chạy được, đúng yêu cầu, không có file thừa (`build/`, `.env`...). Cần sửa thì để lại comment, người tạo PR sửa và push tiếp lên cùng nhánh.
 
 ---
 
@@ -154,7 +154,7 @@ refactor(state): tách PassportStore thành các hàm nhỏ
 **Phát hành** (đưa `develop` lên `main` để deploy):
 
 1. Tạo PR `develop` → `main`, tiêu đề ví dụ `chore(release): phát hành 1.2.0`.
-2. @thangchien1607 duyệt rồi chọn **Create a merge commit** (không squash, để giữ lịch sử).
+2. 1 người khác trong nhóm duyệt rồi chọn **Create a merge commit** (không squash, để giữ lịch sử).
 3. Deploy theo README: `flutter build web --release` rồi `firebase deploy --only hosting`.
 
 **Hotfix** (lỗi gấp trên bản đang chạy):
@@ -202,7 +202,7 @@ refactor(state): tách PassportStore thành các hàm nhỏ
 - `git add .` / `git add -A` khi chưa xem `git status`. Chỉ add các file liên quan tới việc đang làm.
 - `git reset --hard`, `git clean`, `git branch -D`, xóa nhánh remote khi người dùng chưa đồng ý.
 - Tạo PR khi người dùng chưa đồng ý rõ ràng. Im lặng hay câu trả lời mơ hồ đều không tính là đồng ý.
-- Approve hay merge PR. Việc duyệt và merge là của @thangchien1607.
+- Approve hay merge PR. Việc duyệt và merge là của người trong nhóm (@thangchien1607, @monster9k, @NNA11111111).
 
 ### 7.3. Các bước bắt buộc khi commit và push
 
@@ -256,7 +256,7 @@ gh pr create --base develop --title "<type>(<scope>): <mô tả>" --body "<làm 
 
 Hook báo lỗi → **đọc thông báo, sửa nguyên nhân, chạy lại**. Không tìm cách vượt qua.
 
-Sau khi tạo PR, báo cho người dùng: link PR, và nhắc rằng PR đang chờ @thangchien1607 duyệt.
+Sau khi tạo PR, báo cho người dùng: link PR, và nhắc rằng PR đang chờ 1 người khác trong nhóm duyệt.
 
 ---
 
@@ -265,12 +265,12 @@ Sau khi tạo PR, báo cho người dùng: link PR, và nhắc rằng PR đang c
 Vào **Settings → Branches → Add branch ruleset** (hoặc *Branch protection rule*), áp dụng cho `main` và `develop`:
 
 - ✅ Require a pull request before merging, với **Required approvals: 1**
-- ✅ **Require review from Code Owners**: bắt buộc @thangchien1607 duyệt, theo [.github/CODEOWNERS](.github/CODEOWNERS)
+- ✅ **Require review from Code Owners**: bắt buộc 1 trong 3 người ở [.github/CODEOWNERS](.github/CODEOWNERS) duyệt
 - ✅ Dismiss stale pull request approvals when new commits are pushed (có commit mới thì phải duyệt lại)
 - ✅ Require status checks to pass: chọn `Quy ước Git` và `Format, analyze, test`
 - ✅ Block force pushes
 - ✅ Restrict deletions
-- **Bypass list**: thêm *Repository admin*, chế độ *For pull requests only*. GitHub không cho tự duyệt PR của chính mình, nên với PR do @thangchien1607 tạo, chủ repo merge bằng quyền bypass sau khi CI đã xanh.
+- Để trống **Bypass list**. GitHub không cho tự duyệt PR của chính mình, nên PR của ai thì 1 trong 2 người còn lại duyệt.
 
 **Settings → General → Pull Requests**: bật *Allow squash merging* và *Automatically delete head branches*.
 
