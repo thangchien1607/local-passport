@@ -1,0 +1,79 @@
+name: PR check
+
+on:
+  pull_request:
+    types: [opened, edited, synchronize, reopened]
+
+jobs:
+  rules:
+    name: Quy ước Git
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
+      - name: Kiểm tra tiêu đề, mô tả, tên nhánh và commit
+        env:
+          TITLE: ${{ github.event.pull_request.title }}
+          BODY: ${{ github.event.pull_request.body }}
+          BASE_REF: ${{ github.base_ref }}
+          HEAD_REF: ${{ github.head_ref }}
+          BASE_SHA: ${{ github.event.pull_request.base.sha }}
+          HEAD_SHA: ${{ github.event.pull_request.head.sha }}
+        shell: sh
+        run: |
+          types='feat|fix|docs|style|refactor|perf|test|build|ci|chore|revert'
+          header_re="^($types)(\([a-z0-9._/-]+\))?!?: [^ ]"
+          branch_re='^(develop|(feature|fix|hotfix|chore|docs|refactor)/[a-z0-9._-]+|release/[0-9]+\.[0-9]+\.[0-9]+)$'
+          ai_re='claude|anthropic|copilot|cursor|chatgpt|openai|codex|gemini|devin'
+          fail=0
+          err() { echo "::error::$1"; fail=1; }
+
+          printf '%s\n' "$TITLE" | grep -qE "$header_re" \
+            || err "Tiêu đề PR phải theo dạng <type>(<scope>): <mô tả>. Hiện tại: $TITLE"
+
+          # main → develop là PR đồng bộ sau hotfix.
+          if ! { [ "$HEAD_REF" = main ] && [ "$BASE_REF" = develop ]; }; then
+            printf '%s\n' "$HEAD_REF" | grep -qE "$branch_re" \
+              || err "Tên nhánh '$HEAD_REF' sai quy ước (feature/, fix/, hotfix/, chore/, docs/, refactor/, release/x.y.z)."
+          fi
+
+          if [ "$BASE_REF" = main ]; then
+            printf '%s\n' "$HEAD_REF" | grep -qE '^(develop|release/.+|hotfix/.+)$' \
+              || err "Chỉ develop, release/* hoặc hotfix/* được merge vào main. Đổi base của PR sang develop."
+          fi
+
+          printf '%s\n' "$TITLE $BODY" | grep -qiE "generated (with|by) .*($ai_re)|co-authored-by:.*($ai_re)|🤖" \
+            && err "Tiêu đề/mô tả PR có dòng ghi công cho AI. Xóa dòng đó."
+
+          # PR từ develop/main chỉ chứa commit đã kiểm tra khi vào nhánh (và commit cũ trước khi có quy ước).
+          check_format=1
+          case "$HEAD_REF" in develop|main) check_format=0 ;; esac
+
+          for sha in $(git rev-list --no-merges "$BASE_SHA..$HEAD_SHA"); do
+            header=$(git log -1 --format=%s "$sha")
+            [ "$check_format" = 1 ] && ! printf '%s\n' "$header" | grep -qE "$header_re|^(Revert|fixup!|squash!|amend!) " \
+              && err "Commit $sha sai định dạng message: $header"
+            git log -1 --format='%an <%ae> | %cn <%ce>' "$sha" | grep -qiE "$ai_re" \
+              && err "Commit $sha có tác giả là AI: $(git log -1 --format='%an <%ae>' "$sha")"
+            git log -1 --format=%B "$sha" | grep -qiE "^co-authored-by:.*($ai_re)|generated (with|by) .*($ai_re)" \
+              && err "Commit $sha có dòng ghi công cho AI."
+          done
+
+          [ "$fail" = 0 ] && echo "✓ PR đúng quy ước."
+          exit "$fail"
+
+  flutter:
+    name: Format, analyze, test
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: subosito/flutter-action@v2
+        with:
+          flutter-version: '3.41.5'
+          channel: stable
+          cache: true
+      - run: flutter pub get
+      - run: dart format --output=none --set-exit-if-changed lib test
+      - run: flutter analyze
+      - run: flutter test
