@@ -57,7 +57,7 @@ class DiscoveryMap extends StatelessWidget {
                       excludeFromSemantics: true,
                     ),
                   ),
-                  for (final loc in locations) _hotspotFor(loc, scale),
+                  for (final loc in publishedLocations) _hotspotFor(loc, scale),
                   Positioned.fill(child: _MyLocationLayer(scale: scale)),
                   Positioned(
                     left: 10,
@@ -167,7 +167,7 @@ class _MyLocationLayerState extends State<_MyLocationLayer> {
       setState(() => _me = p);
       _watch();
       // Hiện tọa độ + điểm gần nhất để đối chiếu/hiệu chỉnh tọa độ địa điểm.
-      final nearest = locations.reduce(
+      final nearest = publishedLocations.reduce(
         (a, b) =>
             distanceMeters(p, a.coordinates) <= distanceMeters(p, b.coordinates)
             ? a

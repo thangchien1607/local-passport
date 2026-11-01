@@ -3,7 +3,7 @@
 <plist version="1.0">
 <dict>
 	<key>NSCameraUsageDescription</key>
-	<string>Dùng camera để quét mã QR check-in tại di tích.</string>
+	<string>Dùng camera để quét mã QR và chụp ảnh nhiệm vụ tại điểm đến.</string>
 	<key>NSLocationWhenInUseUsageDescription</key>
 	<string>Xác nhận bạn đang có mặt tại di tích khi check-in.</string>
 	<key>NSPhotoLibraryUsageDescription</key>

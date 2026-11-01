@@ -32,7 +32,7 @@ class LeaderboardScreen extends StatelessWidget {
       children: [
         Text('Bảng xếp hạng', style: displayStyle(30)),
         Text(
-          'Nhà khám phá Đà Nẵng · theo XP và dấu mộc',
+          'Bảng xếp hạng demo · dữ liệu mẫu theo XP và dấu mộc',
           style: bodyStyle(14, color: AppColors.inkSoft),
         ),
         const SizedBox(height: 16),

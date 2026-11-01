@@ -40,7 +40,7 @@ class _MapScreenState extends State<MapScreen> {
   @override
   Widget build(BuildContext context) {
     final store = PassportScope.of(context);
-    final visible = locations
+    final visible = publishedLocations
         .where((l) => _filter == 'all' || l.routeId == _filter)
         .toList();
     final selected = _selectedId == null ? null : locationById[_selectedId];
@@ -93,7 +93,7 @@ class _MapScreenState extends State<MapScreen> {
               selected: _filter == 'all',
               onTap: () => _changeFilter('all'),
             ),
-            for (final r in routes)
+            for (final r in publishedRoutes)
               FilterPill(
                 label: r.short,
                 icon: r.icon,
@@ -134,7 +134,7 @@ class _MapScreenState extends State<MapScreen> {
         const SizedBox(height: 24),
         const SectionTitle('Tiến độ tuyến'),
         const SizedBox(height: 12),
-        for (final r in routes.where(
+        for (final r in publishedRoutes.where(
           (r) => _filter == 'all' || r.id == _filter,
         )) ...[
           _RouteCard(

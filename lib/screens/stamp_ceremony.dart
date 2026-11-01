@@ -86,11 +86,21 @@ class _CeremonyState extends State<_Ceremony> {
   Future<void> _submit() async {
     final store = PassportScope.read(context);
     setState(() => _step = _Step.verifying);
-    final r = await verifyReflection(
-      content: _text.text,
-      hasPhoto: _photo != null,
-      location: _location,
-    );
+    late final VerifyResult r;
+    try {
+      r = await verifyReflection(
+        content: _text.text,
+        hasPhoto: _photo != null,
+        location: _location,
+      );
+    } catch (e) {
+      if (!mounted) return;
+      setState(() => _step = _Step.form);
+      ScaffoldMessenger.maybeOf(context)?.showSnackBar(
+        SnackBar(content: Text(e.toString().replaceFirst('Exception: ', ''))),
+      );
+      return;
+    }
     if (!mounted) return;
     if (r.approved) {
       store.addReflection(
@@ -227,8 +237,9 @@ class _CeremonyState extends State<_Ceremony> {
                 TextSpan(
                   children: [
                     const TextSpan(
-                      text:
-                          'Không bắt buộc. Cảm nhận sâu sắc sẽ được AI thẩm định để nhận thêm XP và huy hiệu ',
+                      text: hasRemoteReflectionVerifier
+                          ? 'Không bắt buộc. Cảm nhận được Gemini thẩm định để nhận thêm XP và huy hiệu '
+                          : 'Không bắt buộc. Bộ chấm demo sẽ đánh giá cảm nhận để nhận thêm XP và huy hiệu ',
                     ),
                     TextSpan(
                       text: 'Tri kỷ Văn hóa',
@@ -455,7 +466,7 @@ class _CeremonyState extends State<_Ceremony> {
                 spacing: 10,
                 children: [
                   _Pill(
-                    'Điểm AI: ${r.score}/100',
+                    '${r.isAi ? 'Gemini' : 'Điểm demo'}: ${r.score}/100',
                     color: AppColors.ink,
                     background: AppColors.paper2,
                   ),

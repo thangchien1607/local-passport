@@ -11,6 +11,25 @@ flutter run -d chrome        # Web (hoặc -d edge)
 flutter run                  # Android/iOS: cắm điện thoại hoặc mở emulator
 ```
 
+### Chạy bản Android demo bằng Android Studio
+
+1. Cài Flutter SDK, Android Studio, Android SDK và plugin Flutter/Dart.
+2. Mở thư mục gốc project trong Android Studio; chờ IDE đồng bộ Flutter packages.
+3. Chọn emulator hoặc bật USB debugging trên điện thoại Android rồi chọn thiết bị.
+4. Bấm **Run** để cài và chạy bản demo. Android sẽ hỏi quyền camera và vị trí khi cần.
+
+Mặc định app chỉ hiện ba tuyến chính. Để hiện thêm dữ liệu thử Hòa Khánh khi chạy local:
+
+```bash
+flutter run -d <android-device-id> --dart-define=LOCAL_PASSPORT_TEST_DATA=true
+```
+
+Hồ sơ, tiến độ, ảnh nhiệm vụ và cảm nhận được lưu cục bộ trên thiết bị. Đăng nhập, bảng tin và bảng xếp hạng chưa đồng bộ cloud.
+
+### Chạy bản iOS
+
+iOS dùng chung mã Flutter nhưng cần **macOS có Xcode** để chạy hoặc tạo bản cài; Windows không thể build iOS. Trên Mac, cài Flutter và Xcode, chạy `flutter doctor`, `flutter pub get`, rồi chọn iPhone simulator/thiết bị và chạy `flutter run`. Cài lên iPhone thật cần cấu hình signing/team trong Xcode.
+
 Build bản web để deploy (ví dụ Firebase Hosting):
 
 ```bash
@@ -62,9 +81,9 @@ lib/
   theme.dart                   Màu, font, nút dùng chung (design system)
   data/routes.dart             Tuyến & 10 địa điểm (routes_branches, hotspots_locations)
   data/community.dart          Cảm nhận & bảng xếp hạng mẫu
-  state/passport_store.dart    Trạng thái hộ chiếu + công thức tiến độ (user_passports)
+  state/passport_store.dart    Hộ chiếu, tiến độ và ảnh nhiệm vụ lưu cục bộ cho bản demo
   services/geo.dart            Haversine, GPS (geolocator), định dạng mã QR
-  services/ai_verifier.dart    Thẩm định cảm nhận (MÔ PHỎNG)
+  services/ai_verifier.dart    Bộ chấm offline; có thể cấu hình HTTPS verifier backend
   widgets/time_lens.dart       ★ Lăng kính thời gian (thanh trượt xưa/nay)
   widgets/scene_art.dart       Tranh minh họa + hiệu ứng sepia/hạt phim cho ảnh "xưa"
   widgets/stamp_seal.dart      Con dấu mộc vẽ bằng CustomPainter
@@ -136,9 +155,19 @@ Bản phái sinh giữ nguyên giấy phép của ảnh gốc.
 | Tiến độ/dấu mộc/cảm nhận lưu cục bộ | `cloud_firestore` + `firebase_storage` |
 | Bản đồ SVG minh họa | `google_maps_flutter` với cùng tọa độ |
 | Tranh SVG xưa/nay (6 điểm chưa có ảnh thật) | Ảnh tư liệu thật (`pastImageUrl` / `presentImageUrl`) |
-| `ai_verifier.dart` chấm theo độ dài + từ khóa | Gemini API qua Cloud Function (không để API key trong app) |
+| `ai_verifier.dart` chấm theo độ dài + từ khóa | Đầu nối HTTPS đã có; cần triển khai Cloud Function Gemini và cấu hình `REFLECTION_VERIFIER_URL` (không để API key trong app) |
 
 Nội dung lịch sử là dữ liệu mẫu, cần đối chiếu nguồn chính thống trước khi công bố.
+
+### Kết nối bộ thẩm định cảm nhận
+
+Mặc định ứng dụng dùng bộ chấm offline. Khi đã triển khai HTTPS Cloud Function gọi Gemini phía máy chủ, chạy với endpoint:
+
+```bash
+flutter run -d chrome --dart-define=REFLECTION_VERIFIER_URL=https://<region>-<project>.cloudfunctions.net/verifyReflection
+```
+
+Endpoint nhận `content`, `hasPhoto`, `locationId`, `locationName`, `stories`; trả `score`, `approved`, `soulmate`, `bonusXp` và `comment`. Ảnh không được gửi lên dịch vụ thẩm định. Khi endpoint lỗi, nội dung không bị đăng và người dùng có thể thử gửi lại.
 
 ## Quyền đã khai báo
 

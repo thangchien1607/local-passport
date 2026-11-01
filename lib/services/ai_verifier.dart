@@ -1,10 +1,14 @@
+import 'dart:convert';
 import 'dart:math';
+
+import 'package:http/http.dart' as http;
 
 import '../data/routes.dart';
 
-// Bộ thẩm định cảm nhận — bản MÔ PHỎNG chạy offline.
-// TODO: thay bằng Gemini (gemini-2.5-flash) gọi qua Cloud Function
-// để không lộ API key trong app/web.
+// Có thể nối HTTPS Cloud Function qua --dart-define mà không đưa Gemini key
+// vào ứng dụng. Khi chưa cấu hình endpoint, dùng bộ chấm offline cho demo.
+const _verifierUrl = String.fromEnvironment('REFLECTION_VERIFIER_URL');
+const hasRemoteReflectionVerifier = _verifierUrl != '';
 
 class VerifyResult {
   const VerifyResult({
@@ -13,6 +17,7 @@ class VerifyResult {
     required this.soulmate,
     required this.bonusXp,
     required this.comment,
+    this.isAi = false,
   });
 
   final int score;
@@ -20,6 +25,7 @@ class VerifyResult {
   final bool soulmate;
   final int bonusXp;
   final String comment;
+  final bool isAi;
 }
 
 final _splitter = RegExp(r'[^\p{L}\d]+', unicode: true);
@@ -29,6 +35,40 @@ Future<VerifyResult> verifyReflection({
   required bool hasPhoto,
   required Location location,
 }) async {
+  if (_verifierUrl.isNotEmpty) {
+    final endpoint = Uri.parse(_verifierUrl);
+    if (endpoint.scheme != 'https') {
+      throw Exception('Endpoint thẩm định phải dùng HTTPS.');
+    }
+    final response = await http
+        .post(
+          endpoint,
+          headers: const {'Content-Type': 'application/json'},
+          body: jsonEncode({
+            'content': content.trim(),
+            'hasPhoto': hasPhoto,
+            'locationId': location.id,
+            'locationName': location.name,
+            'stories': location.stories
+                .map((s) => {'title': s.title, 'body': s.body})
+                .toList(),
+          }),
+        )
+        .timeout(const Duration(seconds: 12));
+    if (response.statusCode != 200) {
+      throw Exception('Dịch vụ thẩm định đang bận (${response.statusCode}).');
+    }
+    final data = jsonDecode(response.body) as Map<String, dynamic>;
+    return VerifyResult(
+      score: (data['score'] as num).round().clamp(0, 100).toInt(),
+      approved: data['approved'] as bool,
+      soulmate: data['soulmate'] as bool? ?? false,
+      bonusXp: (data['bonusXp'] as num?)?.round().clamp(0, 500).toInt() ?? 0,
+      comment: data['comment'] as String,
+      isAi: true,
+    );
+  }
+
   await Future<void>.delayed(const Duration(seconds: 2));
   final text = content.trim().toLowerCase();
   final words = text.split(RegExp(r'\s+')).where((w) => w.isNotEmpty).length;

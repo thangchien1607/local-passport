@@ -28,7 +28,7 @@ class StoryCard {
   final String body;
 }
 
-enum TaskType { timelens, story, manual }
+enum TaskType { timelens, story, manual, photo }
 
 class TaskItem {
   const TaskItem(this.id, this.type, this.title);
@@ -324,7 +324,7 @@ const locations = <Location>[
     tasks: [
       _timelensTask,
       _storyTask,
-      TaskItem('photo', TaskType.manual, 'Chụp ảnh cùng đầu rồng'),
+      TaskItem('photo', TaskType.photo, 'Chụp ảnh cùng đầu rồng'),
     ],
   ),
   Location(
@@ -539,6 +539,16 @@ const locations = <Location>[
   ),
 ];
 
+/// Keep the Hòa Khánh fixtures available for local QA without publishing them
+/// in the default app build. Enable explicitly with --dart-define for testing.
+const _includeTestRoute = bool.fromEnvironment('LOCAL_PASSPORT_TEST_DATA');
+final publishedRoutes = routes
+    .where((route) => _includeTestRoute || route.id != 'test')
+    .toList(growable: false);
+final publishedLocations = locations
+    .where((location) => _includeTestRoute || location.routeId != 'test')
+    .toList(growable: false);
+
 const _testStories = [
   StoryCard(
     'Điểm thử nghiệm',
@@ -566,7 +576,7 @@ final routeById = {for (final r in routes) r.id: r};
 final locationById = {for (final l in locations) l.id: l};
 
 List<Location> locationsOfRoute(String routeId) =>
-    locations.where((l) => l.routeId == routeId).toList();
+    publishedLocations.where((l) => l.routeId == routeId).toList();
 
 ({Rank current, Rank? next}) rankForXp(int xp) {
   var current = ranks.first;
