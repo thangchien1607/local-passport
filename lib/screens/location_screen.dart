@@ -197,103 +197,103 @@ class LocationScreen extends StatelessWidget {
                     ),
                   ),
                 ),
-                SliverPadding(
-                  padding: EdgeInsets.fromLTRB(16, 20, 16, unlocked ? 32 : 110),
-                  sliver: SliverList.list(
-                    children: [
-                      // Tiến độ
-                      Container(
-                        padding: const EdgeInsets.all(16),
-                        decoration: cardDecoration(),
-                        child: Column(
-                          children: [
-                            Row(
-                              children: [
-                                StatusChip(
-                                  unlocked: unlocked,
-                                  stamped: stampedAt != null,
+                // Tiến độ: dính ngay dưới thanh tiêu đề khi cuộn để luôn nhìn thấy.
+                SliverPersistentHeader(
+                  pinned: true,
+                  delegate: _ProgressHeader(
+                    extent: 118 * MediaQuery.textScalerOf(context).scale(1),
+                    child: Container(
+                      padding: const EdgeInsets.all(16),
+                      decoration: cardDecoration(),
+                      child: Column(
+                        mainAxisSize: MainAxisSize.min,
+                        children: [
+                          Row(
+                            children: [
+                              StatusChip(
+                                unlocked: unlocked,
+                                stamped: stampedAt != null,
+                              ),
+                              const Spacer(),
+                              Text(
+                                '$doneCount/${location.tasks.length + 1} nhiệm vụ',
+                                style: bodyStyle(14, color: AppColors.inkSoft),
+                              ),
+                            ],
+                          ),
+                          const SizedBox(height: 12),
+                          Row(
+                            children: [
+                              Expanded(
+                                child: AppProgressBar(
+                                  value: pct,
+                                  height: 10,
+                                  label: 'Tiến độ ${location.name}',
                                 ),
-                                const Spacer(),
-                                Text(
-                                  '$doneCount/${location.tasks.length + 1} nhiệm vụ',
+                              ),
+                              SizedBox(
+                                width: 56,
+                                child: Text(
+                                  '$pct%',
+                                  textAlign: TextAlign.right,
                                   style: bodyStyle(
-                                    14,
-                                    color: AppColors.inkSoft,
+                                    18,
+                                    weight: FontWeight.w700,
+                                    color: AppColors.progressInk,
                                   ),
-                                ),
-                              ],
-                            ),
-                            const SizedBox(height: 12),
-                            Row(
-                              children: [
-                                Expanded(
-                                  child: AppProgressBar(
-                                    value: pct,
-                                    height: 10,
-                                    label: 'Tiến độ ${location.name}',
-                                  ),
-                                ),
-                                SizedBox(
-                                  width: 56,
-                                  child: Text(
-                                    '$pct%',
-                                    textAlign: TextAlign.right,
-                                    style: bodyStyle(
-                                      18,
-                                      weight: FontWeight.w700,
-                                      color: AppColors.progressInk,
-                                    ),
-                                  ),
-                                ),
-                              ],
-                            ),
-                            if (!unlocked) ...[
-                              const SizedBox(height: 14),
-                              Container(
-                                padding: const EdgeInsets.all(12),
-                                decoration: BoxDecoration(
-                                  color: AppColors.paper2,
-                                  borderRadius: BorderRadius.circular(12),
-                                ),
-                                child: Row(
-                                  children: [
-                                    const Icon(
-                                      Icons.qr_code_2_rounded,
-                                      size: 36,
-                                      color: AppColors.primary,
-                                    ),
-                                    const SizedBox(width: 12),
-                                    Expanded(
-                                      child: Text.rich(
-                                        TextSpan(
-                                          children: [
-                                            const TextSpan(
-                                              text: 'Đến tận nơi và ',
-                                            ),
-                                            TextSpan(
-                                              text: 'quét mã QR',
-                                              style: bodyStyle(
-                                                14,
-                                                weight: FontWeight.w700,
-                                              ),
-                                            ),
-                                            const TextSpan(
-                                              text:
-                                                  ' gắn tại di tích để mở khóa câu chuyện, Lăng kính thời gian và dấu mộc.',
-                                            ),
-                                          ],
-                                        ),
-                                        style: bodyStyle(14, height: 1.45),
-                                      ),
-                                    ),
-                                  ],
                                 ),
                               ),
                             ],
-                          ],
-                        ),
+                          ),
+                        ],
                       ),
-                      const SizedBox(height: 28),
+                    ),
+                  ),
+                ),
+                SliverPadding(
+                  padding: EdgeInsets.fromLTRB(16, 12, 16, unlocked ? 32 : 110),
+                  sliver: SliverList.list(
+                    children: [
+                      if (!unlocked)
+                        Container(
+                          padding: const EdgeInsets.all(12),
+                          decoration: BoxDecoration(
+                            color: AppColors.paper2,
+                            borderRadius: BorderRadius.circular(12),
+                          ),
+                          child: Row(
+                            children: [
+                              const Icon(
+                                Icons.qr_code_2_rounded,
+                                size: 36,
+                                color: AppColors.primary,
+                              ),
+                              const SizedBox(width: 12),
+                              Expanded(
+                                child: Text.rich(
+                                  TextSpan(
+                                    children: [
+                                      const TextSpan(text: 'Đến tận nơi và '),
+                                      TextSpan(
+                                        text: 'quét mã QR',
+                                        style: bodyStyle(
+                                          14,
+                                          weight: FontWeight.w700,
+                                        ),
+                                      ),
+                                      const TextSpan(
+                                        text:
+                                            ' gắn tại di tích để mở khóa câu chuyện, Lăng kính thời gian và dấu mộc.',
+                                      ),
+                                    ],
+                                  ),
+                                  style: bodyStyle(14, height: 1.45),
+                                ),
+                              ),
+                            ],
+                          ),
+                        ),
+                      if (!unlocked) const SizedBox(height: 28),
 
                       const SectionTitle(
                         'Câu chuyện 60 giây',
@@ -510,6 +510,46 @@ class LocationScreen extends StatelessWidget {
       ),
     );
   }
+}
+
+/// Khung chứa thẻ tiến độ, ghim dưới thanh tiêu đề; đổ bóng khi nội dung cuộn qua.
+class _ProgressHeader extends SliverPersistentHeaderDelegate {
+  const _ProgressHeader({required this.extent, required this.child});
+
+  final double extent;
+  final Widget child;
+
+  @override
+  double get minExtent => extent;
+
+  @override
+  double get maxExtent => extent;
+
+  @override
+  Widget build(BuildContext context, double shrinkOffset, bool overlaps) {
+    return DecoratedBox(
+      decoration: BoxDecoration(
+        color: AppColors.paper,
+        boxShadow: overlaps
+            ? const [
+                BoxShadow(
+                  color: Color(0x1A2B1810),
+                  blurRadius: 10,
+                  offset: Offset(0, 4),
+                ),
+              ]
+            : null,
+      ),
+      child: Padding(
+        padding: const EdgeInsets.fromLTRB(16, 12, 16, 8),
+        child: Align(alignment: Alignment.topCenter, child: child),
+      ),
+    );
+  }
+
+  @override
+  bool shouldRebuild(_ProgressHeader old) =>
+      old.extent != extent || old.child != child;
 }
 
 /// Gọi [onFirstFrame] đúng một lần sau khung hình đầu tiên.
