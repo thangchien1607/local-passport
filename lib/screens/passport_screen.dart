@@ -198,7 +198,7 @@ class PassportScreen extends StatelessWidget {
               _Stat('${store.totalStamps}/${store.totalLocations}', 'Dấu mộc'),
               const SizedBox(width: 12),
               _Stat(
-                '${routes.where((r) => store.routeProgress(r.id).percent == 100).length}',
+                '${publishedRoutes.where((r) => store.routeProgress(r.id).percent == 100).length}',
                 'Tuyến xong',
               ),
               const SizedBox(width: 12),
@@ -208,7 +208,7 @@ class PassportScreen extends StatelessWidget {
         ),
 
         // Các trang đóng dấu theo tuyến
-        for (final route in routes) ...[
+        for (final route in publishedRoutes) ...[
           const SizedBox(height: 24),
           Row(
             children: [
