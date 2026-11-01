@@ -1,0 +1,49 @@
+#!/bin/sh
+# Trước mỗi push: chặn push thẳng lên main/develop, kiểm tra tên nhánh,
+# quét commit sắp push xem có tên AI không, rồi chạy flutter test.
+# Người quản lý repo cần push thẳng (hiếm khi): ALLOW_PROTECTED=1 git push ...
+
+zero=0000000000000000000000000000000000000000
+branch_re='^(main|develop|(feature|fix|hotfix|chore|docs|refactor)/[a-z0-9._-]+|release/[0-9]+\.[0-9]+\.[0-9]+)$'
+ai_re='claude|anthropic|copilot|cursor|chatgpt|openai|codex|gemini|devin'
+run_tests=0
+
+while read -r local_ref local_sha remote_ref remote_sha; do
+  [ "$local_sha" = "$zero" ] && continue # xóa nhánh trên remote
+  case "$remote_ref" in
+    refs/heads/*) branch=${remote_ref#refs/heads/} ;;
+    *) continue ;; # tag
+  esac
+
+  if { [ "$branch" = main ] || [ "$branch" = develop ]; } && [ "$ALLOW_PROTECTED" != 1 ]; then
+    echo "✗ Không push thẳng lên $branch. Push nhánh của bạn rồi tạo Pull Request vào develop." >&2
+    exit 1
+  fi
+
+  if ! printf '%s\n' "$branch" | grep -qE "$branch_re"; then
+    echo "✗ Tên nhánh '$branch' sai quy ước." >&2
+    echo "  Dùng: feature/<ten>, fix/<ten>, hotfix/<ten>, chore/<ten>, docs/<ten>, refactor/<ten>, release/x.y.z" >&2
+    echo "  <ten> viết thường, nối bằng dấu gạch ngang, ví dụ feature/leaderboard-filter" >&2
+    exit 1
+  fi
+
+  if [ "$remote_sha" = "$zero" ]; then
+    range="$local_sha --not --remotes=origin"
+  else
+    range="$remote_sha..$local_sha"
+  fi
+  bad=$(git log --format='@@author %h %an <%ae> | %cn <%ce>%n%B' $range \
+    | grep -iE "^@@author .*($ai_re)|^co-authored-by:.*($ai_re)|generated (with|by) .*($ai_re)")
+  if [ -n "$bad" ]; then
+    echo "✗ Commit sắp push có tên AI (tác giả hoặc dòng ghi công):" >&2
+    printf '    %s\n' "$bad" >&2
+    echo "  Sửa commit cuối: git commit --amend  ·  sửa nhiều commit: hỏi người trong nhóm, đừng force push bừa." >&2
+    exit 1
+  fi
+  run_tests=1
+done
+
+if [ "$run_tests" = 1 ] && ! flutter test; then
+  echo "✗ flutter test thất bại, chưa push." >&2
+  exit 1
+fi

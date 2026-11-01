@@ -1,0 +1,2 @@
+# Git hook phải dùng LF, nếu là CRLF thì sh trên máy khác sẽ lỗi.
+.githooks/* text eol=lf

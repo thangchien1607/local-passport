@@ -46,3 +46,11 @@ app.*.map.json
 
 # Firebase
 .firebase/
+
+# Biến môi trường & bí mật (key ký app Android đã chặn trong android/.gitignore)
+.env
+.env.*
+!.env.example
+*.pem
+*.p12
+service-account*.json

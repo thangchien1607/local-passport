@@ -336,6 +336,7 @@ class LocationScreen extends StatelessWidget {
                                   child: SceneArt(
                                     scene: location.scene,
                                     era: Era.past,
+                                    imageUrl: location.timeLens.pastImageUrl,
                                   ),
                                 ),
                                 const _LockedOverlay(

@@ -1,0 +1,33 @@
+#!/bin/sh
+# Kiểm tra commit message theo Conventional Commits và chặn ghi công cho AI.
+# Xem quy ước đầy đủ trong git.md.
+
+msg_file="$1"
+first_line=$(grep -v '^#' "$msg_file" | sed -n '/[^[:space:]]/{p;q;}' | tr -d '\r')
+
+# Commit do git tự sinh thì không kiểm tra định dạng.
+case "$first_line" in
+  Merge\ *|Revert\ *|fixup!\ *|squash!\ *|amend!\ *) skip_format=1 ;;
+esac
+
+types='feat|fix|docs|style|refactor|perf|test|build|ci|chore|revert'
+if [ -z "$skip_format" ] && ! printf '%s\n' "$first_line" | grep -qE "^($types)(\([a-z0-9._/-]+\))?!?: [^ ]"; then
+  cat >&2 <<EOF
+✗ Commit message sai định dạng:
+    $first_line
+
+Định dạng đúng:  <type>(<scope>): <mô tả ngắn>
+  type : $types
+  scope: không bắt buộc, chữ thường, ví dụ map, qr, passport, web
+Ví dụ:
+  feat(map): tự xin quyền vị trí khi mở bản đồ
+  fix(qr): sửa lỗi crash khi quét QR trên web
+EOF
+  exit 1
+fi
+
+ai_re='claude|anthropic|copilot|cursor|chatgpt|openai|codex|gemini|devin'
+if grep -v '^#' "$msg_file" | grep -qiE "^co-authored-by:.*($ai_re)|generated (with|by) .*($ai_re)"; then
+  echo "✗ Commit message có dòng ghi công cho AI (Co-Authored-By / Generated with ...). Xóa dòng đó rồi commit lại." >&2
+  exit 1
+fi
