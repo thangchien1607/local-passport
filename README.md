@@ -38,6 +38,21 @@ flutter build web --release  # kết quả ở build/web
 
 > Camera quét QR trên web chỉ hoạt động qua **HTTPS hoặc localhost**. Khi demo cho giám khảo, dùng nút **Giả lập quét QR (Demo)**.
 
+## Google Maps (tùy chọn)
+
+Bản đồ Khám phá dùng **Google Maps** khi build có API key; không có key thì dùng bản đồ minh họa như cũ.
+
+```bash
+flutter run -d chrome --dart-define=MAPS_API_KEY=<key>
+flutter build web --release --dart-define=MAPS_API_KEY=<key>
+flutter build apk --dart-define=MAPS_API_KEY=<key>
+```
+
+- Trong Google Cloud bật **Maps JavaScript API** (web) và **Maps SDK for Android**, rồi giới hạn key theo domain web và package `vn.localpassport.local_passport`.
+- Android lấy key từ `--dart-define` qua `android/app/build.gradle.kts` → `AndroidManifest.xml`.
+- iOS chưa cấu hình nên vẫn dùng bản đồ minh họa.
+- **Không commit key vào repo.**
+
 ## Deploy lên Firebase Hosting
 
 Bản web đang chạy tại **https://local-passport-danang.web.app** (project `local-passport-danang`).

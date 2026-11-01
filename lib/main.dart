@@ -9,6 +9,7 @@ import 'screens/map_screen.dart';
 import 'screens/passport_screen.dart';
 import 'screens/welcome_screen.dart';
 import 'services/geo.dart';
+import 'services/maps_config.dart';
 import 'data/routes.dart';
 import 'state/passport_store.dart';
 import 'theme.dart';
@@ -22,6 +23,7 @@ Future<void> main() async {
   final link = Uri.base.toString();
   if (parseQr(link) != null) _pendingCheckinLink = link;
   final store = await PassportStore.load();
+  await initGoogleMaps();
   runApp(LocalPassportApp(store: store));
 }
 
