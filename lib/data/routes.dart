@@ -43,13 +43,21 @@ class TimeLensInfo {
     required this.presentYear,
     this.pastImageUrl,
     this.presentImageUrl,
+    this.caption,
+    this.credit,
   });
 
   final String pastYear;
   final String presentYear;
-  // Khi có ảnh tư liệu thật, điền URL vào đây; nếu null sẽ dùng tranh minh họa.
+  // Ảnh tư liệu thật: URL hoặc asset `assets/photos/...`; nếu null sẽ dùng tranh minh họa.
   final String? pastImageUrl;
   final String? presentImageUrl;
+
+  /// Chú thích nội dung ảnh, hiện dưới thanh trượt.
+  final String? caption;
+
+  /// Tác giả & giấy phép ảnh — bắt buộc với ảnh CC BY / CC BY-SA.
+  final String? credit;
 }
 
 class LatLng {
@@ -151,7 +159,15 @@ const locations = <Location>[
     coordinates: LatLng(16.0757, 108.2208),
     qrCodeSecret: 'DH-1813',
     scene: 'citadel',
-    timeLens: TimeLensInfo(pastYear: '1885', presentYear: '2026'),
+    timeLens: TimeLensInfo(
+      pastYear: 'Đầu TK XX',
+      presentYear: '2024',
+      pastImageUrl: 'assets/photos/dien-hai_past.jpg',
+      presentImageUrl: 'assets/photos/dien-hai_present.jpg',
+      caption:
+          'Tường thành Điện Hải: đầu TK XX phía sau là nhà thờ và bệnh viện Pháp, nay là cao ốc bên hào nước.',
+      credit: 'Ảnh: Botminh24 (CC BY 4.0) · Wikimedia Commons',
+    ),
     stories: [
       StoryCard(
         'Pháo đài giữ cửa biển',
@@ -243,7 +259,15 @@ const locations = <Location>[
     mapNudge: Offset(-10, 6),
     qrCodeSecret: 'CHAM-1915',
     scene: 'chamMuseum',
-    timeLens: TimeLensInfo(pastYear: '1920s', presentYear: '2026'),
+    timeLens: TimeLensInfo(
+      pastYear: 'Đầu TK XX',
+      presentYear: '2009',
+      pastImageUrl: 'assets/photos/cham-museum_past.jpg',
+      presentImageUrl: 'assets/photos/cham-museum_present.jpg',
+      caption: 'Hiên cột kiến trúc Chăm của nhà trưng bày, nhìn từ sân.',
+      credit:
+          'Ảnh: bưu ảnh Tourane (public domain), Dinkum (CC0) · Wikimedia Commons',
+    ),
     stories: [
       StoryCard(
         'Hơn một thế kỷ',
@@ -273,7 +297,16 @@ const locations = <Location>[
     mapNudge: Offset(8, -6),
     qrCodeSecret: 'RONG-2013',
     scene: 'bridge',
-    timeLens: TimeLensInfo(pastYear: 'Trước 2013', presentYear: '2026'),
+    timeLens: TimeLensInfo(
+      pastYear: '2011',
+      presentYear: '2026',
+      pastImageUrl: 'assets/photos/cau-rong_past.jpg',
+      presentImageUrl: 'assets/photos/cau-rong_present.jpg',
+      caption:
+          '2011: giàn giáo dựng cầu giữa sông Hàn. 2026: Cầu Rồng lên đèn dịp 30/4.',
+      credit:
+          'Ảnh: Dragfyre (CC BY-SA 3.0), Shenzybaby (CC0) · Wikimedia Commons',
+    ),
     stories: [
       StoryCard(
         'Rồng vươn ra biển',
@@ -303,7 +336,15 @@ const locations = <Location>[
     mapNudge: Offset(-4, -6),
     qrCodeSecret: 'NHS-KMTHT',
     scene: 'mountain',
-    timeLens: TimeLensInfo(pastYear: 'TK XIX', presentYear: '2026'),
+    timeLens: TimeLensInfo(
+      pastYear: '1920s',
+      presentYear: '2024',
+      pastImageUrl: 'assets/photos/ngu-hanh-son_past.jpg',
+      presentImageUrl: 'assets/photos/ngu-hanh-son_present.jpg',
+      caption: 'Ngôi chùa trong động Huyền Không, núi Thủy Sơn.',
+      credit:
+          'Ảnh: khuyết danh (public domain), Chainwit. (CC BY 4.0) · Wikimedia Commons',
+    ),
     stories: [
       StoryCard(
         'Năm ngọn núi, năm hành',
