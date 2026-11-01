@@ -1,10 +1,12 @@
 import 'package:flutter/material.dart';
 
 import '../data/routes.dart';
+import '../services/maps_config.dart';
 import '../state/passport_store.dart';
 import '../theme.dart';
 import '../widgets/common.dart';
 import '../widgets/discovery_map.dart';
+import '../widgets/google_discovery_map.dart';
 import '../widgets/scene_art.dart';
 import 'timelens_screen.dart';
 
@@ -105,13 +107,22 @@ class _MapScreenState extends State<MapScreen> {
         ),
         const SizedBox(height: 16),
 
-        DiscoveryMap(
-          filter: _filter,
-          selectedId: _selectedId,
-          onSelect: (id) => setState(() => _selectedId = id),
-          isUnlocked: store.isUnlocked,
-          isStamped: store.stamps.containsKey,
-        ),
+        if (useGoogleMaps)
+          GoogleDiscoveryMap(
+            filter: _filter,
+            selectedId: _selectedId,
+            onSelect: (id) => setState(() => _selectedId = id),
+            isUnlocked: store.isUnlocked,
+            isStamped: store.stamps.containsKey,
+          )
+        else
+          DiscoveryMap(
+            filter: _filter,
+            selectedId: _selectedId,
+            onSelect: (id) => setState(() => _selectedId = id),
+            isUnlocked: store.isUnlocked,
+            isStamped: store.stamps.containsKey,
+          ),
 
         // Thẻ địa điểm đang chọn
         AnimatedSwitcher(
