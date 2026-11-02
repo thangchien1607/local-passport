@@ -6,12 +6,10 @@ import '../data/community.dart';
 import '../data/routes.dart';
 import '../theme.dart';
 
-String timeAgo(DateTime t) {
-  final diff = DateTime.now().difference(t);
-  if (diff.inMinutes < 1) return 'Vừa xong';
-  if (diff.inHours < 1) return '${diff.inMinutes} phút trước';
-  if (diff.inDays < 1) return '${diff.inHours} giờ trước';
-  return '${diff.inDays} ngày trước';
+String _date(DateTime t) {
+  final l = t.toLocal();
+  String two(int n) => n.toString().padLeft(2, '0');
+  return '${two(l.day)}/${two(l.month)}/${l.year}';
 }
 
 class ReflectionCard extends StatelessWidget {
@@ -44,26 +42,26 @@ class ReflectionCard extends StatelessWidget {
           Row(
             children: [
               CircleAvatar(
-                radius: 20,
+                radius: 18,
                 backgroundColor: reflection.isAnonymous
-                    ? AppColors.ink
-                    : AppColors.paper2,
+                    ? AppColors.paper2
+                    : AppColors.goldLight,
                 child: reflection.isAnonymous
                     ? const Icon(
                         Icons.theater_comedy_outlined,
-                        size: 18,
-                        color: AppColors.paper,
+                        size: 20,
+                        color: AppColors.inkSoft,
                       )
                     : Text(
                         initials,
                         style: bodyStyle(
-                          13,
-                          weight: FontWeight.w600,
+                          12,
+                          weight: FontWeight.w700,
                           color: AppColors.primary,
                         ),
                       ),
               ),
-              const SizedBox(width: 12),
+              const SizedBox(width: 10),
               Expanded(
                 child: Column(
                   crossAxisAlignment: CrossAxisAlignment.start,
@@ -73,70 +71,75 @@ class ReflectionCard extends StatelessWidget {
                       style: bodyStyle(14, weight: FontWeight.w600),
                       overflow: TextOverflow.ellipsis,
                     ),
-                    Text.rich(
-                      TextSpan(
+                    const SizedBox(height: 2),
+                    if (showLocation && loc != null)
+                      Row(
                         children: [
-                          if (showLocation && loc != null) ...[
-                            TextSpan(
-                              text: loc.name,
-                              style: bodyStyle(
-                                12,
-                                weight: FontWeight.w500,
-                                color: route?.color,
-                              ),
+                          Icon(
+                            Icons.place_rounded,
+                            size: 13,
+                            color: route?.color ?? AppColors.inkSoft,
+                          ),
+                          const SizedBox(width: 3),
+                          Expanded(
+                            child: Text(
+                              loc.name,
+                              style: bodyStyle(12, color: AppColors.inkSoft),
+                              overflow: TextOverflow.ellipsis,
                             ),
-                            const TextSpan(text: ' · '),
-                          ],
-                          TextSpan(text: timeAgo(reflection.createdAt)),
+                          ),
                         ],
+                      )
+                    else
+                      Text(
+                        _date(reflection.createdAt),
+                        style: bodyStyle(12, color: AppColors.inkSoft),
                       ),
-                      style: bodyStyle(12, color: AppColors.inkSoft),
-                      overflow: TextOverflow.ellipsis,
-                    ),
                   ],
                 ),
               ),
-              if (reflection.aiScore >= 70)
-                Container(
-                  padding: const EdgeInsets.symmetric(
-                    horizontal: 8,
-                    vertical: 4,
-                  ),
+              const SizedBox(width: 8),
+              Semantics(
+                label: 'Điểm AI ${reflection.aiScore} trên 100',
+                excludeSemantics: true,
+                child: Container(
+                  padding: const EdgeInsets.fromLTRB(8, 4, 10, 4),
                   decoration: BoxDecoration(
-                    color: AppColors.gold.withValues(alpha: 0.1),
-                    borderRadius: BorderRadius.circular(20),
+                    color: AppColors.progress.withValues(alpha: 0.12),
+                    borderRadius: BorderRadius.circular(12),
                   ),
                   child: Row(
                     mainAxisSize: MainAxisSize.min,
                     children: [
                       const Icon(
                         Icons.auto_awesome,
-                        size: 12,
-                        color: AppColors.gold,
+                        size: 16,
+                        color: AppColors.progressInk,
                       ),
                       const SizedBox(width: 4),
                       Text(
-                        'Tri kỷ',
+                        'AI ${reflection.aiScore}',
                         style: bodyStyle(
-                          11,
-                          weight: FontWeight.w600,
-                          color: AppColors.gold,
+                          12,
+                          weight: FontWeight.w700,
+                          color: AppColors.progressInk,
                         ),
                       ),
                     ],
                   ),
                 ),
+              ),
             ],
           ),
           const SizedBox(height: 12),
-          Text(reflection.content, style: bodyStyle(15, height: 1.55)),
+          Text(reflection.content, style: bodyStyle(13, height: 1.46)),
           if (photo != null) ...[
             const SizedBox(height: 12),
             ClipRRect(
               borderRadius: BorderRadius.circular(12),
               child: Image.memory(
                 base64Decode(photo),
-                height: 220,
+                height: 134,
                 width: double.infinity,
                 fit: BoxFit.cover,
                 semanticLabel: 'Ảnh thực tế kèm cảm nhận',

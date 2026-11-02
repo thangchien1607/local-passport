@@ -59,26 +59,37 @@ class _MapScreenState extends State<MapScreen> {
                 children: [
                   Text(
                     'Xin chào, ${store.user!.name}',
-                    style: bodyStyle(14, color: AppColors.inkSoft),
+                    style: bodyStyle(13, color: AppColors.inkSoft),
                   ),
-                  Text('Khám phá Đà Nẵng', style: displayStyle(30)),
+                  Text('Khám phá Đà Nẵng', style: displayStyle(28)),
                 ],
               ),
             ),
             Container(
-              margin: const EdgeInsets.only(top: 4),
-              padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 6),
+              margin: const EdgeInsets.only(top: 22),
+              padding: const EdgeInsets.fromLTRB(9, 7, 12, 7),
               decoration: BoxDecoration(
-                color: AppColors.primary,
-                borderRadius: BorderRadius.circular(20),
+                color: AppColors.goldLight.withValues(alpha: 0.35),
+                borderRadius: BorderRadius.circular(16),
               ),
-              child: Text(
-                '${store.xp} XP',
-                style: bodyStyle(
-                  14,
-                  weight: FontWeight.w600,
-                  color: Colors.white,
-                ),
+              child: Row(
+                mainAxisSize: MainAxisSize.min,
+                children: [
+                  const Icon(
+                    Icons.local_fire_department_rounded,
+                    size: 16,
+                    color: AppColors.gold,
+                  ),
+                  const SizedBox(width: 2),
+                  Text(
+                    '${store.xp} XP',
+                    style: bodyStyle(
+                      13,
+                      weight: FontWeight.w700,
+                      color: AppColors.gold,
+                    ),
+                  ),
+                ],
               ),
             ),
           ],
