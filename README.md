@@ -161,6 +161,18 @@ Bản phái sinh giữ nguyên giấy phép của ảnh gốc.
 | `cau-rong_present.jpg` | [Dragon Bridge, Da Nang, 2026 04 30 Reunification Day anniversary](https://commons.wikimedia.org/wiki/File:Dragon_Bridge,_Da_Nang,_2026_04_30_Reunification_Day_anniversary.jpg) | Shenzybaby | CC0 |
 | `ngu-hanh-son_past.jpg` | [Ngôi chùa trong động Huyền Không, Ngũ Hành Sơn](https://commons.wikimedia.org/wiki/File:Ng%C3%B4i_ch%C3%B9a_trong_%C4%91%E1%BB%99ng_Huy%E1%BB%81n_Kh%C3%B4ng,_Ng%C5%A9_H%C3%A0nh_S%C6%A1n.jpg) | Khuyết danh (1920s) | Public domain |
 | `ngu-hanh-son_present.jpg` | [Da Nang - Động Huyền Không (2024) - img 05](https://commons.wikimedia.org/wiki/File:Da_Nang_-_%C3%90%E1%BB%99ng_Huy%E1%BB%81n_Kh%C3%B4ng_(2024)_-_img_05.jpg) | Chainwit. | [CC BY 4.0](https://creativecommons.org/licenses/by/4.0/) |
+| `nghia-trung_past.jpg` | [The French-Spanish coalition invaded Dien Hai citadel in 1858](https://commons.wikimedia.org/wiki/File:The_French-Spanish_coalition_invaded_Dien_Hai_citadel_in_1858.jpg) | Antoine Léon Morel-Fatio (1860) | Public domain |
+| `nghia-trung_present.jpg` | [Nghĩa trủng Hòa Vang, Đà Nẵng](https://commons.wikimedia.org/wiki/File:Ngh%C4%A9a_tr%E1%BB%A7ng_H%C3%B2a_Vang,_%C4%90%C3%A0_N%E1%BA%B5ng.jpeg) | Linhcandng | [CC BY-SA 3.0](https://creativecommons.org/licenses/by-sa/3.0/) |
+| `hoang-sa_past.jpg` | [An Nam Dai Quoc Hoa Do by Jean Louis Taberd 1838](https://commons.wikimedia.org/wiki/File:An_Nam_Dai_Quoc_Hoa_Do_by_Jean_Louis_Taberd_1838.jpg) | Jean-Louis Taberd (1838) | Public domain |
+| `hoang-sa_present.jpg` | [Hoang Sa Exhibition House, Da Nang](https://commons.wikimedia.org/wiki/File:Hoang_Sa_Exhibition_House,_Da_Nang.jpeg) | Linhcandng | [CC BY-SA 3.0](https://creativecommons.org/licenses/by-sa/3.0/) |
+| `linh-ung_past.jpg` | [La baie de Tourane](https://commons.wikimedia.org/wiki/File:La_baie_de_Tourane.jpg) | Khuyết danh (1934) | Public domain |
+| `linh-ung_present.jpg` | [Chùa Linh Ứng - Sơn Trà - NKS](https://commons.wikimedia.org/wiki/File:Ch%C3%B9a_Linh_%E1%BB%A8ng_-_S%C6%A1n_Tr%C3%A0_-_NKS.jpg) | NKSTTSSHNVN | [CC BY-SA 4.0](https://creativecommons.org/licenses/by-sa/4.0/) |
+| `non-nuoc_past.jpg` | [Annam - Tourane - L'Entrée de la Grotte et les Montagnes de Marbre](https://commons.wikimedia.org/wiki/File:Annam_-_Tourane_-_L%27Entr%C3%A9e_de_la_Grotte_et_les_Montagnes_de_Marbre.jpg) | Khuyết danh (đầu TK XX) | Public domain |
+| `non-nuoc_present.jpg` | [Marble Mountain sculpture shop](https://commons.wikimedia.org/wiki/File:Marble_Mountain_sculpture_shop.jpg) | www.viajar24h.com | [CC BY 2.0](https://creativecommons.org/licenses/by/2.0/) |
+| `nam-o_present.jpg` | [Nam Ô, Đà Nẵng](https://commons.wikimedia.org/wiki/File:Nam_%C3%94,_%C4%90%C3%A0_N%E1%BA%B5ng.jpg) | Bánhmỳchảo | CC0 |
+| `tuy-loan_present.jpg` | [Handmade rice paper wrappers drying on bamboo mats](https://commons.wikimedia.org/wiki/File:Handmade_rice_paper_wrappers_drying_on_bamboo_mats.jpg) | Wanderingspoon | [CC BY-SA 4.0](https://creativecommons.org/licenses/by-sa/4.0/) |
+
+Nam Ô và Túy Loan chưa có ảnh tư liệu xưa có giấy phép mở nên phần "xưa" vẫn dùng tranh minh họa; ảnh bánh tráng của Túy Loan là ảnh minh họa nghề, không chụp tại làng.
 
 ## Phần đang mô phỏng (cần làm tiếp)
 

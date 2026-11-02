@@ -200,7 +200,16 @@ const locations = <Location>[
     coordinates: LatLng(16.013, 108.205),
     qrCodeSecret: 'NT-1860',
     scene: 'memorial',
-    timeLens: TimeLensInfo(pastYear: 'TK XIX', presentYear: '2026'),
+    timeLens: TimeLensInfo(
+      pastYear: '1858',
+      presentYear: '2019',
+      pastImageUrl: 'assets/photos/nghia-trung_past.jpg',
+      presentImageUrl: 'assets/photos/nghia-trung_present.jpg',
+      caption:
+          'Tranh khắc liên quân Pháp – Tây Ban Nha nổ súng vào Đà Nẵng năm 1858; nghĩa sĩ hy sinh trong các trận này được an táng tại Nghĩa trủng Hòa Vang.',
+      credit:
+          'Tranh: A. L. Morel-Fatio (phạm vi công cộng) · Ảnh: Linhcandng (CC BY-SA 3.0) · Wikimedia Commons',
+    ),
     stories: [
       StoryCard(
         'Nơi yên nghỉ của nghĩa sĩ',
@@ -229,7 +238,16 @@ const locations = <Location>[
     coordinates: LatLng(16.102, 108.25),
     qrCodeSecret: 'HS-2018',
     scene: 'seaMuseum',
-    timeLens: TimeLensInfo(pastYear: 'TK XVIII', presentYear: '2026'),
+    timeLens: TimeLensInfo(
+      pastYear: '1838',
+      presentYear: '2019',
+      pastImageUrl: 'assets/photos/hoang-sa_past.jpg',
+      presentImageUrl: 'assets/photos/hoang-sa_present.jpg',
+      caption:
+          'An Nam đại quốc họa đồ (1838) ghi "Paracel seu Cát Vàng" ngoài khơi Cửa Hàn; nay là Nhà trưng bày Hoàng Sa bên bờ biển Sơn Trà.',
+      credit:
+          'Bản đồ: J. L. Taberd (phạm vi công cộng) · Ảnh: Linhcandng (CC BY-SA 3.0) · Wikimedia Commons',
+    ),
     stories: [
       StoryCard(
         'Ngôi nhà của chủ quyền',
@@ -374,7 +392,16 @@ const locations = <Location>[
     mapNudge: Offset(-4, -12),
     qrCodeSecret: 'LU-67M',
     scene: 'pagoda',
-    timeLens: TimeLensInfo(pastYear: 'Trước 2004', presentYear: '2026'),
+    timeLens: TimeLensInfo(
+      pastYear: '1934',
+      presentYear: '2023',
+      pastImageUrl: 'assets/photos/linh-ung_past.jpg',
+      presentImageUrl: 'assets/photos/linh-ung_present.jpg',
+      caption:
+          'Vịnh Đà Nẵng và bán đảo Tiên Sa (Sơn Trà) chụp từ trên cao năm 1934, khi Bãi Bụt chưa có chùa; nay chùa Linh Ứng và tượng Quan Âm nhìn ra biển.',
+      credit:
+          'Ảnh: khuyết danh, 1934 (phạm vi công cộng); NKSTTSSHNVN (CC BY-SA 4.0) · Wikimedia Commons',
+    ),
     stories: [
       StoryCard(
         'Tượng Quan Âm 67 mét',
@@ -404,7 +431,16 @@ const locations = <Location>[
     mapNudge: Offset(-8, 6),
     qrCodeSecret: 'NN-STONE',
     scene: 'stoneVillage',
-    timeLens: TimeLensInfo(pastYear: 'TK XX', presentYear: '2026'),
+    timeLens: TimeLensInfo(
+      pastYear: 'Đầu TK XX',
+      presentYear: '2003',
+      pastImageUrl: 'assets/photos/non-nuoc_past.jpg',
+      presentImageUrl: 'assets/photos/non-nuoc_present.jpg',
+      caption:
+          'Bưu ảnh cửa động và chùa dưới chân Ngũ Hành Sơn đầu TK XX; nay làng Non Nước kín các cơ sở điêu khắc đá mỹ nghệ.',
+      credit:
+          'Bưu ảnh khuyết danh (phạm vi công cộng) · Ảnh: viajar24h.com (CC BY 2.0) · Wikimedia Commons',
+    ),
     stories: [
       StoryCard(
         'Tiếng đục đá trăm năm',
@@ -434,7 +470,14 @@ const locations = <Location>[
     mapNudge: Offset(2, 16),
     qrCodeSecret: 'NAMO-MAM',
     scene: 'fishVillage',
-    timeLens: TimeLensInfo(pastYear: 'TK XX', presentYear: '2026'),
+    timeLens: TimeLensInfo(
+      pastYear: 'TK XX',
+      presentYear: '2025',
+      presentImageUrl: 'assets/photos/nam-o_present.jpg',
+      caption:
+          'Thuyền thúng neo ở bãi làng chài Nam Ô. Ảnh "xưa" là tranh minh họa vì chưa tìm được ảnh tư liệu có giấy phép mở.',
+      credit: 'Ảnh: Bánhmỳchảo (CC0) · Wikimedia Commons',
+    ),
     stories: [
       StoryCard(
         'Hương vị của biển',
@@ -463,7 +506,14 @@ const locations = <Location>[
     coordinates: LatLng(15.99, 108.15),
     qrCodeSecret: 'TL-BANHTRANG',
     scene: 'riceVillage',
-    timeLens: TimeLensInfo(pastYear: 'TK XX', presentYear: '2026'),
+    timeLens: TimeLensInfo(
+      pastYear: 'TK XX',
+      presentYear: '2012',
+      presentImageUrl: 'assets/photos/tuy-loan_present.jpg',
+      caption:
+          'Bánh tráng phơi trên phên tre, ảnh minh họa nghề (không chụp tại Túy Loan). Ảnh "xưa" là tranh minh họa.',
+      credit: 'Ảnh: Wanderingspoon (CC BY-SA 4.0) · Wikimedia Commons',
+    ),
     stories: [
       StoryCard(
         'Làng cổ bên sông',
