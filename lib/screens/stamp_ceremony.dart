@@ -9,7 +9,6 @@ import '../data/routes.dart';
 import '../services/ai_verifier.dart';
 import '../state/passport_store.dart';
 import '../theme.dart';
-import '../widgets/stamp_seal.dart';
 
 /// Hiệu ứng "Đóng dấu cái cộp" + hộp thoại cảm nhận tùy chọn (có chế độ ẩn danh).
 Future<void> showStampCeremony(
@@ -122,6 +121,14 @@ class _CeremonyState extends State<_Ceremony> {
 
   @override
   Widget build(BuildContext context) {
+    if (_step == _Step.stamp) {
+      return _StampScreen(
+        location: _location,
+        route: routeById[_location.routeId]!,
+        date: PassportScope.of(context).stamps[widget.locationId],
+        onContinue: () => setState(() => _step = _Step.ask),
+      );
+    }
     final isSheet = _step == _Step.form || _step == _Step.verifying;
     return SafeArea(
       child: Align(
@@ -170,57 +177,11 @@ class _CeremonyState extends State<_Ceremony> {
   );
 
   Widget _buildStep() {
-    final store = PassportScope.of(context);
     final route = routeById[_location.routeId]!;
 
     switch (_step) {
       case _Step.stamp:
-        return _panel(
-          child: Column(
-            mainAxisSize: MainAxisSize.min,
-            children: [
-              Text(
-                'HOÀN THÀNH 100%',
-                style: bodyStyle(
-                  12,
-                  weight: FontWeight.w600,
-                  color: AppColors.gold,
-                  letterSpacing: 2.5,
-                ),
-              ),
-              const SizedBox(height: 4),
-              Text('Dấu mộc mới!', style: displayStyle(26)),
-              const SizedBox(height: 18),
-              _StampDrop(
-                color: route.color,
-                child: StampSeal(
-                  location: _location,
-                  route: route,
-                  date: store.stamps[widget.locationId],
-                  size: 170,
-                  rotation: 0,
-                ),
-              ),
-              const SizedBox(height: 14),
-              Text(
-                '${_location.name} đã được đóng dấu vào hộ chiếu của bạn.',
-                textAlign: TextAlign.center,
-                style: bodyStyle(14, color: AppColors.inkSoft),
-              ),
-              const SizedBox(height: 8),
-              _Pill(
-                '+$stampXp XP',
-                color: AppColors.progressInk,
-                background: AppColors.progress.withValues(alpha: 0.1),
-              ),
-              const SizedBox(height: 18),
-              PrimaryButton(
-                label: 'Tiếp tục',
-                onPressed: () => setState(() => _step = _Step.ask),
-              ),
-            ],
-          ),
-        );
+        return const SizedBox.shrink();
 
       case _Step.ask:
         return _panel(
@@ -495,18 +456,26 @@ class _CeremonyState extends State<_Ceremony> {
   }
 }
 
-/// Con dấu rơi từ trên xuống (scale 2.8 → 1) rồi trang giấy rung nhẹ khi "cộp".
-class _StampDrop extends StatefulWidget {
-  const _StampDrop({required this.child, required this.color});
+/// Màn "Cộp!" toàn màn hình nền tối: con dấu rơi xuống (scale 2.8 → 1),
+/// rung nhẹ khi chạm, rồi chữ "Cộp!" bật ra.
+class _StampScreen extends StatefulWidget {
+  const _StampScreen({
+    required this.location,
+    required this.route,
+    required this.date,
+    required this.onContinue,
+  });
 
-  final Widget child;
-  final Color color;
+  final Location location;
+  final RouteInfo route;
+  final DateTime? date;
+  final VoidCallback onContinue;
 
   @override
-  State<_StampDrop> createState() => _StampDropState();
+  State<_StampScreen> createState() => _StampScreenState();
 }
 
-class _StampDropState extends State<_StampDrop>
+class _StampScreenState extends State<_StampScreen>
     with SingleTickerProviderStateMixin {
   late final AnimationController _c = AnimationController(
     vsync: this,
@@ -531,81 +500,249 @@ class _StampDropState extends State<_StampDrop>
 
   @override
   Widget build(BuildContext context) {
-    return AnimatedBuilder(
-      animation: _c,
-      builder: (context, _) {
-        final t = _c.value;
-        // 0.2–0.5: rơi xuống (elasticOut nhẹ); 0.45–0.75: rung trang; 0.5–0.75: chữ "Cộp!"
-        final drop = Curves.easeOutBack.transform(
-          ((t - 0.2) / 0.3).clamp(0.0, 1.0),
-        );
-        final scale = 2.8 - 1.8 * drop;
-        final opacity = ((t - 0.2) / 0.12).clamp(0.0, 1.0);
-        final shakeT = ((t - 0.45) / 0.3).clamp(0.0, 1.0);
-        final shake = sin(shakeT * pi * 5) * 7 * (1 - shakeT);
-        final pop = ((t - 0.5) / 0.25).clamp(0.0, 1.0);
-
-        return Transform.translate(
-          offset: Offset(shake, 0),
-          child: Container(
-            height: 220,
-            width: double.infinity,
-            decoration: BoxDecoration(
-              color: AppColors.paper,
-              borderRadius: BorderRadius.circular(18),
-              border: Border.all(color: AppColors.line),
-            ),
-            child: Stack(
-              alignment: Alignment.center,
+    final year = (widget.date ?? DateTime.now()).year;
+    return Material(
+      color: AppColors.night,
+      child: CustomPaint(
+        painter: const _RingsPainter(),
+        child: SafeArea(
+          child: Padding(
+            padding: const EdgeInsets.fromLTRB(16, 0, 16, 16),
+            child: Column(
               children: [
-                Positioned.fill(
-                  child: Padding(
-                    padding: const EdgeInsets.fromLTRB(24, 24, 24, 0),
-                    child: Column(
+                const SizedBox(height: 52),
+                Text(
+                  'HOÀN THÀNH 100%',
+                  style: bodyStyle(
+                    12,
+                    weight: FontWeight.w700,
+                    color: AppColors.goldLight,
+                    letterSpacing: 3,
+                  ),
+                ),
+                const Spacer(flex: 2),
+                AnimatedBuilder(
+                  animation: _c,
+                  builder: (context, _) {
+                    final t = _c.value;
+                    final drop = Curves.easeOutBack.transform(
+                      ((t - 0.2) / 0.3).clamp(0.0, 1.0),
+                    );
+                    final shakeT = ((t - 0.45) / 0.3).clamp(0.0, 1.0);
+                    final shake = sin(shakeT * pi * 5) * 7 * (1 - shakeT);
+                    final pop = ((t - 0.5) / 0.25).clamp(0.0, 1.0);
+                    return Column(
                       children: [
-                        for (var i = 0; i < 6; i++) ...[
-                          const Divider(height: 1, color: AppColors.line),
-                          const SizedBox(height: 20),
-                        ],
+                        Transform.translate(
+                          offset: Offset(shake, 0),
+                          child: Opacity(
+                            opacity: ((t - 0.2) / 0.12).clamp(0.0, 1.0),
+                            child: Transform.rotate(
+                              angle: (-30 + 20 * drop) * pi / 180,
+                              child: Transform.scale(
+                                scale: 2.8 - 1.8 * drop,
+                                child: _CeremonySeal(
+                                  name: widget.location.name,
+                                  footer:
+                                      '$year · ${widget.route.short.toUpperCase()}',
+                                ),
+                              ),
+                            ),
+                          ),
+                        ),
+                        const SizedBox(height: 26),
+                        Opacity(
+                          opacity: pop,
+                          child: Transform.scale(
+                            scale: pop < 1
+                                ? Curves.elasticOut.transform(pop) * 1.1
+                                : 1,
+                            child: Text(
+                              'Cộp!',
+                              style: displayStyle(
+                                44,
+                                weight: FontWeight.w700,
+                                color: AppColors.goldLight,
+                                fontStyle: FontStyle.italic,
+                              ),
+                            ),
+                          ),
+                        ),
                       ],
+                    );
+                  },
+                ),
+                const SizedBox(height: 10),
+                Text(
+                  'Dấu mộc mới!',
+                  style: displayStyle(28, color: Colors.white),
+                ),
+                const SizedBox(height: 10),
+                Padding(
+                  padding: const EdgeInsets.symmetric(horizontal: 24),
+                  child: Text(
+                    '${widget.location.name} đã được đóng dấu vào hộ chiếu của bạn.',
+                    textAlign: TextAlign.center,
+                    style: bodyStyle(
+                      14,
+                      height: 1.5,
+                      color: Colors.white.withValues(alpha: 0.8),
                     ),
                   ),
                 ),
-                Opacity(
-                  opacity: opacity,
-                  child: Transform.rotate(
-                    angle: (-30 + 22 * drop) * pi / 180,
-                    child: Transform.scale(scale: scale, child: widget.child),
+                const SizedBox(height: 16),
+                Container(
+                  padding: const EdgeInsets.fromLTRB(14, 8, 16, 8),
+                  decoration: BoxDecoration(
+                    color: AppColors.goldLight.withValues(alpha: 0.2),
+                    borderRadius: BorderRadius.circular(18),
+                    border: Border.all(
+                      color: AppColors.goldLight.withValues(alpha: 0.5),
+                    ),
                   ),
-                ),
-                Positioned(
-                  right: 18,
-                  top: 12,
-                  child: Opacity(
-                    opacity: pop,
-                    child: Transform.scale(
-                      scale: pop < 1
-                          ? Curves.elasticOut.transform(pop) * 1.1
-                          : 1,
-                      child: Text(
-                        'Cộp!',
-                        style: displayStyle(
-                          30,
+                  child: Row(
+                    mainAxisSize: MainAxisSize.min,
+                    children: [
+                      const Icon(
+                        Icons.local_fire_department_rounded,
+                        size: 18,
+                        color: AppColors.goldLight,
+                      ),
+                      const SizedBox(width: 4),
+                      Text(
+                        '+$stampXp XP',
+                        style: bodyStyle(
+                          14,
                           weight: FontWeight.w700,
-                          color: widget.color,
-                          fontStyle: FontStyle.italic,
+                          color: AppColors.goldLight,
                         ),
                       ),
-                    ),
+                    ],
                   ),
+                ),
+                const Spacer(flex: 3),
+                PrimaryButton(
+                  label: 'Tiếp tục',
+                  background: AppColors.goldLight,
+                  foreground: AppColors.night,
+                  onPressed: widget.onContinue,
                 ),
               ],
             ),
           ),
-        );
-      },
+        ),
+      ),
     );
   }
+}
+
+/// Con dấu mộc màu son: vòng ngoài đậm, vòng trong nét đứt.
+class _CeremonySeal extends StatelessWidget {
+  const _CeremonySeal({required this.name, required this.footer});
+
+  final String name;
+  final String footer;
+
+  static const _rim = Color(0xFFC2410C);
+  static const _text = Color(0xFFF97316);
+
+  @override
+  Widget build(BuildContext context) {
+    final small = bodyStyle(
+      12,
+      weight: FontWeight.w700,
+      color: _text,
+      letterSpacing: 2.5,
+    );
+    return Semantics(
+      label: 'Dấu mộc $name',
+      image: true,
+      excludeSemantics: true,
+      child: SizedBox.square(
+        dimension: 200,
+        child: CustomPaint(
+          painter: const _SealRimPainter(_rim),
+          child: Padding(
+            padding: const EdgeInsets.symmetric(horizontal: 30),
+            child: Column(
+              mainAxisAlignment: MainAxisAlignment.center,
+              children: [
+                Text('ĐÀ NẴNG · VN', style: small),
+                const SizedBox(height: 6),
+                FittedBox(
+                  fit: BoxFit.scaleDown,
+                  child: Text(
+                    name,
+                    textAlign: TextAlign.center,
+                    style: displayStyle(
+                      32,
+                      weight: FontWeight.w700,
+                      color: const Color(0xFFFDBA74),
+                    ),
+                  ),
+                ),
+                const SizedBox(height: 8),
+                Text(footer, style: small),
+              ],
+            ),
+          ),
+        ),
+      ),
+    );
+  }
+}
+
+class _SealRimPainter extends CustomPainter {
+  const _SealRimPainter(this.color);
+
+  final Color color;
+
+  @override
+  void paint(Canvas canvas, Size size) {
+    final c = size.center(Offset.zero);
+    final r = size.width / 2;
+    canvas.drawCircle(
+      c,
+      r,
+      Paint()..color = AppColors.primary.withValues(alpha: 0.25),
+    );
+    final stroke = Paint()
+      ..style = PaintingStyle.stroke
+      ..color = color;
+    canvas.drawCircle(c, r - 2.5, stroke..strokeWidth = 5);
+    // Vòng trong nét đứt 6/4.
+    final inner = r - 16;
+    final rect = Rect.fromCircle(center: c, radius: inner);
+    const dash = 6.0, gap = 4.0;
+    stroke.strokeWidth = 2;
+    for (var d = 0.0; d < 2 * pi * inner; d += dash + gap) {
+      canvas.drawArc(rect, d / inner, dash / inner, false, stroke);
+    }
+  }
+
+  @override
+  bool shouldRepaint(covariant _SealRimPainter oldDelegate) =>
+      oldDelegate.color != color;
+}
+
+/// Các vòng tròn đồng tâm mờ dần quanh con dấu.
+class _RingsPainter extends CustomPainter {
+  const _RingsPainter();
+
+  @override
+  void paint(Canvas canvas, Size size) {
+    final c = Offset(size.width / 2, size.height * 0.4);
+    final p = Paint()
+      ..style = PaintingStyle.stroke
+      ..strokeWidth = 1;
+    for (var i = 0; i < 10; i++) {
+      p.color = AppColors.goldLight.withValues(alpha: 0.12 - i * 0.01);
+      canvas.drawCircle(c, 30 + i * 26.0, p);
+    }
+  }
+
+  @override
+  bool shouldRepaint(covariant CustomPainter oldDelegate) => false;
 }
 
 class _Pill extends StatelessWidget {
