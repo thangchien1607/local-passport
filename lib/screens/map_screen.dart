@@ -1,10 +1,12 @@
 import 'package:flutter/material.dart';
 
 import '../data/routes.dart';
+import '../services/maps_config.dart';
 import '../state/passport_store.dart';
 import '../theme.dart';
 import '../widgets/common.dart';
 import '../widgets/discovery_map.dart';
+import '../widgets/google_discovery_map.dart';
 import '../widgets/scene_art.dart';
 import 'timelens_screen.dart';
 
@@ -40,7 +42,7 @@ class _MapScreenState extends State<MapScreen> {
   @override
   Widget build(BuildContext context) {
     final store = PassportScope.of(context);
-    final visible = locations
+    final visible = publishedLocations
         .where((l) => _filter == 'all' || l.routeId == _filter)
         .toList();
     final selected = _selectedId == null ? null : locationById[_selectedId];
@@ -57,26 +59,37 @@ class _MapScreenState extends State<MapScreen> {
                 children: [
                   Text(
                     'Xin chào, ${store.user!.name}',
-                    style: bodyStyle(14, color: AppColors.inkSoft),
+                    style: bodyStyle(13, color: AppColors.inkSoft),
                   ),
-                  Text('Khám phá Đà Nẵng', style: displayStyle(30)),
+                  Text('Khám phá Đà Nẵng', style: displayStyle(28)),
                 ],
               ),
             ),
             Container(
-              margin: const EdgeInsets.only(top: 4),
-              padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 6),
+              margin: const EdgeInsets.only(top: 22),
+              padding: const EdgeInsets.fromLTRB(9, 7, 12, 7),
               decoration: BoxDecoration(
-                color: AppColors.primary,
-                borderRadius: BorderRadius.circular(20),
+                color: AppColors.goldLight.withValues(alpha: 0.35),
+                borderRadius: BorderRadius.circular(16),
               ),
-              child: Text(
-                '${store.xp} XP',
-                style: bodyStyle(
-                  14,
-                  weight: FontWeight.w600,
-                  color: Colors.white,
-                ),
+              child: Row(
+                mainAxisSize: MainAxisSize.min,
+                children: [
+                  const Icon(
+                    Icons.local_fire_department_rounded,
+                    size: 16,
+                    color: AppColors.gold,
+                  ),
+                  const SizedBox(width: 2),
+                  Text(
+                    '${store.xp} XP',
+                    style: bodyStyle(
+                      13,
+                      weight: FontWeight.w700,
+                      color: AppColors.gold,
+                    ),
+                  ),
+                ],
               ),
             ),
           ],
@@ -93,7 +106,7 @@ class _MapScreenState extends State<MapScreen> {
               selected: _filter == 'all',
               onTap: () => _changeFilter('all'),
             ),
-            for (final r in routes)
+            for (final r in publishedRoutes)
               FilterPill(
                 label: r.short,
                 icon: r.icon,
@@ -105,13 +118,22 @@ class _MapScreenState extends State<MapScreen> {
         ),
         const SizedBox(height: 16),
 
-        DiscoveryMap(
-          filter: _filter,
-          selectedId: _selectedId,
-          onSelect: (id) => setState(() => _selectedId = id),
-          isUnlocked: store.isUnlocked,
-          isStamped: store.stamps.containsKey,
-        ),
+        if (useGoogleMaps)
+          GoogleDiscoveryMap(
+            filter: _filter,
+            selectedId: _selectedId,
+            onSelect: (id) => setState(() => _selectedId = id),
+            isUnlocked: store.isUnlocked,
+            isStamped: store.stamps.containsKey,
+          )
+        else
+          DiscoveryMap(
+            filter: _filter,
+            selectedId: _selectedId,
+            onSelect: (id) => setState(() => _selectedId = id),
+            isUnlocked: store.isUnlocked,
+            isStamped: store.stamps.containsKey,
+          ),
 
         // Thẻ địa điểm đang chọn
         AnimatedSwitcher(
@@ -134,7 +156,7 @@ class _MapScreenState extends State<MapScreen> {
         const SizedBox(height: 24),
         const SectionTitle('Tiến độ tuyến'),
         const SizedBox(height: 12),
-        for (final r in routes.where(
+        for (final r in publishedRoutes.where(
           (r) => _filter == 'all' || r.id == _filter,
         )) ...[
           _RouteCard(

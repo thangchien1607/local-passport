@@ -11,6 +11,25 @@ flutter run -d chrome        # Web (hoặc -d edge)
 flutter run                  # Android/iOS: cắm điện thoại hoặc mở emulator
 ```
 
+### Chạy bản Android demo bằng Android Studio
+
+1. Cài Flutter SDK, Android Studio, Android SDK và plugin Flutter/Dart.
+2. Mở thư mục gốc project trong Android Studio; chờ IDE đồng bộ Flutter packages.
+3. Chọn emulator hoặc bật USB debugging trên điện thoại Android rồi chọn thiết bị.
+4. Bấm **Run** để cài và chạy bản demo. Android sẽ hỏi quyền camera và vị trí khi cần.
+
+Mặc định app chỉ hiện ba tuyến chính. Để hiện thêm dữ liệu thử Hòa Khánh khi chạy local:
+
+```bash
+flutter run -d <android-device-id> --dart-define=LOCAL_PASSPORT_TEST_DATA=true
+```
+
+Hồ sơ, tiến độ, ảnh nhiệm vụ và cảm nhận được lưu cục bộ trên thiết bị. Đăng nhập, bảng tin và bảng xếp hạng chưa đồng bộ cloud.
+
+### Chạy bản iOS
+
+iOS dùng chung mã Flutter nhưng cần **macOS có Xcode** để chạy hoặc tạo bản cài; Windows không thể build iOS. Trên Mac, cài Flutter và Xcode, chạy `flutter doctor`, `flutter pub get`, rồi chọn iPhone simulator/thiết bị và chạy `flutter run`. Cài lên iPhone thật cần cấu hình signing/team trong Xcode.
+
 Build bản web để deploy (ví dụ Firebase Hosting):
 
 ```bash
@@ -18,6 +37,21 @@ flutter build web --release  # kết quả ở build/web
 ```
 
 > Camera quét QR trên web chỉ hoạt động qua **HTTPS hoặc localhost**. Khi demo cho giám khảo, dùng nút **Giả lập quét QR (Demo)**.
+
+## Google Maps (tùy chọn)
+
+Bản đồ Khám phá dùng **Google Maps** khi build có API key; không có key thì dùng bản đồ minh họa như cũ.
+
+```bash
+flutter run -d chrome --dart-define=MAPS_API_KEY=<key>
+flutter build web --release --dart-define=MAPS_API_KEY=<key>
+flutter build apk --dart-define=MAPS_API_KEY=<key>
+```
+
+- Trong Google Cloud bật **Maps JavaScript API** (web) và **Maps SDK for Android**, rồi giới hạn key theo domain web và package `vn.localpassport.local_passport`.
+- Android lấy key từ `--dart-define` qua `android/app/build.gradle.kts` → `AndroidManifest.xml`.
+- iOS chưa cấu hình nên vẫn dùng bản đồ minh họa.
+- **Không commit key vào repo.**
 
 ## Deploy lên Firebase Hosting
 
@@ -62,9 +96,9 @@ lib/
   theme.dart                   Màu, font, nút dùng chung (design system)
   data/routes.dart             Tuyến & 10 địa điểm (routes_branches, hotspots_locations)
   data/community.dart          Cảm nhận & bảng xếp hạng mẫu
-  state/passport_store.dart    Trạng thái hộ chiếu + công thức tiến độ (user_passports)
+  state/passport_store.dart    Hộ chiếu, tiến độ và ảnh nhiệm vụ lưu cục bộ cho bản demo
   services/geo.dart            Haversine, GPS (geolocator), định dạng mã QR
-  services/ai_verifier.dart    Thẩm định cảm nhận (MÔ PHỎNG)
+  services/ai_verifier.dart    Bộ chấm offline; có thể cấu hình HTTPS verifier backend
   widgets/time_lens.dart       ★ Lăng kính thời gian (thanh trượt xưa/nay)
   widgets/scene_art.dart       Tranh minh họa + hiệu ứng sepia/hạt phim cho ảnh "xưa"
   widgets/stamp_seal.dart      Con dấu mộc vẽ bằng CustomPainter
@@ -127,6 +161,18 @@ Bản phái sinh giữ nguyên giấy phép của ảnh gốc.
 | `cau-rong_present.jpg` | [Dragon Bridge, Da Nang, 2026 04 30 Reunification Day anniversary](https://commons.wikimedia.org/wiki/File:Dragon_Bridge,_Da_Nang,_2026_04_30_Reunification_Day_anniversary.jpg) | Shenzybaby | CC0 |
 | `ngu-hanh-son_past.jpg` | [Ngôi chùa trong động Huyền Không, Ngũ Hành Sơn](https://commons.wikimedia.org/wiki/File:Ng%C3%B4i_ch%C3%B9a_trong_%C4%91%E1%BB%99ng_Huy%E1%BB%81n_Kh%C3%B4ng,_Ng%C5%A9_H%C3%A0nh_S%C6%A1n.jpg) | Khuyết danh (1920s) | Public domain |
 | `ngu-hanh-son_present.jpg` | [Da Nang - Động Huyền Không (2024) - img 05](https://commons.wikimedia.org/wiki/File:Da_Nang_-_%C3%90%E1%BB%99ng_Huy%E1%BB%81n_Kh%C3%B4ng_(2024)_-_img_05.jpg) | Chainwit. | [CC BY 4.0](https://creativecommons.org/licenses/by/4.0/) |
+| `nghia-trung_past.jpg` | [The French-Spanish coalition invaded Dien Hai citadel in 1858](https://commons.wikimedia.org/wiki/File:The_French-Spanish_coalition_invaded_Dien_Hai_citadel_in_1858.jpg) | Antoine Léon Morel-Fatio (1860) | Public domain |
+| `nghia-trung_present.jpg` | [Nghĩa trủng Hòa Vang, Đà Nẵng](https://commons.wikimedia.org/wiki/File:Ngh%C4%A9a_tr%E1%BB%A7ng_H%C3%B2a_Vang,_%C4%90%C3%A0_N%E1%BA%B5ng.jpeg) | Linhcandng | [CC BY-SA 3.0](https://creativecommons.org/licenses/by-sa/3.0/) |
+| `hoang-sa_past.jpg` | [An Nam Dai Quoc Hoa Do by Jean Louis Taberd 1838](https://commons.wikimedia.org/wiki/File:An_Nam_Dai_Quoc_Hoa_Do_by_Jean_Louis_Taberd_1838.jpg) | Jean-Louis Taberd (1838) | Public domain |
+| `hoang-sa_present.jpg` | [Hoang Sa Exhibition House, Da Nang](https://commons.wikimedia.org/wiki/File:Hoang_Sa_Exhibition_House,_Da_Nang.jpeg) | Linhcandng | [CC BY-SA 3.0](https://creativecommons.org/licenses/by-sa/3.0/) |
+| `linh-ung_past.jpg` | [La baie de Tourane](https://commons.wikimedia.org/wiki/File:La_baie_de_Tourane.jpg) | Khuyết danh (1934) | Public domain |
+| `linh-ung_present.jpg` | [Chùa Linh Ứng - Sơn Trà - NKS](https://commons.wikimedia.org/wiki/File:Ch%C3%B9a_Linh_%E1%BB%A8ng_-_S%C6%A1n_Tr%C3%A0_-_NKS.jpg) | NKSTTSSHNVN | [CC BY-SA 4.0](https://creativecommons.org/licenses/by-sa/4.0/) |
+| `non-nuoc_past.jpg` | [Annam - Tourane - L'Entrée de la Grotte et les Montagnes de Marbre](https://commons.wikimedia.org/wiki/File:Annam_-_Tourane_-_L%27Entr%C3%A9e_de_la_Grotte_et_les_Montagnes_de_Marbre.jpg) | Khuyết danh (đầu TK XX) | Public domain |
+| `non-nuoc_present.jpg` | [Marble Mountain sculpture shop](https://commons.wikimedia.org/wiki/File:Marble_Mountain_sculpture_shop.jpg) | www.viajar24h.com | [CC BY 2.0](https://creativecommons.org/licenses/by/2.0/) |
+| `nam-o_present.jpg` | [Nam Ô, Đà Nẵng](https://commons.wikimedia.org/wiki/File:Nam_%C3%94,_%C4%90%C3%A0_N%E1%BA%B5ng.jpg) | Bánhmỳchảo | CC0 |
+| `tuy-loan_present.jpg` | [Handmade rice paper wrappers drying on bamboo mats](https://commons.wikimedia.org/wiki/File:Handmade_rice_paper_wrappers_drying_on_bamboo_mats.jpg) | Wanderingspoon | [CC BY-SA 4.0](https://creativecommons.org/licenses/by-sa/4.0/) |
+
+Nam Ô và Túy Loan chưa có ảnh tư liệu xưa có giấy phép mở nên phần "xưa" vẫn dùng tranh minh họa; ảnh bánh tráng của Túy Loan là ảnh minh họa nghề, không chụp tại làng.
 
 ## Phần đang mô phỏng (cần làm tiếp)
 
@@ -136,9 +182,19 @@ Bản phái sinh giữ nguyên giấy phép của ảnh gốc.
 | Tiến độ/dấu mộc/cảm nhận lưu cục bộ | `cloud_firestore` + `firebase_storage` |
 | Bản đồ SVG minh họa | `google_maps_flutter` với cùng tọa độ |
 | Tranh SVG xưa/nay (6 điểm chưa có ảnh thật) | Ảnh tư liệu thật (`pastImageUrl` / `presentImageUrl`) |
-| `ai_verifier.dart` chấm theo độ dài + từ khóa | Gemini API qua Cloud Function (không để API key trong app) |
+| `ai_verifier.dart` chấm theo độ dài + từ khóa | Đầu nối HTTPS đã có; cần triển khai Cloud Function Gemini và cấu hình `REFLECTION_VERIFIER_URL` (không để API key trong app) |
 
 Nội dung lịch sử là dữ liệu mẫu, cần đối chiếu nguồn chính thống trước khi công bố.
+
+### Kết nối bộ thẩm định cảm nhận
+
+Mặc định ứng dụng dùng bộ chấm offline. Khi đã triển khai HTTPS Cloud Function gọi Gemini phía máy chủ, chạy với endpoint:
+
+```bash
+flutter run -d chrome --dart-define=REFLECTION_VERIFIER_URL=https://<region>-<project>.cloudfunctions.net/verifyReflection
+```
+
+Endpoint nhận `content`, `hasPhoto`, `locationId`, `locationName`, `stories`; trả `score`, `approved`, `soulmate`, `bonusXp` và `comment`. Ảnh không được gửi lên dịch vụ thẩm định. Khi endpoint lỗi, nội dung không bị đăng và người dùng có thể thử gửi lại.
 
 ## Quyền đã khai báo
 
