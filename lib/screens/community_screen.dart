@@ -33,23 +33,14 @@ class _CommunityScreenState extends State<CommunityScreen> {
     return ListView(
       padding: const EdgeInsets.fromLTRB(16, 24, 16, 32),
       children: [
-        Text('Bảng tin cộng đồng', style: displayStyle(30)),
+        Semantics(
+          header: true,
+          child: Text('Bảng tin cộng đồng', style: displayStyle(28)),
+        ),
         const SizedBox(height: 4),
-        Row(
-          children: [
-            const Icon(
-              Icons.theater_comedy_outlined,
-              size: 16,
-              color: AppColors.inkSoft,
-            ),
-            const SizedBox(width: 6),
-            Expanded(
-              child: Text(
-                'Bài mẫu và cảm nhận trên thiết bị · có thể chia sẻ ẩn danh.',
-                style: bodyStyle(14, color: AppColors.inkSoft),
-              ),
-            ),
-          ],
+        Text(
+          'Cảm nhận thật, được AI kiểm duyệt, có thể ẩn danh.',
+          style: bodyStyle(13, color: AppColors.inkSoft),
         ),
         const SizedBox(height: 16),
         SizedBox(
@@ -66,6 +57,8 @@ class _CommunityScreenState extends State<CommunityScreen> {
                 const SizedBox(width: 8),
                 FilterPill(
                   label: r.short,
+                  icon: r.icon,
+                  color: r.color,
                   selected: _filter == r.id,
                   onTap: () => setState(() => _filter = r.id),
                 ),
