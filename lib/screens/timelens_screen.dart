@@ -23,15 +23,6 @@ const _shortNames = {
   'ngu-hanh-son': 'Ngũ Hành Sơn',
 };
 
-// Các phần còn lại của Local Passport — liệt kê trong bản demo public.
-const _otherParts = [
-  'Bản đồ Hotspots',
-  'Quét QR check-in',
-  'Checklist & tiến độ',
-  'Hộ chiếu & dấu mộc',
-  'Gemini AI',
-];
-
 /// Lăng kính thời gian cho 4 di tích tiêu biểu.
 /// - App đầy đủ: mở từ màn Khám phá để xem trước, kèm nút sang trang di tích.
 /// - [standalone]: trang duy nhất của bản demo public (lib/main_timelens.dart).
@@ -121,10 +112,6 @@ class _TimeLensScreenState extends State<TimeLensScreen> {
                     onOpen: open == null ? null : () => open(location.id),
                   ),
                 ),
-                if (widget.standalone) ...[
-                  const SizedBox(height: 24),
-                  const _NotInDemo(),
-                ],
                 const SizedBox(height: 24),
                 Text(
                   'LEARN BEYOND LIMITS',
@@ -363,73 +350,6 @@ class _LocationCard extends StatelessWidget {
               onPressed: onOpen,
             ),
           ],
-        ],
-      ),
-    );
-  }
-}
-
-class _NotInDemo extends StatelessWidget {
-  const _NotInDemo();
-
-  @override
-  Widget build(BuildContext context) {
-    return Container(
-      padding: const EdgeInsets.all(16),
-      decoration: BoxDecoration(
-        color: AppColors.paper2,
-        borderRadius: BorderRadius.circular(18),
-      ),
-      child: Column(
-        crossAxisAlignment: CrossAxisAlignment.start,
-        children: [
-          Text(
-            'Không có trong bản demo',
-            style: bodyStyle(15, weight: FontWeight.w700),
-          ),
-          const SizedBox(height: 4),
-          Text(
-            'Bản demo chỉ gồm TimeLens. Các phần khác của Local Passport:',
-            style: bodyStyle(13, color: AppColors.inkSoft, height: 1.45),
-          ),
-          const SizedBox(height: 12),
-          Wrap(
-            spacing: 8,
-            runSpacing: 8,
-            children: [
-              for (final part in _otherParts)
-                Container(
-                  padding: const EdgeInsets.symmetric(
-                    horizontal: 10,
-                    vertical: 6,
-                  ),
-                  decoration: BoxDecoration(
-                    color: AppColors.card,
-                    borderRadius: BorderRadius.circular(20),
-                    border: Border.all(color: AppColors.line),
-                  ),
-                  child: Row(
-                    mainAxisSize: MainAxisSize.min,
-                    children: [
-                      const Icon(
-                        Icons.lock_outline,
-                        size: 13,
-                        color: AppColors.inkSoft,
-                      ),
-                      const SizedBox(width: 4),
-                      Text(
-                        part,
-                        style: bodyStyle(
-                          12,
-                          weight: FontWeight.w600,
-                          color: AppColors.inkSoft,
-                        ),
-                      ),
-                    ],
-                  ),
-                ),
-            ],
-          ),
         ],
       ),
     );
