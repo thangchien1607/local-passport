@@ -97,7 +97,6 @@ lib/main.dart (app đầy đủ)                    lib/main_timelens.dart (bả
 2. **TimeLens lớn** (20:13). Tay nắm tự lắc nhẹ một lần để gợi ý là kéo được. Kéo hết về một phía thì hiện thông báo "nhìn xuyên thời gian". Ngay dưới là chú thích ảnh và dòng ghi nguồn.
 3. **Dải 4 ảnh thu nhỏ** (ảnh "nay") để chọn di tích. Ảnh của cả 4 điểm được nạp sẵn để đổi điểm không bị nháy trắng.
 4. **Thẻ di tích**: tuyến, tên, địa chỉ, mốc xưa → nay, 1 câu chuyện ngắn.
-5. **Khung "Không có trong bản demo"**: chỉ hiện ở bản public.
 
 Bố cục giữ khung mobile tối đa 440px như app chính, đọc tốt trên điện thoại 360px.
 
