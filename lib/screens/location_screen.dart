@@ -526,7 +526,19 @@ class LocationScreen extends StatelessWidget {
                         )
                       else
                         for (final r in feed) ...[
-                          ReflectionCard(reflection: r, showLocation: false),
+                          ReflectionCard(
+                            reflection: r,
+                            showLocation: false,
+                            onToggleAnonymous: store.isMyReflection(r.id)
+                                ? () => store.setReflectionAnonymous(
+                                    r.id,
+                                    !r.isAnonymous,
+                                  )
+                                : null,
+                            onDelete: store.isMyReflection(r.id)
+                                ? () => store.deleteReflection(r.id)
+                                : null,
+                          ),
                           const SizedBox(height: 12),
                         ],
                     ],

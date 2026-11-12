@@ -231,9 +231,7 @@ class PassportStore extends ChangeNotifier {
       Reflection(
         id: 'r${DateTime.now().millisecondsSinceEpoch}',
         locationId: locationId,
-        displayAuthor: isAnonymous
-            ? 'Một Lữ khách Ẩn danh'
-            : (user?.name ?? 'Lữ khách'),
+        displayAuthor: _authorName(isAnonymous),
         isAnonymous: isAnonymous,
         content: content,
         aiScore: aiScore,
@@ -243,6 +241,33 @@ class PassportStore extends ChangeNotifier {
     );
     xp += bonusXp;
     _commit();
+  }
+
+  String _authorName(bool isAnonymous) =>
+      isAnonymous ? anonymousAuthor : (user?.name ?? 'Lữ khách');
+
+  /// Bài này có phải của người dùng (sửa/xóa được) không. Bài mẫu chỉ đọc.
+  bool isMyReflection(String id) => reflections.any((r) => r.id == id);
+
+  /// Đổi chế độ ẩn danh của bài cảm nhận; giữ nguyên nội dung, điểm AI, ảnh, ngày tạo.
+  bool setReflectionAnonymous(String id, bool isAnonymous) {
+    final i = reflections.indexWhere((r) => r.id == id);
+    if (i < 0 || reflections[i].isAnonymous == isAnonymous) return false;
+    reflections[i] = reflections[i].copyWith(
+      isAnonymous: isAnonymous,
+      displayAuthor: _authorName(isAnonymous),
+    );
+    _commit();
+    return true;
+  }
+
+  /// Xóa bài cảm nhận. Không trừ XP, không đụng dấu mộc.
+  bool deleteReflection(String id) {
+    final before = reflections.length;
+    reflections.removeWhere((r) => r.id == id);
+    if (reflections.length == before) return false;
+    _commit();
+    return true;
   }
 
   void reset() {
