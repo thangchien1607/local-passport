@@ -1,6 +1,9 @@
 import 'dart:ui' show PointerDeviceKind;
 
+import 'package:firebase_core/firebase_core.dart';
 import 'package:flutter/material.dart';
+
+import 'firebase_options.dart';
 
 import 'screens/community_screen.dart';
 import 'screens/leaderboard_screen.dart';
@@ -10,6 +13,7 @@ import 'screens/passport_screen.dart';
 import 'screens/welcome_screen.dart';
 import 'services/geo.dart';
 import 'services/maps_config.dart';
+import 'services/passport_remote.dart';
 import 'data/routes.dart';
 import 'state/passport_store.dart';
 import 'theme.dart';
@@ -22,9 +26,22 @@ Future<void> main() async {
   WidgetsFlutterBinding.ensureInitialized();
   final link = Uri.base.toString();
   if (parseQr(link) != null) _pendingCheckinLink = link;
-  final store = await PassportStore.load();
+  final store = await PassportStore.load(remote: await _initFirestore());
   await initGoogleMaps();
   runApp(LocalPassportApp(store: store));
+}
+
+/// Bật Cloud Firestore nếu nền tảng đã cấu hình Firebase; lỗi thì chỉ lưu cục bộ.
+Future<PassportRemote?> _initFirestore() async {
+  final options = currentFirebaseOptions;
+  if (options == null) return null;
+  try {
+    await Firebase.initializeApp(options: options);
+    return FirestorePassportRemote();
+  } catch (e) {
+    debugPrint('Không khởi tạo được Firebase: $e');
+    return null;
+  }
 }
 
 class LocalPassportApp extends StatelessWidget {

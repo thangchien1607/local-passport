@@ -1,0 +1,53 @@
+rules_version = '2';
+
+// Mỗi người chỉ đọc/ghi hộ chiếu của mình (uid từ Firebase Auth ẩn danh).
+// Bài cảm nhận công khai cho mọi người đọc; chỉ chủ bài (ghi trong
+// reflection_owners) được sửa hoặc xóa.
+service cloud.firestore {
+  match /databases/{database}/documents {
+    function signedIn() {
+      return request.auth != null;
+    }
+
+    function ownerOf(id) {
+      return get(/databases/$(database)/documents/reflection_owners/$(id)).data.uid;
+    }
+
+    function validReflection() {
+      let d = request.resource.data;
+      return d.keys().hasOnly(['locationId', 'displayAuthor', 'isAnonymous', 'content', 'aiScore', 'createdAt', 'photoBase64'])
+        && d.locationId is string
+        && d.displayAuthor is string && d.displayAuthor.size() <= 80
+        && d.isAnonymous is bool
+        && d.content is string && d.content.size() <= 2000
+        && d.aiScore is int && d.aiScore >= 0 && d.aiScore <= 100
+        && d.createdAt is timestamp
+        && (d.photoBase64 == null || (d.photoBase64 is string && d.photoBase64.size() <= 900000));
+    }
+
+    match /user_passports/{uid} {
+      allow read, write: if signedIn() && request.auth.uid == uid;
+
+      match /visits/{locationId} {
+        allow read, write: if signedIn() && request.auth.uid == uid;
+      }
+    }
+
+    match /reflections/{id} {
+      allow read: if true;
+      allow create: if signedIn() && validReflection()
+        && getAfter(/databases/$(database)/documents/reflection_owners/$(id)).data.uid == request.auth.uid;
+      // Sửa: chỉ đổi ẩn danh/tên hiển thị, giữ nguyên nội dung và điểm.
+      allow update: if signedIn() && ownerOf(id) == request.auth.uid && validReflection()
+        && request.resource.data.diff(resource.data).affectedKeys().hasOnly(['displayAuthor', 'isAnonymous']);
+      allow delete: if signedIn() && ownerOf(id) == request.auth.uid;
+    }
+
+    match /reflection_owners/{id} {
+      allow read: if signedIn() && resource.data.uid == request.auth.uid;
+      allow create: if signedIn() && request.resource.data.uid == request.auth.uid
+        && request.resource.data.keys().hasOnly(['uid']);
+      allow delete: if signedIn() && resource.data.uid == request.auth.uid;
+    }
+  }
+}

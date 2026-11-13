@@ -6,10 +6,12 @@ import 'package:shared_preferences/shared_preferences.dart';
 
 import '../data/community.dart';
 import '../data/routes.dart';
+import '../services/passport_remote.dart';
 
 // Trạng thái này tương ứng document `user_passports/{uid}` và collection `reflections`.
-// Bản MVP lưu bằng shared_preferences (localStorage trên web);
-// khi nối Firestore chỉ cần thay _load/_save.
+// Luôn lưu một bản cục bộ bằng shared_preferences (localStorage trên web) để mở app
+// nhanh và dùng được khi mất mạng; khi có [PassportRemote] (Cloud Firestore trên web)
+// thì mỗi lần _commit() cũng ghi lên server.
 const _storageKey = 'local-passport/v1';
 
 class UserProfile {
@@ -72,9 +74,18 @@ class LocationProgress {
 typedef RouteProgress = ({int stamped, int total, int percent});
 
 class PassportStore extends ChangeNotifier {
-  PassportStore._(this._prefs);
+  PassportStore._(this._prefs, this.remote);
 
   final SharedPreferences _prefs;
+
+  /// Nơi lưu trực tuyến (Cloud Firestore). null: chỉ lưu cục bộ.
+  final PassportRemote? remote;
+
+  /// Bài cảm nhận của người khác tải từ Firestore.
+  List<Reflection> communityReflections = [];
+
+  /// Đã có thay đổi trước khi tải xong dữ liệu từ server: không ghi đè bằng bản server.
+  bool _changedBeforePull = false;
 
   UserProfile? user;
   Map<String, LocationProgress> progress = {};
@@ -82,17 +93,59 @@ class PassportStore extends ChangeNotifier {
   int xp = 0;
   List<Reflection> reflections = [];
 
-  static Future<PassportStore> load() async {
-    final store = PassportStore._(await SharedPreferences.getInstance());
+  static Future<PassportStore> load({PassportRemote? remote}) async {
+    final store = PassportStore._(
+      await SharedPreferences.getInstance(),
+      remote,
+    );
     store._load();
+    if (remote != null) store._pullRemote();
     return store;
   }
 
   void _load() {
     final raw = _prefs.getString(_storageKey);
     if (raw == null) return;
+    _apply(jsonDecode(raw) as Map<String, dynamic>);
+  }
+
+  /// Lấy dữ liệu trên Firestore về; server chưa có thì đẩy bản cục bộ lên.
+  Future<void> _pullRemote() async {
+    final r = remote!;
     try {
-      final j = jsonDecode(raw) as Map<String, dynamic>;
+      final data = await r.fetch();
+      if (!_changedBeforePull) {
+        if (data != null) {
+          _apply(data);
+          _saveLocal();
+          notifyListeners();
+        } else if (user != null) {
+          r.sync(_toJson());
+        }
+      } else {
+        r.sync(_toJson());
+      }
+      await refreshCommunity();
+    } catch (_) {
+      // Không kết nối được: vẫn dùng bản cục bộ.
+    }
+  }
+
+  /// Tải lại bài cảm nhận của mọi người từ Firestore.
+  Future<void> refreshCommunity() async {
+    final r = remote;
+    if (r == null) return;
+    try {
+      final all = await r.fetchCommunity();
+      communityReflections = all
+          .where((x) => !reflections.any((m) => m.id == x.id))
+          .toList();
+      notifyListeners();
+    } catch (_) {}
+  }
+
+  void _apply(Map<String, dynamic> j) {
+    try {
       user = j['user'] == null
           ? null
           : UserProfile.fromJson(j['user'] as Map<String, dynamic>);
@@ -112,16 +165,25 @@ class PassportStore extends ChangeNotifier {
     }
   }
 
+  Map<String, dynamic> _toJson() => {
+    'user': user?.toJson(),
+    'progress': progress.map((k, v) => MapEntry(k, v.toJson())),
+    'stamps': stamps.map((k, v) => MapEntry(k, v.toIso8601String())),
+    'xp': xp,
+    'reflections': reflections.map((r) => r.toJson()).toList(),
+  };
+
+  void _saveLocal() {
+    _prefs
+        .setString(_storageKey, jsonEncode(_toJson()))
+        .catchError((_) => false);
+  }
+
   void _commit() {
     notifyListeners();
-    final data = {
-      'user': user?.toJson(),
-      'progress': progress.map((k, v) => MapEntry(k, v.toJson())),
-      'stamps': stamps.map((k, v) => MapEntry(k, v.toIso8601String())),
-      'xp': xp,
-      'reflections': reflections.map((r) => r.toJson()).toList(),
-    };
-    _prefs.setString(_storageKey, jsonEncode(data)).catchError((_) => false);
+    _saveLocal();
+    _changedBeforePull = true;
+    remote?.sync(_toJson());
   }
 
   int get totalStamps => stamps.keys

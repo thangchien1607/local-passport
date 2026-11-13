@@ -3,6 +3,7 @@ import 'package:flutter/material.dart';
 import '../data/routes.dart';
 import '../state/passport_store.dart';
 import '../theme.dart';
+import '../widgets/storage_info.dart';
 import '../widgets/common.dart';
 import '../widgets/passport_cover.dart';
 import '../widgets/stamp_seal.dart';
@@ -231,6 +232,8 @@ class PassportScreen extends StatelessWidget {
             ],
           ),
         ),
+        const SizedBox(height: 16),
+        const StorageInfoCard(),
 
         // Các trang đóng dấu theo tuyến
         for (final route in publishedRoutes) ...[
