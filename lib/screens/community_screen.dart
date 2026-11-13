@@ -18,10 +18,19 @@ class _CommunityScreenState extends State<CommunityScreen> {
   String _filter = 'all';
 
   @override
+  void initState() {
+    super.initState();
+    PassportScope.read(context).refreshCommunity();
+  }
+
+  @override
   Widget build(BuildContext context) {
     final store = PassportScope.of(context);
-    final all = [...store.reflections, ...seedReflections]
-      ..sort((a, b) => b.createdAt.compareTo(a.createdAt));
+    final all = [
+      ...store.reflections,
+      ...store.communityReflections,
+      ...seedReflections,
+    ]..sort((a, b) => b.createdAt.compareTo(a.createdAt));
     final list = all
         .where(
           (r) =>

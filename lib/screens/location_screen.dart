@@ -101,6 +101,7 @@ class LocationScreen extends StatelessWidget {
     );
     final feed = [
       ...store.reflections,
+      ...store.communityReflections,
       ...seedReflections,
     ].where((r) => r.locationId == locationId).toList();
 
