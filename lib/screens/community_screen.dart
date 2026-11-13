@@ -82,7 +82,15 @@ class _CommunityScreenState extends State<CommunityScreen> {
           )
         else
           for (final r in list) ...[
-            ReflectionCard(reflection: r),
+            ReflectionCard(
+              reflection: r,
+              onToggleAnonymous: store.isMyReflection(r.id)
+                  ? () => store.setReflectionAnonymous(r.id, !r.isAnonymous)
+                  : null,
+              onDelete: store.isMyReflection(r.id)
+                  ? () => store.deleteReflection(r.id)
+                  : null,
+            ),
             const SizedBox(height: 12),
           ],
       ],

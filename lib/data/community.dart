@@ -1,5 +1,7 @@
 // Dữ liệu mẫu cho Bảng tin cộng đồng và Bảng xếp hạng.
 
+const anonymousAuthor = 'Một Lữ khách Ẩn danh';
+
 class Reflection {
   const Reflection({
     required this.id,
@@ -20,6 +22,17 @@ class Reflection {
   final int aiScore;
   final DateTime createdAt;
   final String? photoBase64;
+
+  Reflection copyWith({String? displayAuthor, bool? isAnonymous}) => Reflection(
+    id: id,
+    locationId: locationId,
+    displayAuthor: displayAuthor ?? this.displayAuthor,
+    isAnonymous: isAnonymous ?? this.isAnonymous,
+    content: content,
+    aiScore: aiScore,
+    createdAt: createdAt,
+    photoBase64: photoBase64,
+  );
 
   Map<String, dynamic> toJson() => {
     'id': id,
@@ -58,7 +71,7 @@ final seedReflections = <Reflection>[
   Reflection(
     id: 's2',
     locationId: 'cham-museum',
-    displayAuthor: 'Một Lữ khách Ẩn danh',
+    displayAuthor: anonymousAuthor,
     isAnonymous: true,
     content:
         'Lần đầu mình đứng trước bệ thờ Trà Kiệu. Các vũ nữ Apsara chạm nổi sống động như đang múa thật.',
@@ -78,7 +91,7 @@ final seedReflections = <Reflection>[
   Reflection(
     id: 's4',
     locationId: 'cau-rong',
-    displayAuthor: 'Một Lữ khách Ẩn danh',
+    displayAuthor: anonymousAuthor,
     isAnonymous: true,
     content:
         'Tối thứ Bảy đứng xem rồng phun lửa, nóng rát cả mặt dù đứng khá xa!',

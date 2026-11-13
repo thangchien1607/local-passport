@@ -17,10 +17,42 @@ class ReflectionCard extends StatelessWidget {
     super.key,
     required this.reflection,
     this.showLocation = true,
+    this.onToggleAnonymous,
+    this.onDelete,
   });
 
   final Reflection reflection;
   final bool showLocation;
+
+  /// Chỉ truyền cho bài của chính người dùng; bài mẫu để null (chỉ đọc).
+  final VoidCallback? onToggleAnonymous;
+
+  /// Gọi sau khi người dùng xác nhận xóa trong hộp thoại.
+  final VoidCallback? onDelete;
+
+  Future<void> _confirmDelete(BuildContext context) async {
+    final ok = await showDialog<bool>(
+      context: context,
+      builder: (context) => AlertDialog(
+        title: Text('Xóa bài cảm nhận?', style: displayStyle(22)),
+        content: Text(
+          'Bài viết sẽ bị gỡ khỏi Bảng tin. Dấu mộc và XP bạn đã nhận vẫn giữ nguyên.',
+          style: bodyStyle(14),
+        ),
+        actions: [
+          TextButton(
+            onPressed: () => Navigator.pop(context, false),
+            child: const Text('Hủy'),
+          ),
+          FilledButton(
+            onPressed: () => Navigator.pop(context, true),
+            child: const Text('Xóa'),
+          ),
+        ],
+      ),
+    );
+    if (ok == true) onDelete?.call();
+  }
 
   @override
   Widget build(BuildContext context) {
@@ -144,6 +176,42 @@ class ReflectionCard extends StatelessWidget {
                 fit: BoxFit.cover,
                 semanticLabel: 'Ảnh thực tế kèm cảm nhận',
               ),
+            ),
+          ],
+          if (onToggleAnonymous != null || onDelete != null) ...[
+            const SizedBox(height: 8),
+            const Divider(height: 1, color: AppColors.line),
+            Wrap(
+              spacing: 4,
+              children: [
+                if (onToggleAnonymous != null)
+                  TextButton.icon(
+                    onPressed: onToggleAnonymous,
+                    style: TextButton.styleFrom(
+                      foregroundColor: AppColors.inkSoft,
+                    ),
+                    icon: Icon(
+                      reflection.isAnonymous
+                          ? Icons.person_outline
+                          : Icons.theater_comedy_outlined,
+                      size: 18,
+                    ),
+                    label: Text(
+                      reflection.isAnonymous
+                          ? 'Hiện tên của tôi'
+                          : 'Chuyển sang ẩn danh',
+                    ),
+                  ),
+                if (onDelete != null)
+                  TextButton.icon(
+                    onPressed: () => _confirmDelete(context),
+                    style: TextButton.styleFrom(
+                      foregroundColor: AppColors.primary,
+                    ),
+                    icon: const Icon(Icons.delete_outline, size: 18),
+                    label: const Text('Xóa'),
+                  ),
+              ],
             ),
           ],
         ],
