@@ -2,12 +2,14 @@ import 'package:flutter/material.dart';
 
 import '../data/routes.dart';
 import '../services/maps_config.dart';
+import '../services/text_search.dart';
 import '../state/passport_store.dart';
 import '../theme.dart';
 import '../widgets/common.dart';
 import '../widgets/discovery_map.dart';
 import '../widgets/google_discovery_map.dart';
 import '../widgets/scene_art.dart';
+import 'notifications_screen.dart';
 import 'timelens_screen.dart';
 
 class MapScreen extends StatefulWidget {
@@ -21,6 +23,7 @@ class MapScreen extends StatefulWidget {
 
 class _MapScreenState extends State<MapScreen> {
   String _filter = 'all';
+  String _query = '';
   String? _selectedId;
 
   void _changeFilter(String id) {
@@ -46,6 +49,10 @@ class _MapScreenState extends State<MapScreen> {
         .where((l) => _filter == 'all' || l.routeId == _filter)
         .toList();
     final selected = _selectedId == null ? null : locationById[_selectedId];
+    final searching = _query.trim().isNotEmpty;
+    final results = searching
+        ? visible.where((l) => locationMatches(l, _query)).toList()
+        : const <Location>[];
 
     return ListView(
       padding: const EdgeInsets.fromLTRB(16, 24, 16, 32),
@@ -64,6 +71,10 @@ class _MapScreenState extends State<MapScreen> {
                   Text('Khám phá Đà Nẵng', style: displayStyle(28)),
                 ],
               ),
+            ),
+            Padding(
+              padding: const EdgeInsets.only(top: 14),
+              child: NotificationBell(onOpenLocation: widget.onOpenLocation),
             ),
             Container(
               margin: const EdgeInsets.only(top: 22),
@@ -95,6 +106,11 @@ class _MapScreenState extends State<MapScreen> {
           ],
         ),
         const SizedBox(height: 16),
+        SearchField(
+          hint: 'Tìm di tích, địa chỉ, câu chuyện…',
+          onChanged: (v) => setState(() => _query = v),
+        ),
+        const SizedBox(height: 12),
 
         // Bộ lọc cảm hứng — xuống dòng thay vì cuộn ngang để thấy đủ mọi tuyến.
         Wrap(
@@ -118,64 +134,85 @@ class _MapScreenState extends State<MapScreen> {
         ),
         const SizedBox(height: 16),
 
-        if (useGoogleMaps)
-          GoogleDiscoveryMap(
-            filter: _filter,
-            selectedId: _selectedId,
-            onSelect: (id) => setState(() => _selectedId = id),
-            isUnlocked: store.isUnlocked,
-            isStamped: store.stamps.containsKey,
-          )
-        else
-          DiscoveryMap(
-            filter: _filter,
-            selectedId: _selectedId,
-            onSelect: (id) => setState(() => _selectedId = id),
-            isUnlocked: store.isUnlocked,
-            isStamped: store.stamps.containsKey,
-          ),
+        if (searching) ...[
+          SectionTitle('Kết quả tìm kiếm (${results.length})'),
+          const SizedBox(height: 12),
+          if (results.isEmpty)
+            EmptyState(
+              icon: Icons.travel_explore_rounded,
+              title: 'Không tìm thấy địa điểm cho “${_query.trim()}”',
+              message: _filter == 'all'
+                  ? 'Thử từ khóa khác, ví dụ “thành”, “chăm”, “làng nghề”.'
+                  : 'Thử chọn “Tất cả” hoặc đổi từ khóa.',
+            )
+          else
+            for (final loc in results) ...[
+              LocationTile(
+                location: loc,
+                onTap: () => widget.onOpenLocation(loc.id),
+              ),
+              const SizedBox(height: 12),
+            ],
+        ] else ...[
+          if (useGoogleMaps)
+            GoogleDiscoveryMap(
+              filter: _filter,
+              selectedId: _selectedId,
+              onSelect: (id) => setState(() => _selectedId = id),
+              isUnlocked: store.isUnlocked,
+              isStamped: store.stamps.containsKey,
+            )
+          else
+            DiscoveryMap(
+              filter: _filter,
+              selectedId: _selectedId,
+              onSelect: (id) => setState(() => _selectedId = id),
+              isUnlocked: store.isUnlocked,
+              isStamped: store.stamps.containsKey,
+            ),
 
-        // Thẻ địa điểm đang chọn
-        AnimatedSwitcher(
-          duration: const Duration(milliseconds: 250),
-          child: selected == null
-              ? const SizedBox.shrink()
-              : Padding(
-                  key: ValueKey(selected.id),
-                  padding: const EdgeInsets.only(top: 12),
-                  child: _SelectedCard(
-                    location: selected,
-                    onTap: () => widget.onOpenLocation(selected.id),
+          // Thẻ địa điểm đang chọn
+          AnimatedSwitcher(
+            duration: const Duration(milliseconds: 250),
+            child: selected == null
+                ? const SizedBox.shrink()
+                : Padding(
+                    key: ValueKey(selected.id),
+                    padding: const EdgeInsets.only(top: 12),
+                    child: _SelectedCard(
+                      location: selected,
+                      onTap: () => widget.onOpenLocation(selected.id),
+                    ),
                   ),
-                ),
-        ),
-
-        const SizedBox(height: 16),
-        _TimeLensBanner(onTap: _openTimeLens),
-
-        const SizedBox(height: 24),
-        const SectionTitle('Tiến độ tuyến'),
-        const SizedBox(height: 12),
-        for (final r in publishedRoutes.where(
-          (r) => _filter == 'all' || r.id == _filter,
-        )) ...[
-          _RouteCard(
-            route: r,
-            progress: store.routeProgress(r.id),
-            expanded: _filter == r.id,
           ),
-          const SizedBox(height: 12),
-        ],
 
-        const SizedBox(height: 12),
-        SectionTitle('Điểm đến (${visible.length})'),
-        const SizedBox(height: 12),
-        for (final loc in visible) ...[
-          LocationTile(
-            location: loc,
-            onTap: () => widget.onOpenLocation(loc.id),
-          ),
+          const SizedBox(height: 16),
+          _TimeLensBanner(onTap: _openTimeLens),
+
+          const SizedBox(height: 24),
+          const SectionTitle('Tiến độ tuyến'),
           const SizedBox(height: 12),
+          for (final r in publishedRoutes.where(
+            (r) => _filter == 'all' || r.id == _filter,
+          )) ...[
+            _RouteCard(
+              route: r,
+              progress: store.routeProgress(r.id),
+              expanded: _filter == r.id,
+            ),
+            const SizedBox(height: 12),
+          ],
+
+          const SizedBox(height: 12),
+          SectionTitle('Điểm đến (${visible.length})'),
+          const SizedBox(height: 12),
+          for (final loc in visible) ...[
+            LocationTile(
+              location: loc,
+              onTap: () => widget.onOpenLocation(loc.id),
+            ),
+            const SizedBox(height: 12),
+          ],
         ],
       ],
     );

@@ -12,6 +12,7 @@ import 'screens/map_screen.dart';
 import 'screens/passport_screen.dart';
 import 'screens/welcome_screen.dart';
 import 'services/geo.dart';
+import 'services/auth_service.dart';
 import 'services/maps_config.dart';
 import 'services/passport_remote.dart';
 import 'data/routes.dart';
@@ -26,21 +27,24 @@ Future<void> main() async {
   WidgetsFlutterBinding.ensureInitialized();
   final link = Uri.base.toString();
   if (parseQr(link) != null) _pendingCheckinLink = link;
-  final store = await PassportStore.load(remote: await _initFirestore());
+  final (remote, auth) = await _initFirebase();
+  final store = await PassportStore.load(remote: remote, auth: auth);
   await initGoogleMaps();
   runApp(LocalPassportApp(store: store));
 }
 
-/// Bật Cloud Firestore nếu nền tảng đã cấu hình Firebase; lỗi thì chỉ lưu cục bộ.
-Future<PassportRemote?> _initFirestore() async {
+/// Bật Firebase (Firestore + tài khoản) nếu nền tảng đã cấu hình; lỗi thì
+/// chỉ lưu cục bộ với hồ sơ không cần đăng nhập.
+Future<(PassportRemote?, AuthGateway?)> _initFirebase() async {
   final options = currentFirebaseOptions;
-  if (options == null) return null;
+  if (options == null) return (null, null);
   try {
     await Firebase.initializeApp(options: options);
-    return FirestorePassportRemote();
+    final auth = await FirebaseAuthGateway.create();
+    return (FirestorePassportRemote(), auth);
   } catch (e) {
     debugPrint('Không khởi tạo được Firebase: $e');
-    return null;
+    return (null, null);
   }
 }
 
@@ -112,10 +116,12 @@ class HomeShell extends StatefulWidget {
 
 class _HomeShellState extends State<HomeShell> {
   int _tab = 0;
+  late final PassportStore _store = PassportScope.read(context);
 
   @override
   void initState() {
     super.initState();
+    _store.saveProblem.addListener(_showSaveProblem);
     final link = _pendingCheckinLink;
     final qr = link == null ? null : parseQr(link);
     _pendingCheckinLink = null;
@@ -124,6 +130,27 @@ class _HomeShellState extends State<HomeShell> {
         (_) => _openLocation(qr.locationId, checkinCode: link),
       );
     }
+  }
+
+  @override
+  void dispose() {
+    _store.saveProblem.removeListener(_showSaveProblem);
+    super.dispose();
+  }
+
+  /// Lưu thất bại (mất mạng, bộ nhớ đầy): báo và cho thử lại.
+  void _showSaveProblem() {
+    final message = _store.saveProblem.value;
+    if (message == null || !mounted) return;
+    ScaffoldMessenger.of(context)
+      ..hideCurrentSnackBar()
+      ..showSnackBar(
+        SnackBar(
+          content: Text(message),
+          duration: const Duration(seconds: 8),
+          action: SnackBarAction(label: 'Thử lại', onPressed: _store.retrySave),
+        ),
+      );
   }
 
   void _openLocation(String id, {String? checkinCode}) {

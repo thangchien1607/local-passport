@@ -5,7 +5,9 @@ import 'package:flutter/widgets.dart';
 import 'package:shared_preferences/shared_preferences.dart';
 
 import '../data/community.dart';
+import '../data/notifications.dart';
 import '../data/routes.dart';
+import '../services/auth_service.dart';
 import '../services/passport_remote.dart';
 
 // Trạng thái này tương ứng document `user_passports/{uid}` và collection `reflections`.
@@ -74,12 +76,27 @@ class LocationProgress {
 typedef RouteProgress = ({int stamped, int total, int percent});
 
 class PassportStore extends ChangeNotifier {
-  PassportStore._(this._prefs, this.remote);
+  PassportStore._(this._prefs, this.remote, this.auth) {
+    remote?.state.addListener(_onSyncState);
+  }
 
   final SharedPreferences _prefs;
 
   /// Nơi lưu trực tuyến (Cloud Firestore). null: chỉ lưu cục bộ.
   final PassportRemote? remote;
+
+  /// Tài khoản (Firebase Auth). null: chỉ có hồ sơ cục bộ, không đăng nhập.
+  final AuthGateway? auth;
+
+  /// Thông báo trong app, mới nhất trước.
+  List<AppNotification> notifications = [];
+
+  /// Câu báo lỗi khi lưu thất bại (null: đang ổn). Giao diện hiện SnackBar.
+  final saveProblem = ValueNotifier<String?>(null);
+
+  /// uid của tài khoản sở hữu dữ liệu đang giữ trên máy.
+  String? _ownerUid;
+  int _noteSeq = 0;
 
   /// Bài cảm nhận của người khác tải từ Firestore.
   List<Reflection> communityReflections = [];
@@ -93,14 +110,217 @@ class PassportStore extends ChangeNotifier {
   int xp = 0;
   List<Reflection> reflections = [];
 
-  static Future<PassportStore> load({PassportRemote? remote}) async {
+  static Future<PassportStore> load({
+    PassportRemote? remote,
+    AuthGateway? auth,
+  }) async {
     final store = PassportStore._(
       await SharedPreferences.getInstance(),
       remote,
+      auth,
     );
     store._load();
-    if (remote != null) store._pullRemote();
+    if (auth != null) {
+      // Dữ liệu trên máy chỉ dùng khi thuộc đúng tài khoản đang đăng nhập.
+      final uid = auth.uid;
+      if (uid == null || store._ownerUid != uid) {
+        store._clearState();
+        store._ownerUid = uid;
+      }
+    }
+    if (remote != null && (auth == null || auth.uid != null)) {
+      store._pullRemote();
+    }
     return store;
+  }
+
+  void _onSyncState() {
+    if (remote?.state.value == SyncState.error) {
+      saveProblem.value =
+          'Chưa lưu được lên máy chủ. Dữ liệu vẫn còn trên máy này.';
+    } else if (remote?.state.value == SyncState.synced) {
+      saveProblem.value = null;
+    }
+  }
+
+  /// Gửi lại toàn bộ dữ liệu sau khi lưu thất bại.
+  void retrySave() {
+    saveProblem.value = null;
+    _saveLocal();
+    remote?.sync(_toJson());
+  }
+
+  void _clearState() {
+    user = null;
+    progress = {};
+    stamps = {};
+    xp = 0;
+    reflections = [];
+    notifications = [];
+    _changedBeforePull = false;
+  }
+
+  // ---- Tài khoản ----
+
+  /// Có đăng ký/đăng nhập bằng email (bản web và Android đã cấu hình Firebase).
+  bool get hasAccounts => auth != null;
+
+  /// Đang dùng tài khoản khách: dữ liệu mất khi đăng xuất.
+  bool get isGuest => auth?.isGuest ?? false;
+
+  String? get accountEmail => auth?.email;
+
+  UserProfile _newProfile(String name) => UserProfile(
+    name: name.trim().isEmpty ? 'Lữ khách' : name.trim(),
+    passportNo: 'DN${100000 + Random().nextInt(899999)}',
+    joinedAt: DateTime.now(),
+  );
+
+  /// Tạo tài khoản email. Nếu đang là khách thì giữ nguyên hộ chiếu hiện có.
+  Future<void> register({
+    required String name,
+    required String email,
+    required String password,
+  }) async {
+    final a = auth!;
+    final current = user;
+    final keepGuestData = a.isGuest && current != null;
+    await a.register(email, password);
+    if (keepGuestData) {
+      user = UserProfile(
+        name: name.trim(),
+        passportNo: current.passportNo,
+        joinedAt: current.joinedAt,
+      );
+      _notify(
+        NotificationType.account,
+        'Đã lưu hộ chiếu vào tài khoản',
+        'Đăng nhập bằng ${email.trim()} trên máy khác để đi tiếp hành trình.',
+      );
+    } else {
+      remote?.forget();
+      _clearState();
+      user = _newProfile(name);
+      _welcome();
+    }
+    _ownerUid = a.uid;
+    _commit();
+  }
+
+  /// Đăng nhập email rồi tải hộ chiếu của tài khoản đó từ Firestore.
+  Future<void> signIn({required String email, required String password}) async {
+    final a = auth!;
+    await a.signIn(email, password);
+    remote?.forget();
+    _clearState();
+    _ownerUid = a.uid;
+    try {
+      await _pullRemote(rethrowErrors: true);
+    } catch (_) {
+      await a.signOut();
+      _ownerUid = null;
+      throw const AuthFailure(
+        'Không tải được hộ chiếu từ máy chủ. Kiểm tra mạng rồi thử lại.',
+      );
+    }
+    if (user == null) {
+      // Tài khoản chưa có hộ chiếu (ví dụ lần ghi đầu tiên bị lỗi): tạo mới.
+      user = _newProfile(email.split('@').first);
+      _welcome();
+      _commit();
+    }
+  }
+
+  /// Vào nhanh bằng tài khoản khách (ẩn danh), có thể nâng lên tài khoản sau.
+  Future<void> enterAsGuest(String name) async {
+    final a = auth!;
+    await a.signInGuest();
+    remote?.forget();
+    _clearState();
+    _ownerUid = a.uid;
+    user = _newProfile(name);
+    _welcome();
+    _commit();
+  }
+
+  Future<void> sendPasswordReset(String email) =>
+      auth!.sendPasswordReset(email);
+
+  /// Đăng xuất: chỉ xóa dữ liệu trên máy, dữ liệu trên server vẫn giữ.
+  Future<void> logout() async {
+    await auth?.signOut();
+    remote?.forget();
+    _clearState();
+    _ownerUid = null;
+    saveProblem.value = null;
+    _saveLocal();
+    notifyListeners();
+  }
+
+  // ---- Thông báo ----
+
+  int get unreadCount => notifications.where((n) => !n.read).length;
+
+  void _notify(
+    NotificationType type,
+    String title,
+    String body, {
+    String? locationId,
+  }) {
+    notifications.insert(
+      0,
+      AppNotification(
+        id: 'n${DateTime.now().millisecondsSinceEpoch}_${_noteSeq++}',
+        type: type,
+        title: title,
+        body: body,
+        createdAt: DateTime.now(),
+        locationId: locationId,
+      ),
+    );
+    if (notifications.length > 50) {
+      notifications.removeRange(50, notifications.length);
+    }
+  }
+
+  void _welcome() => _notify(
+    NotificationType.welcome,
+    'Chào mừng ${user?.name ?? 'Lữ khách'}!',
+    'Hộ chiếu ${user?.passportNo ?? ''} đã sẵn sàng. Đến một di tích và quét mã QR để nhận dấu mộc đầu tiên.',
+  );
+
+  /// Cộng XP và báo khi lên hạng.
+  void _addXp(int amount) {
+    if (amount <= 0) return;
+    final before = rankForXp(xp).current;
+    xp += amount;
+    final after = rankForXp(xp).current;
+    if (after.minXp > before.minXp) {
+      _notify(
+        NotificationType.rank,
+        'Lên hạng ${after.title}!',
+        'Bạn đã đạt $xp XP. Tiếp tục sưu tầm dấu mộc để lên hạng tiếp theo.',
+      );
+    }
+  }
+
+  void markNotificationRead(String id) {
+    final i = notifications.indexWhere((n) => n.id == id);
+    if (i < 0 || notifications[i].read) return;
+    notifications[i] = notifications[i].copyWith(read: true);
+    _commit();
+  }
+
+  void markAllNotificationsRead() {
+    if (unreadCount == 0) return;
+    notifications = [for (final n in notifications) n.copyWith(read: true)];
+    _commit();
+  }
+
+  void deleteNotification(String id) {
+    final before = notifications.length;
+    notifications.removeWhere((n) => n.id == id);
+    if (notifications.length != before) _commit();
   }
 
   void _load() {
@@ -110,8 +330,9 @@ class PassportStore extends ChangeNotifier {
   }
 
   /// Lấy dữ liệu trên Firestore về; server chưa có thì đẩy bản cục bộ lên.
-  Future<void> _pullRemote() async {
-    final r = remote!;
+  Future<void> _pullRemote({bool rethrowErrors = false}) async {
+    final r = remote;
+    if (r == null) return;
     try {
       final data = await r.fetch();
       if (!_changedBeforePull) {
@@ -125,10 +346,12 @@ class PassportStore extends ChangeNotifier {
       } else {
         r.sync(_toJson());
       }
-      await refreshCommunity();
     } catch (_) {
       // Không kết nối được: vẫn dùng bản cục bộ.
+      if (rethrowErrors) rethrow;
+      return;
     }
+    await refreshCommunity();
   }
 
   /// Tải lại bài cảm nhận của mọi người từ Firestore.
@@ -146,6 +369,10 @@ class PassportStore extends ChangeNotifier {
 
   void _apply(Map<String, dynamic> j) {
     try {
+      _ownerUid = j['uid'] as String? ?? _ownerUid;
+      notifications = (j['notifications'] as List? ?? const [])
+          .map((e) => AppNotification.fromJson(e as Map<String, dynamic>))
+          .toList();
       user = j['user'] == null
           ? null
           : UserProfile.fromJson(j['user'] as Map<String, dynamic>);
@@ -166,6 +393,8 @@ class PassportStore extends ChangeNotifier {
   }
 
   Map<String, dynamic> _toJson() => {
+    'uid': _ownerUid,
+    'notifications': notifications.map((n) => n.toJson()).toList(),
     'user': user?.toJson(),
     'progress': progress.map((k, v) => MapEntry(k, v.toJson())),
     'stamps': stamps.map((k, v) => MapEntry(k, v.toIso8601String())),
@@ -176,7 +405,19 @@ class PassportStore extends ChangeNotifier {
   void _saveLocal() {
     _prefs
         .setString(_storageKey, jsonEncode(_toJson()))
-        .catchError((_) => false);
+        .then(
+          (ok) {
+            if (!ok) {
+              saveProblem.value = 'Không lưu được dữ liệu trên máy này.';
+            }
+            return ok;
+          },
+          onError: (_) {
+            saveProblem.value =
+                'Không lưu được dữ liệu trên máy (bộ nhớ đầy hoặc bị chặn).';
+            return false;
+          },
+        );
   }
 
   void _commit() {
@@ -224,16 +465,20 @@ class PassportStore extends ChangeNotifier {
   bool _checkStamp(String id) {
     if (stamps.containsKey(id) || locationProgress(id) < 100) return false;
     stamps[id] = DateTime.now();
-    xp += stampXp;
+    _notify(
+      NotificationType.stamp,
+      'Nhận dấu mộc ${locationById[id]?.name ?? id}',
+      '+$stampXp XP. Hộ chiếu đã có $totalStamps/$totalLocations dấu mộc.',
+      locationId: id,
+    );
+    _addXp(stampXp);
     return true;
   }
 
+  /// Tạo hồ sơ chỉ lưu trên máy (khi không có Firebase, ví dụ iOS hoặc test).
   void login(String name) {
-    user = UserProfile(
-      name: name.isEmpty ? 'Lữ khách' : name,
-      passportNo: 'DN${100000 + Random().nextInt(899999)}',
-      joinedAt: DateTime.now(),
-    );
+    user = _newProfile(name);
+    _welcome();
     _commit();
   }
 
@@ -301,7 +546,14 @@ class PassportStore extends ChangeNotifier {
         photoBase64: photoBase64,
       ),
     );
-    xp += bonusXp;
+    _notify(
+      NotificationType.reflection,
+      'Cảm nhận đã được đăng',
+      'Bài tại ${locationById[locationId]?.name ?? locationId} đã lên Bảng tin'
+          '${bonusXp > 0 ? ', +$bonusXp XP' : ''}.',
+      locationId: locationId,
+    );
+    _addXp(bonusXp);
     _commit();
   }
 
@@ -337,12 +589,8 @@ class PassportStore extends ChangeNotifier {
     stamps = {};
     xp = 0;
     reflections = [];
+    notifications = [];
     _commit();
-  }
-
-  void logout() {
-    user = null;
-    reset();
   }
 }
 
