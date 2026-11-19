@@ -1,7 +1,9 @@
 import 'package:flutter/material.dart';
 
 import '../data/routes.dart';
+import '../services/auth_service.dart';
 import '../state/passport_store.dart';
+import '../widgets/auth_form.dart';
 import '../theme.dart';
 import '../widgets/storage_info.dart';
 import '../widgets/common.dart';
@@ -36,6 +38,76 @@ class PassportScreen extends StatelessWidget {
       ),
     );
     if (ok == true) store.reset();
+  }
+
+  Future<void> _confirmLogout(BuildContext context) async {
+    final store = PassportScope.read(context);
+    final messenger = ScaffoldMessenger.of(context);
+    final guest = store.isGuest;
+    final ok = await showDialog<bool>(
+      context: context,
+      builder: (context) => AlertDialog(
+        title: Text('Đăng xuất?', style: displayStyle(22)),
+        content: Text(
+          guest
+              ? 'Bạn đang dùng tài khoản khách. Đăng xuất sẽ mất hộ chiếu này. Hãy “Lưu vào tài khoản” trước nếu muốn giữ.'
+              : 'Hộ chiếu vẫn được lưu trên máy chủ. Đăng nhập lại bằng ${store.accountEmail ?? 'email của bạn'} để tiếp tục.',
+          style: bodyStyle(14),
+        ),
+        actions: [
+          TextButton(
+            onPressed: () => Navigator.pop(context, false),
+            child: const Text('Hủy'),
+          ),
+          FilledButton(
+            onPressed: () => Navigator.pop(context, true),
+            child: Text(guest ? 'Vẫn đăng xuất' : 'Đăng xuất'),
+          ),
+        ],
+      ),
+    );
+    if (ok != true) return;
+    try {
+      await store.logout();
+    } on AuthFailure catch (e) {
+      messenger.showSnackBar(SnackBar(content: Text(e.message)));
+    }
+  }
+
+  void _openSaveAccount(BuildContext context) {
+    final store = PassportScope.read(context);
+    Navigator.of(context).push(
+      MaterialPageRoute(
+        builder: (routeContext) => Scaffold(
+          appBar: AppBar(
+            title: Text('Lưu vào tài khoản', style: displayStyle(22)),
+          ),
+          body: ListView(
+            padding: const EdgeInsets.all(20),
+            children: [
+              Text(
+                'Tạo tài khoản email để giữ hộ chiếu, dấu mộc và cảm nhận hiện tại, rồi đăng nhập trên máy khác.',
+                style: bodyStyle(14, color: AppColors.inkSoft, height: 1.5),
+              ),
+              const SizedBox(height: 20),
+              AuthForm(
+                initialMode: AuthMode.register,
+                allowSwitch: false,
+                initialName: store.user?.name,
+                onSuccess: () {
+                  Navigator.of(routeContext).pop();
+                  ScaffoldMessenger.of(context).showSnackBar(
+                    const SnackBar(
+                      content: Text('Đã lưu hộ chiếu vào tài khoản.'),
+                    ),
+                  );
+                },
+              ),
+            ],
+          ),
+        ),
+      ),
+    );
   }
 
   @override
@@ -283,6 +355,46 @@ class PassportScreen extends StatelessWidget {
         ],
 
         const SizedBox(height: 32),
+        if (store.hasAccounts) ...[
+          Container(
+            padding: const EdgeInsets.all(16),
+            decoration: cardDecoration(),
+            child: Row(
+              children: [
+                Icon(
+                  store.isGuest
+                      ? Icons.person_outline_rounded
+                      : Icons.verified_user_outlined,
+                  color: store.isGuest ? AppColors.gold : AppColors.progressInk,
+                ),
+                const SizedBox(width: 12),
+                Expanded(
+                  child: Column(
+                    crossAxisAlignment: CrossAxisAlignment.start,
+                    children: [
+                      Text(
+                        store.isGuest ? 'Tài khoản khách' : 'Tài khoản',
+                        style: bodyStyle(12, color: AppColors.inkSoft),
+                      ),
+                      Text(
+                        store.isGuest
+                            ? 'Chưa gắn email: đăng xuất sẽ mất hộ chiếu'
+                            : store.accountEmail ?? '',
+                        style: bodyStyle(14, weight: FontWeight.w600),
+                      ),
+                    ],
+                  ),
+                ),
+                if (store.isGuest)
+                  TextButton(
+                    onPressed: () => _openSaveAccount(context),
+                    child: const Text('Lưu vào tài khoản'),
+                  ),
+              ],
+            ),
+          ),
+          const SizedBox(height: 12),
+        ],
         Row(
           children: [
             Expanded(
@@ -298,7 +410,7 @@ class PassportScreen extends StatelessWidget {
                 label: 'Đăng xuất',
                 icon: Icons.logout_rounded,
                 color: routeById['history']!.color,
-                onPressed: store.logout,
+                onPressed: () => _confirmLogout(context),
               ),
             ),
           ],

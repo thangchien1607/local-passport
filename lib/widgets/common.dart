@@ -209,3 +209,111 @@ void showToast(
       ),
     );
 }
+
+/// Ô tìm kiếm có nút xóa nhanh. Gọi [onChanged] với từ khóa mỗi lần gõ.
+class SearchField extends StatefulWidget {
+  const SearchField({super.key, required this.hint, required this.onChanged});
+
+  final String hint;
+  final ValueChanged<String> onChanged;
+
+  @override
+  State<SearchField> createState() => _SearchFieldState();
+}
+
+class _SearchFieldState extends State<SearchField> {
+  final _controller = TextEditingController();
+
+  @override
+  void dispose() {
+    _controller.dispose();
+    super.dispose();
+  }
+
+  void _clear() {
+    _controller.clear();
+    widget.onChanged('');
+    setState(() {});
+  }
+
+  @override
+  Widget build(BuildContext context) {
+    return TextField(
+      controller: _controller,
+      maxLength: 60,
+      textInputAction: TextInputAction.search,
+      onChanged: (v) {
+        widget.onChanged(v);
+        setState(() {});
+      },
+      style: bodyStyle(15),
+      decoration: InputDecoration(
+        counterText: '',
+        hintText: widget.hint,
+        hintStyle: bodyStyle(14, color: AppColors.inkSoft),
+        prefixIcon: const Icon(Icons.search_rounded, color: AppColors.inkSoft),
+        suffixIcon: _controller.text.isEmpty
+            ? null
+            : IconButton(
+                tooltip: 'Xóa từ khóa',
+                icon: const Icon(Icons.close_rounded),
+                onPressed: _clear,
+              ),
+        filled: true,
+        fillColor: AppColors.card,
+        contentPadding: const EdgeInsets.symmetric(vertical: 12),
+        enabledBorder: OutlineInputBorder(
+          borderRadius: BorderRadius.circular(16),
+          borderSide: const BorderSide(color: AppColors.line),
+        ),
+        focusedBorder: OutlineInputBorder(
+          borderRadius: BorderRadius.circular(16),
+          borderSide: const BorderSide(color: AppColors.primary),
+        ),
+      ),
+    );
+  }
+}
+
+/// Khung báo "không có kết quả" dùng chung cho tìm kiếm và danh sách trống.
+class EmptyState extends StatelessWidget {
+  const EmptyState({
+    super.key,
+    required this.icon,
+    required this.title,
+    this.message,
+  });
+
+  final IconData icon;
+  final String title;
+  final String? message;
+
+  @override
+  Widget build(BuildContext context) => Container(
+    width: double.infinity,
+    padding: const EdgeInsets.all(24),
+    decoration: BoxDecoration(
+      borderRadius: BorderRadius.circular(18),
+      border: Border.all(color: AppColors.line),
+    ),
+    child: Column(
+      children: [
+        Icon(icon, size: 36, color: AppColors.inkSoft),
+        const SizedBox(height: 10),
+        Text(
+          title,
+          textAlign: TextAlign.center,
+          style: bodyStyle(15, weight: FontWeight.w600),
+        ),
+        if (message != null) ...[
+          const SizedBox(height: 4),
+          Text(
+            message!,
+            textAlign: TextAlign.center,
+            style: bodyStyle(13, color: AppColors.inkSoft),
+          ),
+        ],
+      ],
+    ),
+  );
+}

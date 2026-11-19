@@ -2,6 +2,7 @@ import 'package:flutter/material.dart';
 
 import '../data/community.dart';
 import '../data/routes.dart';
+import '../services/text_search.dart';
 import '../state/passport_store.dart';
 import '../theme.dart';
 import '../widgets/common.dart';
@@ -16,6 +17,7 @@ class CommunityScreen extends StatefulWidget {
 
 class _CommunityScreenState extends State<CommunityScreen> {
   String _filter = 'all';
+  String _query = '';
 
   @override
   void initState() {
@@ -34,10 +36,12 @@ class _CommunityScreenState extends State<CommunityScreen> {
     final list = all
         .where(
           (r) =>
-              _filter == 'all' ||
-              locationById[r.locationId]?.routeId == _filter,
+              (_filter == 'all' ||
+                  locationById[r.locationId]?.routeId == _filter) &&
+              reflectionMatches(r, _query),
         )
         .toList();
+    final searching = _query.trim().isNotEmpty;
 
     return ListView(
       padding: const EdgeInsets.fromLTRB(16, 24, 16, 32),
@@ -52,6 +56,11 @@ class _CommunityScreenState extends State<CommunityScreen> {
           style: bodyStyle(13, color: AppColors.inkSoft),
         ),
         const SizedBox(height: 16),
+        SearchField(
+          hint: 'Tìm theo nội dung, tác giả, địa điểm…',
+          onChanged: (v) => setState(() => _query = v),
+        ),
+        const SizedBox(height: 12),
         SizedBox(
           height: 44,
           child: ListView(
@@ -76,19 +85,24 @@ class _CommunityScreenState extends State<CommunityScreen> {
           ),
         ),
         const SizedBox(height: 16),
+        if (searching) ...[
+          Text(
+            '${list.length} bài khớp “${_query.trim()}”',
+            style: bodyStyle(13, color: AppColors.inkSoft),
+          ),
+          const SizedBox(height: 12),
+        ],
         if (list.isEmpty)
-          Container(
-            padding: const EdgeInsets.all(24),
-            decoration: BoxDecoration(
-              borderRadius: BorderRadius.circular(18),
-              border: Border.all(color: AppColors.line),
-            ),
-            child: Text(
-              'Chưa có cảm nhận nào ở tuyến này.',
-              textAlign: TextAlign.center,
-              style: bodyStyle(14, color: AppColors.inkSoft),
-            ),
-          )
+          searching
+              ? EmptyState(
+                  icon: Icons.search_off_rounded,
+                  title: 'Không có bài nào khớp “${_query.trim()}”',
+                  message: 'Thử từ khóa khác hoặc chọn “Tất cả” tuyến.',
+                )
+              : const EmptyState(
+                  icon: Icons.forum_outlined,
+                  title: 'Chưa có cảm nhận nào ở tuyến này.',
+                )
         else
           for (final r in list) ...[
             ReflectionCard(
