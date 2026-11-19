@@ -31,6 +31,17 @@ service cloud.firestore {
       match /visits/{locationId} {
         allow read, write: if signedIn() && request.auth.uid == uid;
       }
+
+      // Thông báo trong app: chỉ chủ hộ chiếu đọc, ghi.
+      match /notifications/{notificationId} {
+        allow read, delete: if signedIn() && request.auth.uid == uid;
+        allow create, update: if signedIn() && request.auth.uid == uid
+          && request.resource.data.title is string
+          && request.resource.data.title.size() <= 120
+          && request.resource.data.body is string
+          && request.resource.data.body.size() <= 400
+          && request.resource.data.read is bool;
+      }
     }
 
     match /reflections/{id} {

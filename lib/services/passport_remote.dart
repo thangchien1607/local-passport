@@ -14,11 +14,11 @@ abstract class PassportRemote {
   /// Trạng thái đồng bộ để hiện trên giao diện.
   ValueListenable<SyncState> get state;
 
-  /// uid của người dùng trên Firebase Auth (null khi chưa đăng nhập được).
+  /// uid của người dùng đang đăng nhập (null khi chưa đăng nhập).
   String? get uid;
 
   /// Tải dữ liệu của người dùng, cùng dạng JSON với bản lưu cục bộ.
-  /// Trả về null nếu trên server chưa có hộ chiếu.
+  /// Trả về null nếu chưa đăng nhập hoặc trên server chưa có hộ chiếu.
   Future<Map<String, dynamic>?> fetch();
 
   /// Bài cảm nhận công khai của mọi người (mới nhất trước).
@@ -26,11 +26,15 @@ abstract class PassportRemote {
 
   /// Ghi trạng thái hiện tại lên server (chỉ ghi phần thay đổi).
   Future<void> sync(Map<String, dynamic> data);
+
+  /// Quên những gì đã ghi cho tài khoản cũ (gọi khi đăng xuất, đổi tài khoản).
+  void forget();
 }
 
 /// Cấu trúc Cloud Firestore:
 /// - `user_passports/{uid}`: hồ sơ, XP, số dấu mộc
 /// - `user_passports/{uid}/visits/{locationId}`: mở khóa, nhiệm vụ, ảnh, thời điểm nhận dấu
+/// - `user_passports/{uid}/notifications/{id}`: thông báo trong app
 /// - `reflections/{reflectionId}`: bài cảm nhận công khai (không chứa uid)
 /// - `reflection_owners/{reflectionId}`: uid chủ bài, chỉ chủ bài đọc được
 class FirestorePassportRemote implements PassportRemote {
@@ -52,11 +56,10 @@ class FirestorePassportRemote implements PassportRemote {
   @override
   String? get uid => _auth.currentUser?.uid;
 
-  Future<String> _signIn() async {
-    final current = _auth.currentUser;
-    if (current != null) return current.uid;
-    final cred = await _auth.signInAnonymously();
-    return cred.user!.uid;
+  @override
+  void forget() {
+    _written.clear();
+    _state.value = SyncState.offline;
   }
 
   DocumentReference<Map<String, dynamic>> _userDoc(String uid) =>
@@ -64,11 +67,20 @@ class FirestorePassportRemote implements PassportRemote {
 
   @override
   Future<Map<String, dynamic>?> fetch() async {
+    final uid = this.uid;
+    if (uid == null) {
+      _state.value = SyncState.offline;
+      return null;
+    }
     _state.value = SyncState.syncing;
     try {
-      final uid = await _signIn();
       final userSnap = await _userDoc(uid).get();
       final visits = await _userDoc(uid).collection('visits').get();
+      final notes = await _userDoc(uid)
+          .collection('notifications')
+          .orderBy('createdAt', descending: true)
+          .limit(50)
+          .get();
       final owners = await _db
           .collection('reflection_owners')
           .where('uid', isEqualTo: uid)
@@ -85,6 +97,9 @@ class FirestorePassportRemote implements PassportRemote {
       _written.clear();
       for (final v in visits.docs) {
         _written['visits/${v.id}'] = '';
+      }
+      for (final n in notes.docs) {
+        _written['notifications/${n.id}'] = '';
       }
       for (final r in reflections) {
         _written['reflections/${r.id}'] = jsonEncode(_reflectionToDoc(r));
@@ -108,6 +123,7 @@ class FirestorePassportRemote implements PassportRemote {
         if (stampedAt != null) stamps[v.id] = stampedAt;
       }
       return {
+        'uid': uid,
         'user': {
           'name': u['name'],
           'passportNo': u['passportNo'],
@@ -117,6 +133,10 @@ class FirestorePassportRemote implements PassportRemote {
         'stamps': stamps,
         'xp': u['xp'] ?? 0,
         'reflections': reflections.map((r) => r.toJson()).toList(),
+        'notifications': [
+          for (final n in notes.docs)
+            {'id': n.id, ...n.data(), 'createdAt': _iso(n.data()['createdAt'])},
+        ],
       };
     } catch (e) {
       debugPrint('Firestore fetch lỗi: $e');
@@ -137,17 +157,21 @@ class FirestorePassportRemote implements PassportRemote {
 
   @override
   Future<void> sync(Map<String, dynamic> data) {
+    // Lấy uid ngay lúc gọi để dữ liệu không ghi nhầm sang tài khoản khác.
+    final uid = this.uid;
+    if (uid == null) return _queue;
     // Ghi tuần tự để các thay đổi liên tiếp không chen nhau.
-    _queue = _queue.then((_) => _sync(data)).catchError((Object e) {
+    _queue = _queue.then((_) => _sync(uid, data)).catchError((Object e) {
       debugPrint('Firestore sync lỗi: $e');
       _state.value = SyncState.error;
     });
     return _queue;
   }
 
-  Future<void> _sync(Map<String, dynamic> data) async {
+  Future<void> _sync(String uid, Map<String, dynamic> data) async {
+    if (this.uid != uid) return;
     _state.value = SyncState.syncing;
-    final uid = await _signIn();
+    final before = Map.of(_written);
     final batch = _db.batch();
     var ops = 0;
     final seen = <String>{};
@@ -167,6 +191,8 @@ class FirestorePassportRemote implements PassportRemote {
     final reflections = (data['reflections'] as List)
         .map((e) => Reflection.fromJson(e as Map<String, dynamic>))
         .toList();
+    final notes = (data['notifications'] as List? ?? const [])
+        .cast<Map<String, dynamic>>();
 
     if (user != null) {
       put('user', _userDoc(uid), {
@@ -186,6 +212,21 @@ class FirestorePassportRemote implements PassportRemote {
           'stampedAt': _ts(stamps[id]),
         });
       }
+      for (final n in notes) {
+        final id = n['id'] as String;
+        put(
+          'notifications/$id',
+          _userDoc(uid).collection('notifications').doc(id),
+          {
+            'type': n['type'],
+            'title': n['title'],
+            'body': n['body'],
+            'locationId': n['locationId'],
+            'read': n['read'] ?? false,
+            'createdAt': _ts(n['createdAt']),
+          },
+        );
+      }
       for (final r in reflections) {
         final key = 'reflections/${r.id}';
         final isNew = !_written.containsKey(key);
@@ -202,12 +243,15 @@ class FirestorePassportRemote implements PassportRemote {
     // Xóa những document không còn trong trạng thái hiện tại.
     for (final key in _written.keys.where((k) => !seen.contains(k)).toList()) {
       _written.remove(key);
+      final slash = key.indexOf('/');
+      final id = slash < 0 ? '' : key.substring(slash + 1);
       if (key == 'user') {
         batch.delete(_userDoc(uid));
       } else if (key.startsWith('visits/')) {
-        batch.delete(_userDoc(uid).collection('visits').doc(key.substring(7)));
+        batch.delete(_userDoc(uid).collection('visits').doc(id));
+      } else if (key.startsWith('notifications/')) {
+        batch.delete(_userDoc(uid).collection('notifications').doc(id));
       } else if (key.startsWith('reflections/')) {
-        final id = key.substring(12);
         batch
           ..delete(_db.collection('reflections').doc(id))
           ..delete(_db.collection('reflection_owners').doc(id));
@@ -216,7 +260,15 @@ class FirestorePassportRemote implements PassportRemote {
       ops++;
     }
 
-    if (ops > 0) await batch.commit();
+    try {
+      if (ops > 0) await batch.commit();
+    } catch (_) {
+      // Ghi thất bại: quay lại trạng thái trước để lần sau gửi lại đủ.
+      _written
+        ..clear()
+        ..addAll(before);
+      rethrow;
+    }
     _state.value = SyncState.synced;
   }
 

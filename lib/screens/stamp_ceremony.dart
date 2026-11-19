@@ -7,6 +7,7 @@ import 'package:image_picker/image_picker.dart';
 
 import '../data/routes.dart';
 import '../services/ai_verifier.dart';
+import '../services/validators.dart';
 import '../state/passport_store.dart';
 import '../theme.dart';
 
@@ -286,9 +287,11 @@ class _CeremonyState extends State<_Ceremony> {
                     enabled: !verifying,
                     minLines: 4,
                     maxLines: 6,
-                    maxLength: 600,
+                    maxLength: reflectionMaxLength,
                     style: bodyStyle(15, height: 1.5),
                     decoration: InputDecoration(
+                      helperText: validateReflection(_text.text),
+                      helperStyle: bodyStyle(12, color: AppColors.inkSoft),
                       hintText:
                           'Ví dụ: Kéo TimeLens mới thấy cổng thành xưa nhìn thẳng ra cửa sông…',
                       hintStyle: bodyStyle(
@@ -382,7 +385,9 @@ class _CeremonyState extends State<_Ceremony> {
                   PrimaryButton(
                     label: verifying ? 'AI đang thẩm định…' : 'Gửi cảm nhận',
                     loading: verifying,
-                    onPressed: _text.text.trim().isEmpty ? null : _submit,
+                    onPressed: validateReflection(_text.text) == null
+                        ? _submit
+                        : null,
                   ),
                 ],
               ),

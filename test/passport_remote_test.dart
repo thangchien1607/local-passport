@@ -29,6 +29,9 @@ class _FakeRemote implements PassportRemote {
     synced.add(data);
     server = data;
   }
+
+  @override
+  void forget() {}
 }
 
 void main() {
