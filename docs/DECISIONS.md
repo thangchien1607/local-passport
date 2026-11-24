@@ -43,3 +43,8 @@ Tài liệu này ghi lại các lựa chọn kiến trúc khi thực hiện sử
 - `firestore.rules` cho phép `allow read: if true` và `allow write: if false` trên `leaderboard_public/{uid}`; `user_passports/{uid}` vẫn khóa hoàn toàn cho riêng chủ sở hữu.
 - Thêm composite index `(xp DESC, stampCount DESC)` trong `firestore.indexes.json`.
 - `LeaderboardScreen` tự tải `leaderboard_public`, hỗ trợ kéo làm mới (`RefreshIndicator`), tự xử lý an toàn khi danh sách có < 3 người dùng, và fallback sang dữ liệu mẫu khi chạy offline/chưa có dữ liệu cloud.
+
+## 2.3 Phân trang cộng đồng & Realtime `snapshots()`
+- Thêm `CommunityPage`, `fetchCommunityPage(limit, startAfter)` (dùng `startAfterDocument` trên Firestore) và `watchLatestCommunity(limit)` (dùng `snapshots()`) trên `PassportRemote`.
+- `PassportStore` hợp nhất trang đã tải (`_pagedCommunity`) với luồng realtime (`_realtimeCommunity`), tự cập nhật `aiScore` khi server ghi điểm mới, và hỗ trợ `loadMoreCommunity()` cho infinite scroll.
+- `CommunityScreen` gắn `ScrollController` tự tải trang tiếp theo khi cuộn gần cuối (`<= 240px`), có `RefreshIndicator` kéo làm mới và nút dự phòng "Tải thêm cảm nhận".

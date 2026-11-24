@@ -92,6 +92,16 @@ class FakeRemote implements PassportRemote {
   Future<List<Reflection>> fetchCommunity() async => [];
 
   @override
+  Future<CommunityPage> fetchCommunityPage({
+    int limit = 20,
+    Object? startAfter,
+  }) async => const CommunityPage(items: [], hasMore: false);
+
+  @override
+  Stream<List<Reflection>> watchLatestCommunity({int limit = 20}) =>
+      const Stream.empty();
+
+  @override
   Future<List<LeaderEntry>> fetchLeaderboard({int limit = 50}) async => [];
 
   @override

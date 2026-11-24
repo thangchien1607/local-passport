@@ -119,8 +119,14 @@ class PassportStore extends ChangeNotifier {
   String? _ownerUid;
   int _noteSeq = 0;
 
-  /// Bài cảm nhận của người khác tải từ Firestore.
+  /// Bài cảm nhận của người khác tải từ Firestore (phân trang + realtime).
   List<Reflection> communityReflections = [];
+  Object? _communityCursor;
+  bool hasMoreCommunity = false;
+  bool isLoadingMoreCommunity = false;
+  StreamSubscription<List<Reflection>>? _communitySub;
+  final Map<String, Reflection> _pagedCommunity = {};
+  final Map<String, Reflection> _realtimeCommunity = {};
 
   /// Bảng xếp hạng công khai tải từ collection `leaderboard_public`.
   List<LeaderEntry> remoteLeaderboard = [];
@@ -274,6 +280,7 @@ class PassportStore extends ChangeNotifier {
 
   /// Đăng xuất: chỉ xóa dữ liệu trên máy, dữ liệu trên server vẫn giữ.
   Future<void> logout() async {
+    stopWatchingCommunity();
     await auth?.signOut();
     remote?.forget();
     _clearState();
@@ -281,6 +288,13 @@ class PassportStore extends ChangeNotifier {
     saveProblem.value = null;
     _saveLocal();
     notifyListeners();
+  }
+
+  @override
+  void dispose() {
+    stopWatchingCommunity();
+    remote?.state.removeListener(_onSyncState);
+    super.dispose();
   }
 
   // ---- Thông báo ----
@@ -390,17 +404,101 @@ class PassportStore extends ChangeNotifier {
     } catch (_) {}
   }
 
-  /// Tải lại bài cảm nhận của mọi người từ Firestore.
-  Future<void> refreshCommunity() async {
+  void _rebuildCommunityList() {
+    final merged = <String, Reflection>{
+      ..._pagedCommunity,
+      ..._realtimeCommunity,
+    };
+    final myIds = {for (final r in reflections) r.id};
+    communityReflections =
+        merged.values.where((x) => !myIds.contains(x.id)).toList()
+          ..sort((a, b) => b.createdAt.compareTo(a.createdAt));
+    notifyListeners();
+  }
+
+  /// Bắt đầu lắng nghe realtime các bài cảm nhận mới nhất (`snapshots()`).
+  void startWatchingCommunity({int limit = 20}) {
+    final r = remote;
+    if (r == null || _communitySub != null) return;
+    _communitySub = r
+        .watchLatestCommunity(limit: limit)
+        .listen(
+          (latest) {
+            _realtimeCommunity
+              ..clear()
+              ..addEntries(latest.map((item) => MapEntry(item.id, item)));
+            // Đồng bộ aiScore mới nhất từ server cho bài viết của chính người dùng nếu có.
+            var mineUpdated = false;
+            for (var i = 0; i < reflections.length; i++) {
+              final fromServer = _realtimeCommunity[reflections[i].id];
+              if (fromServer != null &&
+                  fromServer.aiScore > 0 &&
+                  fromServer.aiScore != reflections[i].aiScore) {
+                reflections[i] = reflections[i].copyWith(
+                  aiScore: fromServer.aiScore,
+                );
+                mineUpdated = true;
+              }
+            }
+            if (mineUpdated) _saveLocal();
+            _rebuildCommunityList();
+          },
+          onError: (_) {
+            // Giữ danh sách hiện có khi mất kết nối realtime.
+          },
+        );
+  }
+
+  /// Dừng lắng nghe stream realtime cộng đồng.
+  void stopWatchingCommunity() {
+    _communitySub?.cancel();
+    _communitySub = null;
+    _realtimeCommunity.clear();
+  }
+
+  /// Tải lại trang đầu bảng tin cộng đồng từ Firestore và bật stream realtime.
+  Future<void> refreshCommunity({int pageSize = 20}) async {
     final r = remote;
     if (r == null) return;
+    startWatchingCommunity(limit: pageSize);
     try {
-      final all = await r.fetchCommunity();
-      communityReflections = all
-          .where((x) => !reflections.any((m) => m.id == x.id))
-          .toList();
-      notifyListeners();
+      final page = await r.fetchCommunityPage(limit: pageSize);
+      _pagedCommunity
+        ..clear()
+        ..addEntries(page.items.map((item) => MapEntry(item.id, item)));
+      _communityCursor = page.cursor;
+      hasMoreCommunity = page.hasMore;
+      _rebuildCommunityList();
     } catch (_) {}
+  }
+
+  /// Tải trang tiếp theo cho infinite scroll bằng `startAfterDocument`.
+  Future<void> loadMoreCommunity({int pageSize = 20}) async {
+    final r = remote;
+    if (r == null ||
+        isLoadingMoreCommunity ||
+        !hasMoreCommunity ||
+        _communityCursor == null) {
+      return;
+    }
+    isLoadingMoreCommunity = true;
+    notifyListeners();
+    try {
+      final page = await r.fetchCommunityPage(
+        limit: pageSize,
+        startAfter: _communityCursor,
+      );
+      for (final item in page.items) {
+        _pagedCommunity[item.id] = item;
+      }
+      _communityCursor = page.cursor;
+      hasMoreCommunity = page.hasMore;
+    } catch (_) {
+      // Giữ trạng thái trang cũ để người dùng có thể cuộn thử lại.
+    } finally {
+      isLoadingMoreCommunity = false;
+      _rebuildCommunityList();
+    }
   }
 
   void _apply(Map<String, dynamic> j) {

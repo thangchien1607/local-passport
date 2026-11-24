@@ -319,6 +319,21 @@ Future<int> runIdempotentChunkedSync({
 Timestamp? _toTimestamp(Object? iso) =>
     iso == null ? null : Timestamp.fromDate(DateTime.parse(iso as String));
 
+/// Kết quả một trang bài cảm nhận cộng đồng (phân trang bằng `startAfterDocument`).
+class CommunityPage {
+  const CommunityPage({
+    required this.items,
+    required this.hasMore,
+    this.cursor,
+  });
+
+  final List<Reflection> items;
+  final bool hasMore;
+
+  /// Con trỏ trang cuối (`DocumentSnapshot` trên Firestore hoặc giá trị tùy chọn trong test).
+  final Object? cursor;
+}
+
 /// Nơi lưu trữ trực tuyến của hộ chiếu. PassportStore gọi qua lớp này để
 /// test chạy được mà không cần Firebase (truyền null hoặc bản giả).
 abstract class PassportRemote {
@@ -332,8 +347,17 @@ abstract class PassportRemote {
   /// Trả về null nếu chưa đăng nhập hoặc trên server chưa có hộ chiếu.
   Future<Map<String, dynamic>?> fetch();
 
-  /// Bài cảm nhận công khai của mọi người (mới nhất trước).
+  /// Bài cảm nhận công khai của mọi người (trang đầu, mới nhất trước).
   Future<List<Reflection>> fetchCommunity();
+
+  /// Tải một trang bài cảm nhận công khai bằng `startAfterDocument`.
+  Future<CommunityPage> fetchCommunityPage({
+    int limit = 20,
+    Object? startAfter,
+  });
+
+  /// Luồng realtime (`snapshots()`) lắng nghe các bài cảm nhận mới nhất.
+  Stream<List<Reflection>> watchLatestCommunity({int limit = 20});
 
   /// Bảng xếp hạng công khai từ collection `leaderboard_public` (do Cloud Function tổng hợp).
   Future<List<LeaderEntry>> fetchLeaderboard({int limit = 50});
@@ -453,12 +477,45 @@ class FirestorePassportRemote implements PassportRemote {
 
   @override
   Future<List<Reflection>> fetchCommunity() async {
-    final snap = await _db
+    final page = await fetchCommunityPage(limit: 20);
+    return page.items;
+  }
+
+  @override
+  Future<CommunityPage> fetchCommunityPage({
+    int limit = 20,
+    Object? startAfter,
+  }) async {
+    var query = _db
         .collection('reflections')
         .orderBy('createdAt', descending: true)
-        .limit(50)
-        .get();
-    return [for (final d in snap.docs) _reflectionFromDoc(d.id, d.data())];
+        .limit(limit);
+    if (startAfter is DocumentSnapshot) {
+      query = query.startAfterDocument(startAfter);
+    }
+    final snap = await query.get();
+    final items = [
+      for (final d in snap.docs) _reflectionFromDoc(d.id, d.data()),
+    ];
+    return CommunityPage(
+      items: items,
+      hasMore: snap.docs.length >= limit,
+      cursor: snap.docs.isEmpty ? startAfter : snap.docs.last,
+    );
+  }
+
+  @override
+  Stream<List<Reflection>> watchLatestCommunity({int limit = 20}) {
+    return _db
+        .collection('reflections')
+        .orderBy('createdAt', descending: true)
+        .limit(limit)
+        .snapshots()
+        .map(
+          (snap) => [
+            for (final d in snap.docs) _reflectionFromDoc(d.id, d.data()),
+          ],
+        );
   }
 
   @override
