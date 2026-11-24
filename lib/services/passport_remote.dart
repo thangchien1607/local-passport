@@ -9,6 +9,40 @@ enum SyncState { offline, syncing, synced, error }
 /// Giới hạn an toàn dưới ngưỡng 500 thao tác/WriteBatch của Cloud Firestore.
 const maxBatchOperations = 450;
 
+/// Giới hạn số phần tử tối đa của toán tử `whereIn` trong Cloud Firestore.
+const maxWhereInIds = 30;
+
+/// Chia danh sách ID thành các nhóm nhỏ tối đa [chunkSize] phần tử (mặc định 30)
+/// để dùng với truy vấn `whereIn`.
+List<List<T>> chunkIds<T>(List<T> ids, {int chunkSize = maxWhereInIds}) {
+  if (chunkSize <= 0) {
+    throw ArgumentError.value(chunkSize, 'chunkSize', 'Phải lớn hơn 0');
+  }
+  if (ids.isEmpty) return const [];
+  final result = <List<T>>[];
+  for (var i = 0; i < ids.length; i += chunkSize) {
+    final end = i + chunkSize < ids.length ? i + chunkSize : ids.length;
+    result.add(ids.sublist(i, end));
+  }
+  return result;
+}
+
+/// Truy vấn song song theo lô (tối đa [chunkSize] ID mỗi nhóm) bằng `Future.wait`
+/// để loại bỏ vòng lặp N+1.
+Future<List<T>> fetchInChunks<T>({
+  required List<String> ids,
+  required Future<List<T>> Function(List<String> chunk) queryChunk,
+  int chunkSize = maxWhereInIds,
+}) async {
+  final uniqueIds = ids.toSet().toList();
+  final chunks = chunkIds(uniqueIds, chunkSize: chunkSize);
+  if (chunks.isEmpty) return const [];
+  final groups = await Future.wait([
+    for (final chunk in chunks) queryChunk(chunk),
+  ]);
+  return [for (final g in groups) ...g];
+}
+
 /// Chia các nhóm thao tác nguyên tử thành nhiều lô, mỗi lô tối đa [maxOps]
 /// thao tác và không bao giờ tách đôi một nhóm nguyên tử (vd tạo cặp
 /// `reflection_owners/{id}` + `reflections/{id}`).
@@ -347,23 +381,30 @@ class FirestorePassportRemote implements PassportRemote {
     }
     _state.value = SyncState.syncing;
     try {
-      final userSnap = await _userDoc(uid).get();
-      final visits = await _userDoc(uid).collection('visits').get();
-      final notes = await _userDoc(uid)
-          .collection('notifications')
-          .orderBy('createdAt', descending: true)
-          .limit(50)
-          .get();
-      final owners = await _db
-          .collection('reflection_owners')
-          .where('uid', isEqualTo: uid)
-          .get();
-      final reflections = <Reflection>[];
-      for (final o in owners.docs) {
-        final snap = await _db.collection('reflections').doc(o.id).get();
-        final r = snap.data();
-        if (r != null) reflections.add(_reflectionFromDoc(snap.id, r));
-      }
+      final (userSnap, visits, notes, owners) = await (
+        _userDoc(uid).get(),
+        _userDoc(uid).collection('visits').get(),
+        _userDoc(uid)
+            .collection('notifications')
+            .orderBy('createdAt', descending: true)
+            .limit(50)
+            .get(),
+        _db.collection('reflection_owners').where('uid', isEqualTo: uid).get(),
+      ).wait;
+
+      final ownerIds = [for (final o in owners.docs) o.id];
+      final reflections = await fetchInChunks<Reflection>(
+        ids: ownerIds,
+        queryChunk: (chunk) async {
+          final snap = await _db
+              .collection('reflections')
+              .where(FieldPath.documentId, whereIn: chunk)
+              .get();
+          return [
+            for (final d in snap.docs) _reflectionFromDoc(d.id, d.data()),
+          ];
+        },
+      );
       reflections.sort((a, b) => b.createdAt.compareTo(a.createdAt));
 
       final u = userSnap.data();

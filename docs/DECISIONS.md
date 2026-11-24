@@ -33,3 +33,7 @@ Tài liệu này ghi lại các lựa chọn kiến trúc khi thực hiện sử
 - Tách các hàm kiểm tra schema trong `firestore.rules`: `validPassport`, `validVisit`, `validNotification`, `validReflectionCreate`, `validReflectionUpdate`, `validPhotoUrl`.
 - Mọi thao tác ghi thiếu trường bắt buộc, thừa trường lạ, sai kiểu dữ liệu hoặc vượt giới hạn độ dài chuỗi/kích thước danh sách đều bị từ chối ở tầng Security Rules.
 - Bộ test `rules_tests/` dùng `@firebase/rules-unit-testing` chạy trên Firebase Emulator Suite (`firestore` + `storage`) để xác minh toàn bộ các ràng buộc từ 1.1 đến 1.4.
+
+## 2.1 Loại bỏ vòng lặp N+1 trong `fetch()`
+- Tải song song `user_passports/{uid}`, `visits`, `notifications` và `reflection_owners` trong cùng `Future.wait`.
+- Thay vòng lặp `get()` từng bài cảm nhận bằng `fetchInChunks` sử dụng `where(FieldPath.documentId, whereIn: chunk)` với tối đa `30` ID/lô, chạy song song bằng `Future.wait`.
