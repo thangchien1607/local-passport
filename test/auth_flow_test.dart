@@ -15,7 +15,12 @@ class FakeAuth implements AuthGateway {
   final accounts = <String, ({String password, String uid})>{};
   String? _uid;
   String? _email;
+  String? _displayName;
   bool _guest = false;
+  bool _verified = false;
+  bool _hasPassword = false;
+  int verificationEmailsSent = 0;
+  int accountsDeleted = 0;
   int _next = 1;
 
   @override
@@ -23,7 +28,13 @@ class FakeAuth implements AuthGateway {
   @override
   String? get email => _email;
   @override
+  String? get displayName => _displayName;
+  @override
   bool get isGuest => _guest;
+  @override
+  bool get emailVerified => _verified;
+  @override
+  bool get hasPasswordProvider => _hasPassword;
 
   @override
   Future<void> register(String email, String password) async {
@@ -36,6 +47,8 @@ class FakeAuth implements AuthGateway {
     _uid = uid;
     _email = email;
     _guest = false;
+    _verified = false;
+    _hasPassword = true;
   }
 
   @override
@@ -47,23 +60,84 @@ class FakeAuth implements AuthGateway {
     _uid = a.uid;
     _email = email;
     _guest = false;
+    _hasPassword = true;
+  }
+
+  @override
+  Future<void> signInWithGoogle() async {
+    _uid = _guest ? _uid! : 'google-${_next++}';
+    _email = 'traveler@gmail.com';
+    _displayName = 'Lữ khách Google';
+    _guest = false;
+    _verified = true;
+    _hasPassword = false;
+  }
+
+  @override
+  Future<void> signInWithApple() async {
+    _uid = _guest ? _uid! : 'apple-${_next++}';
+    _email = 'traveler@icloud.com';
+    _displayName = 'Lữ khách Apple';
+    _guest = false;
+    _verified = true;
+    _hasPassword = false;
   }
 
   @override
   Future<void> signInGuest() async {
     _uid = 'g${_next++}';
     _email = null;
+    _displayName = null;
     _guest = true;
+    _verified = false;
+    _hasPassword = false;
   }
 
   @override
   Future<void> sendPasswordReset(String email) async {}
 
   @override
+  Future<void> sendEmailVerification() async {
+    verificationEmailsSent++;
+  }
+
+  @override
+  Future<bool> reloadUser() async {
+    _verified = true;
+    return _verified;
+  }
+
+  @override
+  Future<void> changePassword({
+    required String currentPassword,
+    required String newPassword,
+  }) async {
+    final e = _email;
+    if (e == null || !accounts.containsKey(e)) {
+      throw const AuthFailure('Tài khoản hiện tại không dùng mật khẩu.');
+    }
+    final a = accounts[e]!;
+    if (a.password != currentPassword) {
+      throw AuthFailure(authErrorMessage('wrong-password'));
+    }
+    accounts[e] = (password: newPassword, uid: a.uid);
+  }
+
+  @override
+  Future<void> deleteAccount() async {
+    if (_email != null) accounts.remove(_email);
+    accountsDeleted++;
+    await signOut();
+  }
+
+  @override
   Future<void> signOut() async {
     _uid = null;
     _email = null;
+    _displayName = null;
     _guest = false;
+    _verified = false;
+    _hasPassword = false;
   }
 }
 
@@ -331,6 +405,60 @@ void main() {
       findsOneWidget,
     );
     expect(store.user, isNull);
+    expect(find.text('Google'), findsOneWidget);
+    expect(find.text('Apple'), findsOneWidget);
     expect(tester.takeException(), isNull);
   });
+
+  test(
+    'Google/Apple Sign-In, xác minh email, đổi mật khẩu và xóa tài khoản hoạt động đúng',
+    () async {
+      final (store, auth, _) = await _setup();
+
+      // Đăng ký email -> tự động gửi email xác minh.
+      await store.register(
+        name: 'Lan Anh',
+        email: 'lan@gmail.com',
+        password: 'danang2026',
+      );
+      expect(auth.verificationEmailsSent, 1);
+      expect(store.emailVerified, isFalse);
+
+      await store.refreshEmailVerification();
+      expect(store.emailVerified, isTrue);
+
+      // Đổi mật khẩu: sai mật khẩu cũ bị từ chối, đúng thì đổi được.
+      await expectLater(
+        store.changePassword(
+          currentPassword: 'sai-password1',
+          newPassword: 'danang2027',
+        ),
+        throwsA(isA<AuthFailure>()),
+      );
+      await store.changePassword(
+        currentPassword: 'danang2026',
+        newPassword: 'danang2027',
+      );
+      await store.logout();
+      await store.signIn(email: 'lan@gmail.com', password: 'danang2027');
+      expect(store.user?.name, 'Lan Anh');
+
+      // Xóa tài khoản -> dọn sạch trạng thái cục bộ và xóa tài khoản.
+      await store.deleteAccount();
+      expect(auth.accountsDeleted, 1);
+      expect(store.user, isNull);
+      expect(auth.uid, isNull);
+
+      // Đăng nhập Google tạo hộ chiếu mới; nâng khách lên Apple giữ nguyên tiến độ.
+      await store.signInWithGoogle();
+      expect(store.user?.name, 'Lữ khách Google');
+      await store.logout();
+
+      await store.enterAsGuest('Khách tạm');
+      store.unlock('dien-hai');
+      await store.signInWithApple();
+      expect(store.isGuest, isFalse);
+      expect(store.isUnlocked('dien-hai'), isTrue);
+    },
+  );
 }

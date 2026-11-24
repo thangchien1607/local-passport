@@ -2,6 +2,7 @@ import 'package:flutter/material.dart';
 
 import '../data/routes.dart';
 import '../services/auth_service.dart';
+import '../services/validators.dart';
 import '../state/passport_store.dart';
 import '../widgets/auth_form.dart';
 import '../theme.dart';
@@ -69,6 +70,181 @@ class PassportScreen extends StatelessWidget {
     if (ok != true) return;
     try {
       await store.logout();
+    } on AuthFailure catch (e) {
+      messenger.showSnackBar(SnackBar(content: Text(e.message)));
+    }
+  }
+
+  Future<void> _sendVerificationEmail(BuildContext context) async {
+    final store = PassportScope.read(context);
+    final messenger = ScaffoldMessenger.of(context);
+    try {
+      await store.sendEmailVerification();
+      messenger.showSnackBar(
+        const SnackBar(
+          content: Text('Đã gửi email xác minh. Kiểm tra hộp thư của bạn.'),
+        ),
+      );
+    } on AuthFailure catch (e) {
+      messenger.showSnackBar(SnackBar(content: Text(e.message)));
+    }
+  }
+
+  Future<void> _checkEmailVerified(BuildContext context) async {
+    final store = PassportScope.read(context);
+    final messenger = ScaffoldMessenger.of(context);
+    try {
+      final verified = await store.refreshEmailVerification();
+      messenger.showSnackBar(
+        SnackBar(
+          content: Text(
+            verified
+                ? 'Email của bạn đã được xác minh.'
+                : 'Email chưa được xác minh. Hãy bấm link trong hộp thư.',
+          ),
+        ),
+      );
+    } on AuthFailure catch (e) {
+      messenger.showSnackBar(SnackBar(content: Text(e.message)));
+    }
+  }
+
+  Future<void> _openChangePassword(BuildContext context) async {
+    final store = PassportScope.read(context);
+    final messenger = ScaffoldMessenger.of(context);
+    final currentCtrl = TextEditingController();
+    final nextCtrl = TextEditingController();
+    final confirmCtrl = TextEditingController();
+    final formKey = GlobalKey<FormState>();
+
+    final changed = await showDialog<bool>(
+      context: context,
+      builder: (dialogContext) {
+        var busy = false;
+        String? error;
+        return StatefulBuilder(
+          builder: (ctx, setDialogState) => AlertDialog(
+            title: Text('Đổi mật khẩu', style: displayStyle(22)),
+            content: Form(
+              key: formKey,
+              child: SingleChildScrollView(
+                child: Column(
+                  mainAxisSize: MainAxisSize.min,
+                  children: [
+                    TextFormField(
+                      controller: currentCtrl,
+                      obscureText: true,
+                      decoration: const InputDecoration(
+                        labelText: 'Mật khẩu hiện tại',
+                      ),
+                      validator: (v) =>
+                          (v ?? '').isEmpty ? 'Nhập mật khẩu hiện tại' : null,
+                    ),
+                    const SizedBox(height: 10),
+                    TextFormField(
+                      controller: nextCtrl,
+                      obscureText: true,
+                      decoration: const InputDecoration(
+                        labelText: 'Mật khẩu mới',
+                      ),
+                      validator: validatePassword,
+                    ),
+                    const SizedBox(height: 10),
+                    TextFormField(
+                      controller: confirmCtrl,
+                      obscureText: true,
+                      decoration: const InputDecoration(
+                        labelText: 'Nhập lại mật khẩu mới',
+                      ),
+                      validator: (v) =>
+                          validatePasswordConfirm(nextCtrl.text, v),
+                    ),
+                    if (error != null) ...[
+                      const SizedBox(height: 10),
+                      Text(
+                        error!,
+                        style: bodyStyle(13, color: const Color(0xFFB91C1C)),
+                      ),
+                    ],
+                  ],
+                ),
+              ),
+            ),
+            actions: [
+              TextButton(
+                onPressed: busy ? null : () => Navigator.pop(dialogContext),
+                child: const Text('Hủy'),
+              ),
+              FilledButton(
+                onPressed: busy
+                    ? null
+                    : () async {
+                        if (!formKey.currentState!.validate()) return;
+                        setDialogState(() {
+                          busy = true;
+                          error = null;
+                        });
+                        try {
+                          await store.changePassword(
+                            currentPassword: currentCtrl.text,
+                            newPassword: nextCtrl.text,
+                          );
+                          if (dialogContext.mounted) {
+                            Navigator.pop(dialogContext, true);
+                          }
+                        } on AuthFailure catch (e) {
+                          setDialogState(() {
+                            busy = false;
+                            error = e.message;
+                          });
+                        }
+                      },
+                child: Text(busy ? 'Đang lưu…' : 'Cập nhật'),
+              ),
+            ],
+          ),
+        );
+      },
+    );
+    currentCtrl.dispose();
+    nextCtrl.dispose();
+    confirmCtrl.dispose();
+    if (changed == true) {
+      messenger.showSnackBar(
+        const SnackBar(content: Text('Đổi mật khẩu thành công.')),
+      );
+    }
+  }
+
+  Future<void> _confirmDeleteAccount(BuildContext context) async {
+    final store = PassportScope.read(context);
+    final messenger = ScaffoldMessenger.of(context);
+    final ok = await showDialog<bool>(
+      context: context,
+      builder: (context) => AlertDialog(
+        title: Text('Xóa vĩnh viễn tài khoản?', style: displayStyle(22)),
+        content: Text(
+          'Hành động này sẽ xóa hoàn toàn tài khoản, hộ chiếu, toàn bộ bài cảm nhận và ảnh đã tải lên. Không thể khôi phục.',
+          style: bodyStyle(14),
+        ),
+        actions: [
+          TextButton(
+            onPressed: () => Navigator.pop(context, false),
+            child: const Text('Hủy'),
+          ),
+          FilledButton(
+            style: FilledButton.styleFrom(
+              backgroundColor: const Color(0xFFB91C1C),
+            ),
+            onPressed: () => Navigator.pop(context, true),
+            child: const Text('Xóa vĩnh viễn'),
+          ),
+        ],
+      ),
+    );
+    if (ok != true) return;
+    try {
+      await store.deleteAccount();
     } on AuthFailure catch (e) {
       messenger.showSnackBar(SnackBar(content: Text(e.message)));
     }
@@ -359,37 +535,92 @@ class PassportScreen extends StatelessWidget {
           Container(
             padding: const EdgeInsets.all(16),
             decoration: cardDecoration(),
-            child: Row(
+            child: Column(
+              crossAxisAlignment: CrossAxisAlignment.start,
               children: [
-                Icon(
-                  store.isGuest
-                      ? Icons.person_outline_rounded
-                      : Icons.verified_user_outlined,
-                  color: store.isGuest ? AppColors.gold : AppColors.progressInk,
-                ),
-                const SizedBox(width: 12),
-                Expanded(
-                  child: Column(
-                    crossAxisAlignment: CrossAxisAlignment.start,
-                    children: [
-                      Text(
-                        store.isGuest ? 'Tài khoản khách' : 'Tài khoản',
-                        style: bodyStyle(12, color: AppColors.inkSoft),
+                Row(
+                  children: [
+                    Icon(
+                      store.isGuest
+                          ? Icons.person_outline_rounded
+                          : store.emailVerified
+                          ? Icons.verified_user_outlined
+                          : Icons.mark_email_unread_outlined,
+                      color: store.isGuest
+                          ? AppColors.gold
+                          : store.emailVerified
+                          ? AppColors.progressInk
+                          : AppColors.gold,
+                    ),
+                    const SizedBox(width: 12),
+                    Expanded(
+                      child: Column(
+                        crossAxisAlignment: CrossAxisAlignment.start,
+                        children: [
+                          Text(
+                            store.isGuest
+                                ? 'Tài khoản khách'
+                                : store.emailVerified
+                                ? 'Tài khoản · Đã xác minh email'
+                                : 'Tài khoản · Chưa xác minh email',
+                            style: bodyStyle(12, color: AppColors.inkSoft),
+                          ),
+                          Text(
+                            store.isGuest
+                                ? 'Chưa gắn email: đăng xuất sẽ mất hộ chiếu'
+                                : store.accountEmail ?? '',
+                            style: bodyStyle(14, weight: FontWeight.w600),
+                          ),
+                        ],
                       ),
-                      Text(
-                        store.isGuest
-                            ? 'Chưa gắn email: đăng xuất sẽ mất hộ chiếu'
-                            : store.accountEmail ?? '',
-                        style: bodyStyle(14, weight: FontWeight.w600),
+                    ),
+                    if (store.isGuest)
+                      TextButton(
+                        onPressed: () => _openSaveAccount(context),
+                        child: const Text('Lưu vào tài khoản'),
+                      ),
+                  ],
+                ),
+                if (!store.isGuest) ...[
+                  const SizedBox(height: 10),
+                  const Divider(height: 1, color: AppColors.line),
+                  const SizedBox(height: 6),
+                  Wrap(
+                    spacing: 4,
+                    children: [
+                      if (store.hasPasswordProvider &&
+                          !store.emailVerified) ...[
+                        TextButton.icon(
+                          onPressed: () => _sendVerificationEmail(context),
+                          icon: const Icon(Icons.send_outlined, size: 16),
+                          label: const Text('Gửi email xác minh'),
+                        ),
+                        TextButton.icon(
+                          onPressed: () => _checkEmailVerified(context),
+                          icon: const Icon(Icons.refresh_rounded, size: 16),
+                          label: const Text('Kiểm tra xác minh'),
+                        ),
+                      ],
+                      if (store.hasPasswordProvider)
+                        TextButton.icon(
+                          onPressed: () => _openChangePassword(context),
+                          icon: const Icon(Icons.lock_reset_rounded, size: 16),
+                          label: const Text('Đổi mật khẩu'),
+                        ),
+                      TextButton.icon(
+                        onPressed: () => _confirmDeleteAccount(context),
+                        style: TextButton.styleFrom(
+                          foregroundColor: const Color(0xFFB91C1C),
+                        ),
+                        icon: const Icon(
+                          Icons.delete_forever_outlined,
+                          size: 16,
+                        ),
+                        label: const Text('Xóa tài khoản'),
                       ),
                     ],
                   ),
-                ),
-                if (store.isGuest)
-                  TextButton(
-                    onPressed: () => _openSaveAccount(context),
-                    child: const Text('Lưu vào tài khoản'),
-                  ),
+                ],
               ],
             ),
           ),

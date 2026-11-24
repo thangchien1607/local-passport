@@ -57,15 +57,36 @@ class _FakeAuth implements AuthGateway {
   @override
   String? get email => 'photo@example.com';
   @override
+  String? get displayName => 'Photo Tester';
+  @override
   bool get isGuest => false;
+  @override
+  bool get emailVerified => true;
+  @override
+  bool get hasPasswordProvider => true;
   @override
   Future<void> register(String email, String password) async {}
   @override
   Future<void> signIn(String email, String password) async {}
   @override
+  Future<void> signInWithGoogle() async {}
+  @override
+  Future<void> signInWithApple() async {}
+  @override
   Future<void> signInGuest() async {}
   @override
   Future<void> sendPasswordReset(String email) async {}
+  @override
+  Future<void> sendEmailVerification() async {}
+  @override
+  Future<bool> reloadUser() async => true;
+  @override
+  Future<void> changePassword({
+    required String currentPassword,
+    required String newPassword,
+  }) async {}
+  @override
+  Future<void> deleteAccount() async {}
   @override
   Future<void> signOut() async {}
 }

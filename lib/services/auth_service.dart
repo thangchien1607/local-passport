@@ -1,4 +1,8 @@
 import 'package:firebase_auth/firebase_auth.dart';
+import 'package:flutter/foundation.dart';
+import 'package:http/http.dart' as http;
+
+import 'ai_verifier.dart';
 
 /// Lỗi xác thực đã dịch sang câu dễ hiểu để hiện cho người dùng.
 class AuthFailure implements Exception {
@@ -14,23 +18,49 @@ class AuthFailure implements Exception {
 abstract class AuthGateway {
   String? get uid;
   String? get email;
+  String? get displayName;
 
   /// Đang dùng tài khoản khách (ẩn danh).
   bool get isGuest;
+
+  /// Email đã xác minh hay chưa.
+  bool get emailVerified;
+
+  /// Có đăng nhập bằng Email/Mật khẩu hay không (để hiển thị đổi mật khẩu / xác minh email).
+  bool get hasPasswordProvider;
 
   /// Tạo tài khoản email. Nếu đang là khách thì nâng tài khoản khách lên,
   /// giữ nguyên uid và hộ chiếu đang có.
   Future<void> register(String email, String password);
   Future<void> signIn(String email, String password);
+  Future<void> signInWithGoogle();
+  Future<void> signInWithApple();
   Future<void> signInGuest();
   Future<void> sendPasswordReset(String email);
+  Future<void> sendEmailVerification();
+  Future<bool> reloadUser();
+  Future<void> changePassword({
+    required String currentPassword,
+    required String newPassword,
+  });
+
+  /// Xóa tài khoản và kích hoạt Cloud Function dọn sạch Firestore + Storage.
+  Future<void> deleteAccount();
   Future<void> signOut();
 }
 
+String get _deleteAccountFunctionUrl {
+  if (cloudFunctionsBaseUrl.isEmpty) return '';
+  final trimmed = cloudFunctionsBaseUrl.replaceAll(RegExp(r'/+$'), '');
+  return '$trimmed/deleteUserAccountData';
+}
+
 class FirebaseAuthGateway implements AuthGateway {
-  FirebaseAuthGateway._(this._auth);
+  FirebaseAuthGateway._(this._auth, {http.Client? httpClient})
+    : _httpClient = httpClient;
 
   final FirebaseAuth _auth;
+  final http.Client? _httpClient;
 
   /// Chờ Firebase khôi phục phiên đăng nhập đã lưu rồi mới trả về.
   static Future<FirebaseAuthGateway> create([FirebaseAuth? auth]) async {
@@ -46,7 +76,20 @@ class FirebaseAuthGateway implements AuthGateway {
   String? get email => _auth.currentUser?.email;
 
   @override
+  String? get displayName => _auth.currentUser?.displayName;
+
+  @override
   bool get isGuest => _auth.currentUser?.isAnonymous ?? false;
+
+  @override
+  bool get emailVerified => _auth.currentUser?.emailVerified ?? false;
+
+  @override
+  bool get hasPasswordProvider {
+    final user = _auth.currentUser;
+    if (user == null || user.isAnonymous) return false;
+    return user.providerData.any((p) => p.providerId == 'password');
+  }
 
   @override
   Future<void> register(String email, String password) => _guard(() async {
@@ -75,6 +118,39 @@ class FirebaseAuthGateway implements AuthGateway {
   );
 
   @override
+  Future<void> signInWithGoogle() => _guard(() async {
+    final provider = GoogleAuthProvider()..addScope('email');
+    await _signInOrLinkProvider(provider);
+    return null;
+  });
+
+  @override
+  Future<void> signInWithApple() => _guard(() async {
+    final provider = AppleAuthProvider()
+      ..addScope('email')
+      ..addScope('name');
+    await _signInOrLinkProvider(provider);
+    return null;
+  });
+
+  Future<void> _signInOrLinkProvider(AuthProvider provider) async {
+    final current = _auth.currentUser;
+    if (current != null && current.isAnonymous) {
+      if (kIsWeb) {
+        await current.linkWithPopup(provider);
+      } else {
+        await current.linkWithProvider(provider);
+      }
+      return;
+    }
+    if (kIsWeb) {
+      await _auth.signInWithPopup(provider);
+    } else {
+      await _auth.signInWithProvider(provider);
+    }
+  }
+
+  @override
   Future<void> signInGuest() => _guard(_auth.signInAnonymously);
 
   @override
@@ -82,11 +158,93 @@ class FirebaseAuthGateway implements AuthGateway {
       _guard(() => _auth.sendPasswordResetEmail(email: email.trim()));
 
   @override
+  Future<void> sendEmailVerification() => _guard(() async {
+    final user = _auth.currentUser;
+    if (user == null || user.isAnonymous) {
+      throw const AuthFailure('Chỉ tài khoản có email mới xác minh được.');
+    }
+    await user.sendEmailVerification();
+    return null;
+  });
+
+  @override
+  Future<bool> reloadUser() async {
+    final user = _auth.currentUser;
+    if (user == null) return false;
+    await _guard(() async {
+      await user.reload();
+      return null;
+    });
+    return _auth.currentUser?.emailVerified ?? false;
+  }
+
+  @override
+  Future<void> changePassword({
+    required String currentPassword,
+    required String newPassword,
+  }) => _guard(() async {
+    final user = _auth.currentUser;
+    final userEmail = user?.email;
+    if (user == null || userEmail == null || user.isAnonymous) {
+      throw const AuthFailure('Tài khoản hiện tại không dùng mật khẩu.');
+    }
+    final cred = EmailAuthProvider.credential(
+      email: userEmail,
+      password: currentPassword,
+    );
+    await user.reauthenticateWithCredential(cred);
+    await user.updatePassword(newPassword);
+    return null;
+  });
+
+  @override
+  Future<void> deleteAccount() => _guard(() async {
+    final user = _auth.currentUser;
+    if (user == null) return null;
+
+    final url = _deleteAccountFunctionUrl;
+    if (url.isNotEmpty) {
+      final token = await user.getIdToken(true);
+      if (token == null || token.isEmpty) {
+        throw const AuthFailure(
+          'Không lấy được phiên xác thực để xóa tài khoản.',
+        );
+      }
+      final client = _httpClient ?? http.Client();
+      try {
+        final response = await client
+            .post(
+              Uri.parse(url),
+              headers: {
+                'Content-Type': 'application/json',
+                'Authorization': 'Bearer $token',
+              },
+            )
+            .timeout(const Duration(seconds: 30));
+        if (response.statusCode != 200) {
+          throw AuthFailure(
+            'Không xóa được dữ liệu trên máy chủ (${response.statusCode}).',
+          );
+        }
+      } finally {
+        if (_httpClient == null) client.close();
+      }
+      await _auth.signOut();
+      return null;
+    }
+
+    await user.delete();
+    return null;
+  });
+
+  @override
   Future<void> signOut() => _guard(_auth.signOut);
 
   Future<void> _guard(Future<Object?> Function() action) async {
     try {
       await action();
+    } on AuthFailure {
+      rethrow;
     } on FirebaseAuthException catch (e) {
       throw AuthFailure(authErrorMessage(e.code));
     } catch (_) {
@@ -107,6 +265,14 @@ String authErrorMessage(String code) => switch (code) {
   'invalid-login-credentials' => 'Email hoặc mật khẩu không đúng.',
   'email-already-in-use' ||
   'credential-already-in-use' => 'Email này đã có tài khoản. Hãy đăng nhập.',
+  'account-exists-with-different-credential' =>
+    'Email này đã liên kết với phương thức đăng nhập khác.',
+  'provider-already-linked' => 'Tài khoản đã liên kết phương thức này rồi.',
+  'popup-closed-by-user' ||
+  'cancelled-popup-request' ||
+  'web-context-cancelled' => 'Bạn đã hủy bước đăng nhập.',
+  'requires-recent-login' =>
+    'Vui lòng đăng xuất và đăng nhập lại trước khi thực hiện thao tác bảo mật này.',
   'weak-password' => 'Mật khẩu quá yếu, hãy chọn mật khẩu dài hơn.',
   'missing-password' => 'Nhập mật khẩu.',
   'network-request-failed' =>

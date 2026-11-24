@@ -48,3 +48,11 @@ firebase deploy --only firestore:rules,firestore:indexes
    flutter build web --release --dart-define=CLOUD_FUNCTIONS_BASE_URL=https://asia-southeast1-local-passport-danang.cloudfunctions.net
    ```
    (Hoặc trỏ vào Emulator cục bộ khi phát triển: `--dart-define=CLOUD_FUNCTIONS_BASE_URL=http://127.0.0.1:5001/local-passport-danang/asia-southeast1`.)
+
+## 5. Bật nhà cung cấp Google Sign-In & Apple Sign-In (Giai đoạn 3.1)
+1. Trong **Firebase Console → Authentication → Sign-in method**:
+   - Bật **Google** (chọn Support email của dự án).
+   - Bật **Apple** (điền Services ID, Team ID, Key ID và Private Key từ Apple Developer Portal để chạy trên Web/Android; với iOS bật thêm Capability *Sign in with Apple* trong Xcode).
+2. Với **Android**: thêm mã SHA-1 và SHA-256 (debug & release keystore) vào **Project Settings → Your apps → Android app**, rồi tải lại `google-services.json`.
+3. Với **Web**: xác nhận domain (`local-passport-danang.web.app`, `localhost`) nằm trong **Authentication → Settings → Authorized domains**.
+4. Với xóa tài khoản toàn bộ: đảm bảo đã triển khai Cloud Function `deleteUserAccountData` và cấu hình `--dart-define=CLOUD_FUNCTIONS_BASE_URL=...` khi build.

@@ -202,6 +202,10 @@ class PassportStore extends ChangeNotifier {
 
   String? get accountEmail => auth?.email;
 
+  bool get emailVerified => auth?.emailVerified ?? false;
+
+  bool get hasPasswordProvider => auth?.hasPasswordProvider ?? false;
+
   UserProfile _newProfile(String name) => UserProfile(
     name: name.trim().isEmpty ? 'Lữ khách' : name.trim(),
     passportNo: 'DN${100000 + Random().nextInt(899999)}',
@@ -237,6 +241,89 @@ class PassportStore extends ChangeNotifier {
     }
     _ownerUid = a.uid;
     _commit();
+    // Gửi email xác minh tự động (không chặn luồng đăng ký nếu mạng yếu).
+    try {
+      await a.sendEmailVerification();
+    } catch (_) {}
+  }
+
+  /// Đăng nhập hoặc liên kết bằng Google.
+  Future<void> signInWithGoogle() =>
+      _signInWithProvider(() => auth!.signInWithGoogle(), 'Google');
+
+  /// Đăng nhập hoặc liên kết bằng Apple.
+  Future<void> signInWithApple() =>
+      _signInWithProvider(() => auth!.signInWithApple(), 'Apple');
+
+  Future<void> _signInWithProvider(
+    Future<void> Function() action,
+    String providerLabel,
+  ) async {
+    final a = auth!;
+    final current = user;
+    final keepGuestData = a.isGuest && current != null;
+    await action();
+    if (keepGuestData) {
+      _ownerUid = a.uid;
+      _notify(
+        NotificationType.account,
+        'Đã liên kết tài khoản $providerLabel',
+        'Hộ chiếu của bạn đã được bảo lưu bằng tài khoản $providerLabel.',
+      );
+      _commit();
+      return;
+    }
+    remote?.forget();
+    _clearState();
+    _ownerUid = a.uid;
+    try {
+      await _pullRemote(rethrowErrors: true);
+    } catch (_) {
+      await a.signOut();
+      _ownerUid = null;
+      throw const AuthFailure(
+        'Không tải được hộ chiếu từ máy chủ. Kiểm tra mạng rồi thử lại.',
+      );
+    }
+    if (user == null) {
+      final fallbackName = (a.displayName?.trim().isNotEmpty == true)
+          ? a.displayName!.trim()
+          : (a.email?.split('@').first ?? 'Lữ khách');
+      user = _newProfile(fallbackName);
+      _welcome();
+      _commit();
+    }
+  }
+
+  Future<void> sendEmailVerification() => auth!.sendEmailVerification();
+
+  Future<bool> refreshEmailVerification() async {
+    final verified = await auth!.reloadUser();
+    notifyListeners();
+    return verified;
+  }
+
+  Future<void> changePassword({
+    required String currentPassword,
+    required String newPassword,
+  }) => auth!.changePassword(
+    currentPassword: currentPassword,
+    newPassword: newPassword,
+  );
+
+  /// Xóa vĩnh viễn tài khoản và toàn bộ dữ liệu liên quan (Firestore + Storage).
+  Future<void> deleteAccount() async {
+    stopWatchingCommunity();
+    final a = auth;
+    if (a != null) {
+      await a.deleteAccount();
+    }
+    remote?.forget();
+    _clearState();
+    _ownerUid = null;
+    saveProblem.value = null;
+    _saveLocal();
+    notifyListeners();
   }
 
   /// Đăng nhập email rồi tải hộ chiếu của tài khoản đó từ Firestore.

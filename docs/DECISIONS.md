@@ -53,3 +53,9 @@ Tài liệu này ghi lại các lựa chọn kiến trúc khi thực hiện sử
 - Cập nhật `firestore.rules` cho phép chủ sở hữu (`ownerOf(id) == request.auth.uid`) sửa thêm `content`, `photoUrl`, `updatedAt` nhưng vẫn khóa chặt `aiScore`, `photoBase64`, `locationId`, `createdAt`.
 - Thêm Cloud Function trigger `rescoreReflectionOnUpdate` (bên cạnh `verifyReflection`) để tự động chấm lại và ghi `aiScore` mới bằng Admin SDK khi `content` hoặc `photoUrl` thay đổi, có điều kiện chống vòng lặp vô hạn.
 - Thêm hộp thoại `EditReflectionDialog` và nút **Sửa** trên `ReflectionCard` cho tác giả sửa nội dung/ảnh và nhận điểm AI mới mà không cộng trùng XP.
+
+## 3.1 Mở rộng xác thực (Google, Apple, xác minh email, đổi mật khẩu, xóa tài khoản)
+- Dùng `GoogleAuthProvider` và `AppleAuthProvider` tích hợp sẵn của `firebase_auth` (`signInWithPopup`/`linkWithPopup` trên Web, `signInWithProvider`/`linkWithProvider` trên Android/iOS) giúp hỗ trợ đầy đủ 3 nền tảng và giữ nguyên tiến độ khi nâng tài khoản khách mà không phát sinh xung đột plugin native.
+- Tự động gọi `sendEmailVerification()` sau khi đăng ký bằng email và cho phép gửi lại/kiểm tra trạng thái trong tab Hộ chiếu.
+- `changePassword()` bắt buộc `reauthenticateWithCredential` bằng mật khẩu hiện tại trước khi gọi `updatePassword`.
+- Thêm Cloud Function `deleteUserAccountData` xác thực ID Token, dọn sạch `user_passports/{uid}` (gồm `visits`, `notifications`), `reflections` + `reflection_owners`, `leaderboard_public/{uid}`, `_rate_limits`, toàn bộ file Storage dưới `users/{uid}/` và xóa user trên Firebase Auth.
