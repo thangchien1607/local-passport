@@ -13,23 +13,36 @@ service cloud.firestore {
       return get(/databases/$(database)/documents/reflection_owners/$(id)).data.uid;
     }
 
+    function validPhotoUrl(v) {
+      return v == null
+        || (v is string && v.size() > 0 && v.size() <= 2048 && v.matches('^https?://.*'));
+    }
+
     function validReflection() {
       let d = request.resource.data;
-      return d.keys().hasOnly(['locationId', 'displayAuthor', 'isAnonymous', 'content', 'aiScore', 'createdAt', 'photoBase64'])
-        && d.locationId is string
-        && d.displayAuthor is string && d.displayAuthor.size() <= 80
+      return d.keys().hasOnly(['locationId', 'displayAuthor', 'isAnonymous', 'content', 'aiScore', 'createdAt', 'photoUrl'])
+        && !('photoBase64' in d)
+        && d.locationId is string && d.locationId.size() > 0 && d.locationId.size() <= 80
+        && d.displayAuthor is string && d.displayAuthor.size() > 0 && d.displayAuthor.size() <= 80
         && d.isAnonymous is bool
         && d.content is string && d.content.size() <= 2000
         && d.aiScore is int && d.aiScore >= 0 && d.aiScore <= 100
         && d.createdAt is timestamp
-        && (d.photoBase64 == null || (d.photoBase64 is string && d.photoBase64.size() <= 900000));
+        && validPhotoUrl(d.get('photoUrl', null));
     }
 
     match /user_passports/{uid} {
       allow read, write: if signedIn() && request.auth.uid == uid;
 
       match /visits/{locationId} {
-        allow read, write: if signedIn() && request.auth.uid == uid;
+        allow read, delete: if signedIn() && request.auth.uid == uid;
+        allow create, update: if signedIn() && request.auth.uid == uid
+          && !('taskPhotos' in request.resource.data)
+          && request.resource.data.keys().hasOnly(['unlocked', 'unlockedAt', 'tasks', 'taskPhotoUrls', 'stampedAt'])
+          && request.resource.data.unlocked is bool
+          && request.resource.data.tasks is list && request.resource.data.tasks.size() <= 30
+          && request.resource.data.get('taskPhotoUrls', {}) is map
+          && request.resource.data.get('taskPhotoUrls', {}).size() <= 20;
       }
 
       // Thông báo trong app: chỉ chủ hộ chiếu đọc, ghi.

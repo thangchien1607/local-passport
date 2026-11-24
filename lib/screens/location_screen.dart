@@ -1,4 +1,3 @@
-import 'dart:convert';
 import 'dart:ui';
 
 import 'package:flutter/material.dart';
@@ -9,6 +8,7 @@ import '../data/routes.dart';
 import '../state/passport_store.dart';
 import '../theme.dart';
 import '../widgets/common.dart';
+import '../widgets/passport_photo.dart';
 import '../widgets/reflection_card.dart';
 import '../widgets/scene_art.dart';
 import '../widgets/stamp_seal.dart';
@@ -62,16 +62,16 @@ class LocationScreen extends StatelessWidget {
     try {
       final image = await ImagePicker().pickImage(
         source: ImageSource.camera,
-        maxWidth: 720,
-        maxHeight: 720,
-        imageQuality: 65,
+        maxWidth: 1920,
+        maxHeight: 1920,
+        imageQuality: 90,
       );
       if (image == null || !context.mounted) return;
       final bytes = await image.readAsBytes();
       if (!context.mounted) return;
-      final stamped = PassportScope.read(
+      final stamped = await PassportScope.read(
         context,
-      ).setTaskPhoto(locationId, taskId, base64Encode(bytes));
+      ).saveTaskPhotoBytes(locationId, taskId, bytes);
       if (stamped && context.mounted) {
         await showStampCeremony(context, locationId);
       }
@@ -592,15 +592,15 @@ class LocationScreen extends StatelessWidget {
   }
 
   Future<void> _showTaskPhoto(BuildContext context, String taskId) async {
-    final encoded = PassportScope.read(context).taskPhoto(locationId, taskId);
-    if (encoded == null || !context.mounted) return;
+    final value = PassportScope.read(context).taskPhoto(locationId, taskId);
+    if (value == null || !context.mounted) return;
     await showDialog<void>(
       context: context,
       builder: (dialogContext) => AlertDialog(
         title: const Text('Ảnh nhiệm vụ'),
         content: ClipRRect(
           borderRadius: BorderRadius.circular(14),
-          child: Image.memory(base64Decode(encoded), fit: BoxFit.contain),
+          child: PassportPhoto.fromValue(value, fit: BoxFit.contain),
         ),
         actions: [
           TextButton(

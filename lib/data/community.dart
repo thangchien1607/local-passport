@@ -11,6 +11,7 @@ class Reflection {
     required this.content,
     required this.aiScore,
     required this.createdAt,
+    this.photoUrl,
     this.photoBase64,
   });
 
@@ -21,17 +22,34 @@ class Reflection {
   final String content;
   final int aiScore;
   final DateTime createdAt;
+
+  /// URL ảnh trên Firebase Storage (chuẩn mới).
+  final String? photoUrl;
+
+  /// Ảnh base64 cũ — chỉ giữ để đọc tương thích ngược, không ghi mới lên Firestore.
   final String? photoBase64;
 
-  Reflection copyWith({String? displayAuthor, bool? isAnonymous}) => Reflection(
+  bool get hasPhoto =>
+      (photoUrl != null && photoUrl!.isNotEmpty) ||
+      (photoBase64 != null && photoBase64!.isNotEmpty);
+
+  Reflection copyWith({
+    String? displayAuthor,
+    bool? isAnonymous,
+    String? content,
+    int? aiScore,
+    String? photoUrl,
+    bool clearPhoto = false,
+  }) => Reflection(
     id: id,
     locationId: locationId,
     displayAuthor: displayAuthor ?? this.displayAuthor,
     isAnonymous: isAnonymous ?? this.isAnonymous,
-    content: content,
-    aiScore: aiScore,
+    content: content ?? this.content,
+    aiScore: aiScore ?? this.aiScore,
     createdAt: createdAt,
-    photoBase64: photoBase64,
+    photoUrl: clearPhoto ? null : (photoUrl ?? this.photoUrl),
+    photoBase64: clearPhoto ? null : photoBase64,
   );
 
   Map<String, dynamic> toJson() => {
@@ -42,7 +60,8 @@ class Reflection {
     'content': content,
     'aiScore': aiScore,
     'createdAt': createdAt.toIso8601String(),
-    'photoBase64': photoBase64,
+    'photoUrl': photoUrl,
+    if (photoBase64 != null) 'photoBase64': photoBase64,
   };
 
   factory Reflection.fromJson(Map<String, dynamic> j) => Reflection(
@@ -51,8 +70,9 @@ class Reflection {
     displayAuthor: j['displayAuthor'] as String,
     isAnonymous: j['isAnonymous'] as bool,
     content: j['content'] as String,
-    aiScore: j['aiScore'] as int,
+    aiScore: (j['aiScore'] as num?)?.toInt() ?? 0,
     createdAt: DateTime.parse(j['createdAt'] as String),
+    photoUrl: j['photoUrl'] as String?,
     photoBase64: j['photoBase64'] as String?,
   );
 }

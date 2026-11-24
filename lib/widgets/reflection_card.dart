@@ -1,10 +1,9 @@
-import 'dart:convert';
-
 import 'package:flutter/material.dart';
 
 import '../data/community.dart';
 import '../data/routes.dart';
 import '../theme.dart';
+import 'passport_photo.dart';
 
 String _date(DateTime t) {
   final l = t.toLocal();
@@ -63,7 +62,7 @@ class ReflectionCard extends StatelessWidget {
         .skip(words.length > 2 ? words.length - 2 : 0)
         .map((w) => w.isEmpty ? '' : w[0])
         .join();
-    final photo = reflection.photoBase64;
+    final hasPhoto = reflection.hasPhoto;
 
     return Container(
       padding: const EdgeInsets.all(16),
@@ -165,12 +164,13 @@ class ReflectionCard extends StatelessWidget {
           ),
           const SizedBox(height: 12),
           Text(reflection.content, style: bodyStyle(13, height: 1.46)),
-          if (photo != null) ...[
+          if (hasPhoto) ...[
             const SizedBox(height: 12),
             ClipRRect(
               borderRadius: BorderRadius.circular(12),
-              child: Image.memory(
-                base64Decode(photo),
+              child: PassportPhoto(
+                photoUrl: reflection.photoUrl,
+                photoBase64: reflection.photoBase64,
                 height: 134,
                 width: double.infinity,
                 fit: BoxFit.cover,

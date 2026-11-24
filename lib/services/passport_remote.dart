@@ -117,7 +117,9 @@ class FirestorePassportRemote implements PassportRemote {
           'unlocked': d['unlocked'] ?? false,
           'unlockedAt': _iso(d['unlockedAt']),
           'tasks': d['tasks'] ?? const [],
-          'taskPhotos': d['taskPhotos'] ?? const {},
+          'taskPhotoUrls': d['taskPhotoUrls'] ?? const <String, dynamic>{},
+          // Tương thích ngược với ảnh base64 cũ đã lưu trước khi chuyển Storage.
+          if (d['taskPhotos'] != null) 'taskPhotos': d['taskPhotos'],
         };
         final stampedAt = _iso(d['stampedAt']);
         if (stampedAt != null) stamps[v.id] = stampedAt;
@@ -208,7 +210,7 @@ class FirestorePassportRemote implements PassportRemote {
           'unlocked': p['unlocked'] ?? false,
           'unlockedAt': _ts(p['unlockedAt']),
           'tasks': p['tasks'] ?? const [],
-          'taskPhotos': p['taskPhotos'] ?? const {},
+          'taskPhotoUrls': p['taskPhotoUrls'] ?? const <String, dynamic>{},
           'stampedAt': _ts(stamps[id]),
         });
       }
@@ -279,7 +281,7 @@ class FirestorePassportRemote implements PassportRemote {
     'content': r.content,
     'aiScore': r.aiScore,
     'createdAt': Timestamp.fromDate(r.createdAt),
-    'photoBase64': r.photoBase64,
+    'photoUrl': r.photoUrl,
   };
 
   static Reflection _reflectionFromDoc(String id, Map<String, dynamic> d) =>
@@ -289,8 +291,10 @@ class FirestorePassportRemote implements PassportRemote {
         displayAuthor: d['displayAuthor'] as String,
         isAnonymous: d['isAnonymous'] as bool? ?? false,
         content: d['content'] as String,
-        aiScore: (d['aiScore'] as num).toInt(),
+        aiScore: (d['aiScore'] as num?)?.toInt() ?? 0,
         createdAt: (d['createdAt'] as Timestamp).toDate(),
+        photoUrl: d['photoUrl'] as String?,
+        // Tương thích ngược với các bài cũ có trường photoBase64.
         photoBase64: d['photoBase64'] as String?,
       );
 

@@ -1,0 +1,43 @@
+rules_version = '2';
+
+// Quy tắc bảo mật Firebase Storage cho Local Passport:
+// - Chỉ chủ tài khoản (uid) được ghi/xóa trong thư mục users/{uid}/...
+// - Giới hạn dung lượng tối đa 5 MB và chỉ chấp nhận ảnh JPEG/PNG/WebP.
+// - Ảnh nhiệm vụ (tasks) chỉ chủ sở hữu đọc; ảnh cảm nhận (reflections) và
+//   ảnh đại diện (avatars) công khai để hiển thị trên Bảng tin và Bảng xếp hạng.
+service firebase.storage {
+  match /b/{bucket}/o {
+    function isOwner(uid) {
+      return request.auth != null && request.auth.uid == uid;
+    }
+
+    function validImageUpload() {
+      return request.resource != null
+        && request.resource.size <= 5 * 1024 * 1024
+        && request.resource.contentType != null
+        && request.resource.contentType.matches('image/(jpeg|png|webp)');
+    }
+
+    match /users/{uid}/tasks/{locationId}/{fileName} {
+      allow read: if isOwner(uid);
+      allow create, update: if isOwner(uid) && validImageUpload();
+      allow delete: if isOwner(uid);
+    }
+
+    match /users/{uid}/reflections/{fileName} {
+      allow read: if true;
+      allow create, update: if isOwner(uid) && validImageUpload();
+      allow delete: if isOwner(uid);
+    }
+
+    match /users/{uid}/avatars/{fileName} {
+      allow read: if true;
+      allow create, update: if isOwner(uid) && validImageUpload();
+      allow delete: if isOwner(uid);
+    }
+
+    match /{allPaths=**} {
+      allow read, write: if false;
+    }
+  }
+}

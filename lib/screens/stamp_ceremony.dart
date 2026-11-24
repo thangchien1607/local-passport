@@ -7,6 +7,7 @@ import 'package:image_picker/image_picker.dart';
 
 import '../data/routes.dart';
 import '../services/ai_verifier.dart';
+import '../services/photo_service.dart';
 import '../services/validators.dart';
 import '../state/passport_store.dart';
 import '../theme.dart';
@@ -67,9 +68,9 @@ class _CeremonyState extends State<_Ceremony> {
     try {
       final file = await ImagePicker().pickImage(
         source: ImageSource.gallery,
-        maxWidth: 720,
-        maxHeight: 720,
-        imageQuality: 72,
+        maxWidth: 1920,
+        maxHeight: 1920,
+        imageQuality: 90,
       );
       if (file == null) return;
       final bytes = await file.readAsBytes();
@@ -103,13 +104,40 @@ class _CeremonyState extends State<_Ceremony> {
     }
     if (!mounted) return;
     if (r.approved) {
+      final reflectionId = 'r${DateTime.now().millisecondsSinceEpoch}';
+      String? photoUrl;
+      String? localPhotoBase64;
+      if (_photo != null) {
+        try {
+          if (store.hasPhotoStorage) {
+            photoUrl = await store.uploadReflectionPhoto(reflectionId, _photo!);
+          } else {
+            final compressed = await compressImageBytes(_photo!);
+            localPhotoBase64 = base64Encode(compressed);
+          }
+        } catch (e) {
+          if (!mounted) return;
+          setState(() => _step = _Step.form);
+          ScaffoldMessenger.maybeOf(context)?.showSnackBar(
+            SnackBar(
+              content: Text(
+                'Không tải được ảnh lên máy chủ: ${e.toString().replaceFirst('Exception: ', '')}',
+              ),
+            ),
+          );
+          return;
+        }
+      }
+      if (!mounted) return;
       store.addReflection(
+        id: reflectionId,
         locationId: widget.locationId,
         content: _text.text.trim(),
         isAnonymous: _anonymous,
         aiScore: r.score,
         bonusXp: r.bonusXp,
-        photoBase64: _photo == null ? null : base64Encode(_photo!),
+        photoUrl: photoUrl,
+        photoBase64: localPhotoBase64,
       );
     }
     setState(() {
