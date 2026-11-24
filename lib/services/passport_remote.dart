@@ -232,7 +232,19 @@ class FirestorePassportRemote implements PassportRemote {
       for (final r in reflections) {
         final key = 'reflections/${r.id}';
         final isNew = !_written.containsKey(key);
-        put(key, _db.collection('reflections').doc(r.id), _reflectionToDoc(r));
+        final doc = _reflectionToDoc(r);
+        seen.add(key);
+        final encoded = jsonEncode(doc, toEncodable: (o) => o.toString());
+        if (_written[key] != encoded) {
+          // Dùng merge: true để không ghi đè trường `aiScore` do Cloud Function quản lý.
+          batch.set(
+            _db.collection('reflections').doc(r.id),
+            doc,
+            SetOptions(merge: true),
+          );
+          _written[key] = encoded;
+          ops++;
+        }
         if (isNew) {
           batch.set(_db.collection('reflection_owners').doc(r.id), {
             'uid': uid,
@@ -274,12 +286,13 @@ class FirestorePassportRemote implements PassportRemote {
     _state.value = SyncState.synced;
   }
 
+  /// Dữ liệu bài cảm nhận ghi từ client — KHÔNG bao gồm `aiScore`
+  /// vì `aiScore` chỉ do Cloud Function ghi bằng Admin SDK.
   static Map<String, dynamic> _reflectionToDoc(Reflection r) => {
     'locationId': r.locationId,
     'displayAuthor': r.displayAuthor,
     'isAnonymous': r.isAnonymous,
     'content': r.content,
-    'aiScore': r.aiScore,
     'createdAt': Timestamp.fromDate(r.createdAt),
     'photoUrl': r.photoUrl,
   };

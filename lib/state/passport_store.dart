@@ -576,6 +576,12 @@ class PassportStore extends ChangeNotifier {
     );
   }
 
+  /// Xóa ảnh tạm trên Storage nếu bài cảm nhận không được duyệt hoặc bị thay ảnh.
+  Future<void> deletePhotoByUrl(String? url) async {
+    if (url == null || url.isEmpty) return;
+    await photos?.deleteByUrl(url);
+  }
+
   bool setTaskPhoto(String id, String taskId, String? photoValue) {
     final p = progress[id];
     final location = locationById[id];

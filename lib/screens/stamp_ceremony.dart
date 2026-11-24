@@ -5,6 +5,7 @@ import 'dart:typed_data';
 import 'package:flutter/material.dart';
 import 'package:image_picker/image_picker.dart';
 
+import '../data/community.dart';
 import '../data/routes.dart';
 import '../services/ai_verifier.dart';
 import '../services/photo_service.dart';
@@ -87,14 +88,45 @@ class _CeremonyState extends State<_Ceremony> {
   Future<void> _submit() async {
     final store = PassportScope.read(context);
     setState(() => _step = _Step.verifying);
+    final reflectionId = 'r${DateTime.now().millisecondsSinceEpoch}';
+    final displayAuthor = _anonymous
+        ? anonymousAuthor
+        : (store.user?.name ?? 'Lữ khách');
+
+    String? uploadedPhotoUrl;
+    if (_photo != null && store.hasPhotoStorage) {
+      try {
+        uploadedPhotoUrl = await store.uploadReflectionPhoto(
+          reflectionId,
+          _photo!,
+        );
+      } catch (e) {
+        if (!mounted) return;
+        setState(() => _step = _Step.form);
+        ScaffoldMessenger.maybeOf(context)?.showSnackBar(
+          SnackBar(
+            content: Text(
+              'Không tải được ảnh lên máy chủ: ${e.toString().replaceFirst('Exception: ', '')}',
+            ),
+          ),
+        );
+        return;
+      }
+    }
+
     late final VerifyResult r;
     try {
       r = await verifyReflection(
         content: _text.text,
         hasPhoto: _photo != null,
         location: _location,
+        reflectionId: reflectionId,
+        displayAuthor: displayAuthor,
+        isAnonymous: _anonymous,
+        photoUrl: uploadedPhotoUrl,
       );
     } catch (e) {
+      await store.deletePhotoByUrl(uploadedPhotoUrl);
       if (!mounted) return;
       setState(() => _step = _Step.form);
       ScaffoldMessenger.maybeOf(context)?.showSnackBar(
@@ -104,29 +136,12 @@ class _CeremonyState extends State<_Ceremony> {
     }
     if (!mounted) return;
     if (r.approved) {
-      final reflectionId = 'r${DateTime.now().millisecondsSinceEpoch}';
-      String? photoUrl;
       String? localPhotoBase64;
-      if (_photo != null) {
+      if (_photo != null && uploadedPhotoUrl == null) {
         try {
-          if (store.hasPhotoStorage) {
-            photoUrl = await store.uploadReflectionPhoto(reflectionId, _photo!);
-          } else {
-            final compressed = await compressImageBytes(_photo!);
-            localPhotoBase64 = base64Encode(compressed);
-          }
-        } catch (e) {
-          if (!mounted) return;
-          setState(() => _step = _Step.form);
-          ScaffoldMessenger.maybeOf(context)?.showSnackBar(
-            SnackBar(
-              content: Text(
-                'Không tải được ảnh lên máy chủ: ${e.toString().replaceFirst('Exception: ', '')}',
-              ),
-            ),
-          );
-          return;
-        }
+          final compressed = await compressImageBytes(_photo!);
+          localPhotoBase64 = base64Encode(compressed);
+        } catch (_) {}
       }
       if (!mounted) return;
       store.addReflection(
@@ -136,9 +151,11 @@ class _CeremonyState extends State<_Ceremony> {
         isAnonymous: _anonymous,
         aiScore: r.score,
         bonusXp: r.bonusXp,
-        photoUrl: photoUrl,
+        photoUrl: uploadedPhotoUrl,
         photoBase64: localPhotoBase64,
       );
+    } else {
+      await store.deletePhotoByUrl(uploadedPhotoUrl);
     }
     setState(() {
       _result = r;
@@ -226,9 +243,9 @@ class _CeremonyState extends State<_Ceremony> {
               Text.rich(
                 TextSpan(
                   children: [
-                    const TextSpan(
+                    TextSpan(
                       text: hasRemoteReflectionVerifier
-                          ? 'Không bắt buộc. Cảm nhận được Gemini thẩm định để nhận thêm XP và huy hiệu '
+                          ? 'Không bắt buộc. Cảm nhận được AI thẩm định trên máy chủ để nhận thêm XP và huy hiệu '
                           : 'Không bắt buộc. Bộ chấm demo sẽ đánh giá cảm nhận để nhận thêm XP và huy hiệu ',
                     ),
                     TextSpan(
