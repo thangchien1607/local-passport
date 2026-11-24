@@ -23,3 +23,8 @@ Tài liệu này ghi lại các lựa chọn kiến trúc khi thực hiện sử
 - **Lớp adapter AI thay thế được**: Tách `AiVerifierAdapter` với `GeminiAiAdapter` (mặc định `gemini-2.0-flash`), `OpenAiCompatibleAdapter` (đổi endpoint/model qua biến `AI_PROVIDER`, `AI_MODEL`, `AI_ENDPOINT`), và `HeuristicFallbackAdapter` (chạy trên server khi ở môi trường Emulator chưa đặt `AI_API_KEY`).
 - **Quyền ghi `aiScore`**: Chỉ Cloud Function ghi `aiScore` vào `reflections/{id}` bằng Firebase Admin SDK. `firestore.rules` chặn hoàn toàn client tạo trường `aiScore` hoặc sửa trường `aiScore`.
 - **Rate limit**: Dùng `FirestoreRateLimiter` (transaction theo `uid` lưu trong collection nội bộ `_rate_limits`, mặc định 10 lượt/phút, trả HTTP `429` + `Retry-After`). Collection `_rate_limits` bị khóa hoàn toàn với client trong `firestore.rules`.
+
+## 1.3 Sửa `sync()` trong `passport_remote.dart`
+- **Bỏ cache `_written`**: Thay vì tin vào map cache trong RAM (dễ lệch trạng thái khi khởi động lại hoặc khi Cloud Function đã tạo `reflection_owners/{id}`), mỗi lần đồng bộ đối chiếu trực tiếp với trạng thái hiện có trên Firestore (`listVisitIds`, `listNotificationIds`, `listOwnedReflectionIds`, `reflectionOwnerExists`, `reflectionDocExists`).
+- **Chia lô `<= 450` thao tác nguyên tử**: Hàm `chunkAtomicOps` gom thao tác theo từng nhóm nguyên tử (cặp `reflection_owners/{id}` + `reflections/{id}` không bao giờ bị cắt sang 2 batch khác nhau để thỏa điều kiện `getAfter(...)` trong Firestore Rules), mỗi lô tối đa `450` thao tác.
+- **Idempotent**: Khi `reflection_owners/{id}` đã tồn tại, chỉ cập nhật merge các trường cho phép trên `reflections/{id}`, tuyệt đối không ghi đè `reflection_owners/{id}` (`allow update: if false`) và không đụng vào `aiScore`.

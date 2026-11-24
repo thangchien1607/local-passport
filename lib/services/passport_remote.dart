@@ -1,5 +1,3 @@
-import 'dart:convert';
-
 import 'package:cloud_firestore/cloud_firestore.dart';
 import 'package:firebase_auth/firebase_auth.dart';
 import 'package:flutter/foundation.dart';
@@ -7,6 +5,285 @@ import 'package:flutter/foundation.dart';
 import '../data/community.dart';
 
 enum SyncState { offline, syncing, synced, error }
+
+/// Giới hạn an toàn dưới ngưỡng 500 thao tác/WriteBatch của Cloud Firestore.
+const maxBatchOperations = 450;
+
+/// Chia các nhóm thao tác nguyên tử thành nhiều lô, mỗi lô tối đa [maxOps]
+/// thao tác và không bao giờ tách đôi một nhóm nguyên tử (vd tạo cặp
+/// `reflection_owners/{id}` + `reflections/{id}`).
+List<List<T>> chunkAtomicOps<T>(
+  List<List<T>> atomicGroups, {
+  int maxOps = maxBatchOperations,
+}) {
+  if (maxOps <= 0) {
+    throw ArgumentError.value(maxOps, 'maxOps', 'Phải lớn hơn 0');
+  }
+  final chunks = <List<T>>[];
+  var current = <T>[];
+  for (final group in atomicGroups) {
+    if (group.isEmpty) continue;
+    if (group.length > maxOps) {
+      throw StateError('Nhóm nguyên tử (${group.length}) vượt quá $maxOps.');
+    }
+    if (current.isNotEmpty && current.length + group.length > maxOps) {
+      chunks.add(current);
+      current = <T>[];
+    }
+    current.addAll(group);
+  }
+  if (current.isNotEmpty) {
+    chunks.add(current);
+  }
+  return chunks;
+}
+
+/// Một thao tác ghi/xóa trên document dùng cho bộ gom lô kiểm thử được.
+sealed class SyncWriteOp {
+  const SyncWriteOp(this.path);
+  final String path;
+}
+
+class SyncSetOp extends SyncWriteOp {
+  const SyncSetOp(super.path, this.data, {this.merge = false});
+  final Map<String, dynamic> data;
+  final bool merge;
+}
+
+class SyncDeleteOp extends SyncWriteOp {
+  const SyncDeleteOp(super.path);
+}
+
+/// Giao diện lưu trữ document mức thấp để tách logic chia lô & đồng bộ
+/// idempotent khỏi SDK Firestore thật (giúp test >500 bản ghi trực tiếp).
+abstract class SyncStorageAdapter {
+  Future<Set<String>> listVisitIds(String uid);
+  Future<Set<String>> listNotificationIds(String uid);
+  Future<Set<String>> listOwnedReflectionIds(String uid);
+  Future<bool> reflectionOwnerExists(String reflectionId);
+  Future<bool> reflectionDocExists(String reflectionId);
+  Future<void> commitBatch(List<SyncWriteOp> ops);
+}
+
+class _FirestoreSyncAdapter implements SyncStorageAdapter {
+  _FirestoreSyncAdapter(this._db);
+
+  final FirebaseFirestore _db;
+
+  DocumentReference<Map<String, dynamic>> _ref(String path) => _db.doc(path);
+
+  @override
+  Future<Set<String>> listVisitIds(String uid) async {
+    final snap = await _db
+        .collection('user_passports')
+        .doc(uid)
+        .collection('visits')
+        .get();
+    return {for (final d in snap.docs) d.id};
+  }
+
+  @override
+  Future<Set<String>> listNotificationIds(String uid) async {
+    final snap = await _db
+        .collection('user_passports')
+        .doc(uid)
+        .collection('notifications')
+        .get();
+    return {for (final d in snap.docs) d.id};
+  }
+
+  @override
+  Future<Set<String>> listOwnedReflectionIds(String uid) async {
+    final snap = await _db
+        .collection('reflection_owners')
+        .where('uid', isEqualTo: uid)
+        .get();
+    return {for (final d in snap.docs) d.id};
+  }
+
+  @override
+  Future<bool> reflectionOwnerExists(String reflectionId) async {
+    final snap = await _db
+        .collection('reflection_owners')
+        .doc(reflectionId)
+        .get();
+    return snap.exists;
+  }
+
+  @override
+  Future<bool> reflectionDocExists(String reflectionId) async {
+    final snap = await _db.collection('reflections').doc(reflectionId).get();
+    return snap.exists;
+  }
+
+  @override
+  Future<void> commitBatch(List<SyncWriteOp> ops) async {
+    if (ops.isEmpty) return;
+    final batch = _db.batch();
+    for (final op in ops) {
+      final ref = _ref(op.path);
+      switch (op) {
+        case SyncSetOp(:final data, :final merge):
+          if (merge) {
+            batch.set(ref, data, SetOptions(merge: true));
+          } else {
+            batch.set(ref, data);
+          }
+        case SyncDeleteOp():
+          batch.delete(ref);
+      }
+    }
+    await batch.commit();
+  }
+}
+
+/// Thực thi đồng bộ hộ chiếu theo lô <= [maxBatchOperations], không phụ thuộc
+/// cache cục bộ và luôn kiểm tra tồn tại `reflection_owners/{id}` trước khi tạo
+/// mới để tránh ghi đè document bị `allow update: if false`.
+Future<int> runIdempotentChunkedSync({
+  required String uid,
+  required Map<String, dynamic> data,
+  required SyncStorageAdapter adapter,
+  int maxOpsPerBatch = maxBatchOperations,
+}) async {
+  final (existingVisits, existingNotes, existingOwnedReflections) = await (
+    adapter.listVisitIds(uid),
+    adapter.listNotificationIds(uid),
+    adapter.listOwnedReflectionIds(uid),
+  ).wait;
+
+  final groups = <List<SyncWriteOp>>[];
+  final user = data['user'] as Map<String, dynamic>?;
+  final progress = data['progress'] as Map<String, dynamic>? ?? const {};
+  final stamps = data['stamps'] as Map<String, dynamic>? ?? const {};
+  final reflections = (data['reflections'] as List? ?? const [])
+      .map((e) => Reflection.fromJson(e as Map<String, dynamic>))
+      .toList();
+  final notes = (data['notifications'] as List? ?? const [])
+      .cast<Map<String, dynamic>>();
+
+  final currentVisitIds = <String>{...progress.keys, ...stamps.keys};
+  final currentNoteIds = <String>{for (final n in notes) n['id'] as String};
+  final currentReflectionIds = <String>{for (final r in reflections) r.id};
+
+  if (user != null) {
+    groups.add([
+      SyncSetOp('user_passports/$uid', {
+        'name': user['name'],
+        'passportNo': user['passportNo'],
+        'joinedAt': _toTimestamp(user['joinedAt']),
+        'xp': data['xp'] ?? 0,
+        'stampCount': stamps.length,
+      }),
+    ]);
+
+    for (final id in currentVisitIds) {
+      final p = progress[id] as Map<String, dynamic>? ?? const {};
+      groups.add([
+        SyncSetOp('user_passports/$uid/visits/$id', {
+          'unlocked': p['unlocked'] ?? false,
+          'unlockedAt': _toTimestamp(p['unlockedAt']),
+          'tasks': p['tasks'] ?? const <String>[],
+          'taskPhotoUrls': p['taskPhotoUrls'] ?? const <String, dynamic>{},
+          'stampedAt': _toTimestamp(stamps[id]),
+        }),
+      ]);
+    }
+
+    for (final n in notes) {
+      final id = n['id'] as String;
+      groups.add([
+        SyncSetOp('user_passports/$uid/notifications/$id', {
+          'type': n['type'],
+          'title': n['title'],
+          'body': n['body'],
+          'locationId': n['locationId'],
+          'read': n['read'] ?? false,
+          'createdAt': _toTimestamp(n['createdAt']),
+        }),
+      ]);
+    }
+
+    // Kiểm tra tồn tại `reflection_owners/{id}` và `reflections/{id}` song song
+    // thay vì phụ thuộc vào map cache `_written`.
+    final existenceChecks = await Future.wait([
+      for (final r in reflections)
+        () async {
+          final ownerExists = existingOwnedReflections.contains(r.id)
+              ? true
+              : await adapter.reflectionOwnerExists(r.id);
+          final docExists = await adapter.reflectionDocExists(r.id);
+          return (
+            reflection: r,
+            ownerExists: ownerExists,
+            docExists: docExists,
+          );
+        }(),
+    ]);
+
+    for (final item in existenceChecks) {
+      final r = item.reflection;
+      if (item.ownerExists && item.docExists) {
+        // Document đã tồn tại: KHÔNG ghi đè `reflection_owners/{id}` (allow update: if false)
+        // và KHÔNG ghi `aiScore` hay các trường bất biến.
+        groups.add([
+          SyncSetOp('reflections/${r.id}', {
+            'displayAuthor': r.displayAuthor,
+            'isAnonymous': r.isAnonymous,
+          }, merge: true),
+        ]);
+      } else if (item.ownerExists && !item.docExists) {
+        // Owner đã có nhưng reflection chưa có: chỉ tạo reflection (không đụng owner).
+        groups.add([
+          SyncSetOp(
+            'reflections/${r.id}',
+            FirestorePassportRemote.reflectionToCreateDoc(r),
+          ),
+        ]);
+      } else {
+        // Tạo mới cả cặp trong cùng một nhóm nguyên tử để qua kiểm tra `getAfter`.
+        groups.add([
+          SyncSetOp('reflection_owners/${r.id}', {'uid': uid}),
+          SyncSetOp(
+            'reflections/${r.id}',
+            FirestorePassportRemote.reflectionToCreateDoc(r),
+          ),
+        ]);
+      }
+    }
+  } else {
+    groups.add([SyncDeleteOp('user_passports/$uid')]);
+  }
+
+  // Xóa những document có trên server nhưng không còn trong trạng thái cục bộ.
+  for (final id in existingVisits.difference(
+    user == null ? const <String>{} : currentVisitIds,
+  )) {
+    groups.add([SyncDeleteOp('user_passports/$uid/visits/$id')]);
+  }
+  for (final id in existingNotes.difference(
+    user == null ? const <String>{} : currentNoteIds,
+  )) {
+    groups.add([SyncDeleteOp('user_passports/$uid/notifications/$id')]);
+  }
+  for (final id in existingOwnedReflections.difference(
+    user == null ? const <String>{} : currentReflectionIds,
+  )) {
+    groups.add([
+      SyncDeleteOp('reflections/$id'),
+      SyncDeleteOp('reflection_owners/$id'),
+    ]);
+  }
+
+  final chunks = chunkAtomicOps(groups, maxOps: maxOpsPerBatch);
+  for (final chunk in chunks) {
+    await adapter.commitBatch(chunk);
+  }
+  return chunks.length;
+}
+
+Timestamp? _toTimestamp(Object? iso) =>
+    iso == null ? null : Timestamp.fromDate(DateTime.parse(iso as String));
 
 /// Nơi lưu trữ trực tuyến của hộ chiếu. PassportStore gọi qua lớp này để
 /// test chạy được mà không cần Firebase (truyền null hoặc bản giả).
@@ -24,19 +301,19 @@ abstract class PassportRemote {
   /// Bài cảm nhận công khai của mọi người (mới nhất trước).
   Future<List<Reflection>> fetchCommunity();
 
-  /// Ghi trạng thái hiện tại lên server (chỉ ghi phần thay đổi).
+  /// Ghi trạng thái hiện tại lên server (chia lô <= 450 thao tác, idempotent).
   Future<void> sync(Map<String, dynamic> data);
 
-  /// Quên những gì đã ghi cho tài khoản cũ (gọi khi đăng xuất, đổi tài khoản).
+  /// Đặt lại trạng thái khi đăng xuất hoặc đổi tài khoản.
   void forget();
 }
 
 /// Cấu trúc Cloud Firestore:
 /// - `user_passports/{uid}`: hồ sơ, XP, số dấu mộc
-/// - `user_passports/{uid}/visits/{locationId}`: mở khóa, nhiệm vụ, ảnh, thời điểm nhận dấu
+/// - `user_passports/{uid}/visits/{locationId}`: mở khóa, nhiệm vụ, URL ảnh, thời điểm nhận dấu
 /// - `user_passports/{uid}/notifications/{id}`: thông báo trong app
-/// - `reflections/{reflectionId}`: bài cảm nhận công khai (không chứa uid)
-/// - `reflection_owners/{reflectionId}`: uid chủ bài, chỉ chủ bài đọc được
+/// - `reflections/{reflectionId}`: bài cảm nhận công khai (không chứa uid; `aiScore` chỉ do Cloud Function ghi)
+/// - `reflection_owners/{reflectionId}`: uid chủ bài, chỉ chủ bài đọc được (`allow update: if false`)
 class FirestorePassportRemote implements PassportRemote {
   FirestorePassportRemote({FirebaseFirestore? db, FirebaseAuth? auth})
     : _db = db ?? FirebaseFirestore.instance,
@@ -45,9 +322,6 @@ class FirestorePassportRemote implements PassportRemote {
   final FirebaseFirestore _db;
   final FirebaseAuth _auth;
   final _state = ValueNotifier(SyncState.offline);
-
-  /// Bản đã ghi gần nhất của từng document, để bỏ qua document không đổi.
-  final _written = <String, String>{};
   Future<void> _queue = Future.value();
 
   @override
@@ -58,7 +332,6 @@ class FirestorePassportRemote implements PassportRemote {
 
   @override
   void forget() {
-    _written.clear();
     _state.value = SyncState.offline;
   }
 
@@ -93,22 +366,9 @@ class FirestorePassportRemote implements PassportRemote {
       }
       reflections.sort((a, b) => b.createdAt.compareTo(a.createdAt));
 
-      // Ghi nhớ những gì đang có trên server để lần sync sau biết cần xóa gì.
-      _written.clear();
-      for (final v in visits.docs) {
-        _written['visits/${v.id}'] = '';
-      }
-      for (final n in notes.docs) {
-        _written['notifications/${n.id}'] = '';
-      }
-      for (final r in reflections) {
-        _written['reflections/${r.id}'] = jsonEncode(_reflectionToDoc(r));
-      }
-
       final u = userSnap.data();
       _state.value = SyncState.synced;
       if (u == null) return null;
-      _written['user'] = '';
       final progress = <String, dynamic>{};
       final stamps = <String, dynamic>{};
       for (final v in visits.docs) {
@@ -173,122 +433,17 @@ class FirestorePassportRemote implements PassportRemote {
   Future<void> _sync(String uid, Map<String, dynamic> data) async {
     if (this.uid != uid) return;
     _state.value = SyncState.syncing;
-    final before = Map.of(_written);
-    final batch = _db.batch();
-    var ops = 0;
-    final seen = <String>{};
-
-    void put(String key, DocumentReference ref, Map<String, dynamic> doc) {
-      seen.add(key);
-      final encoded = jsonEncode(doc, toEncodable: (o) => o.toString());
-      if (_written[key] == encoded) return;
-      batch.set(ref, doc);
-      _written[key] = encoded;
-      ops++;
-    }
-
-    final user = data['user'] as Map<String, dynamic>?;
-    final progress = data['progress'] as Map<String, dynamic>;
-    final stamps = data['stamps'] as Map<String, dynamic>;
-    final reflections = (data['reflections'] as List)
-        .map((e) => Reflection.fromJson(e as Map<String, dynamic>))
-        .toList();
-    final notes = (data['notifications'] as List? ?? const [])
-        .cast<Map<String, dynamic>>();
-
-    if (user != null) {
-      put('user', _userDoc(uid), {
-        'name': user['name'],
-        'passportNo': user['passportNo'],
-        'joinedAt': _ts(user['joinedAt']),
-        'xp': data['xp'],
-        'stampCount': stamps.length,
-      });
-      for (final id in {...progress.keys, ...stamps.keys}) {
-        final p = progress[id] as Map<String, dynamic>? ?? const {};
-        put('visits/$id', _userDoc(uid).collection('visits').doc(id), {
-          'unlocked': p['unlocked'] ?? false,
-          'unlockedAt': _ts(p['unlockedAt']),
-          'tasks': p['tasks'] ?? const [],
-          'taskPhotoUrls': p['taskPhotoUrls'] ?? const <String, dynamic>{},
-          'stampedAt': _ts(stamps[id]),
-        });
-      }
-      for (final n in notes) {
-        final id = n['id'] as String;
-        put(
-          'notifications/$id',
-          _userDoc(uid).collection('notifications').doc(id),
-          {
-            'type': n['type'],
-            'title': n['title'],
-            'body': n['body'],
-            'locationId': n['locationId'],
-            'read': n['read'] ?? false,
-            'createdAt': _ts(n['createdAt']),
-          },
-        );
-      }
-      for (final r in reflections) {
-        final key = 'reflections/${r.id}';
-        final isNew = !_written.containsKey(key);
-        final doc = _reflectionToDoc(r);
-        seen.add(key);
-        final encoded = jsonEncode(doc, toEncodable: (o) => o.toString());
-        if (_written[key] != encoded) {
-          // Dùng merge: true để không ghi đè trường `aiScore` do Cloud Function quản lý.
-          batch.set(
-            _db.collection('reflections').doc(r.id),
-            doc,
-            SetOptions(merge: true),
-          );
-          _written[key] = encoded;
-          ops++;
-        }
-        if (isNew) {
-          batch.set(_db.collection('reflection_owners').doc(r.id), {
-            'uid': uid,
-          });
-          ops++;
-        }
-      }
-    }
-
-    // Xóa những document không còn trong trạng thái hiện tại.
-    for (final key in _written.keys.where((k) => !seen.contains(k)).toList()) {
-      _written.remove(key);
-      final slash = key.indexOf('/');
-      final id = slash < 0 ? '' : key.substring(slash + 1);
-      if (key == 'user') {
-        batch.delete(_userDoc(uid));
-      } else if (key.startsWith('visits/')) {
-        batch.delete(_userDoc(uid).collection('visits').doc(id));
-      } else if (key.startsWith('notifications/')) {
-        batch.delete(_userDoc(uid).collection('notifications').doc(id));
-      } else if (key.startsWith('reflections/')) {
-        batch
-          ..delete(_db.collection('reflections').doc(id))
-          ..delete(_db.collection('reflection_owners').doc(id));
-        ops++;
-      }
-      ops++;
-    }
-
-    try {
-      if (ops > 0) await batch.commit();
-    } catch (_) {
-      // Ghi thất bại: quay lại trạng thái trước để lần sau gửi lại đủ.
-      _written
-        ..clear()
-        ..addAll(before);
-      rethrow;
-    }
+    await runIdempotentChunkedSync(
+      uid: uid,
+      data: data,
+      adapter: _FirestoreSyncAdapter(_db),
+    );
     _state.value = SyncState.synced;
   }
 
-  /// Dữ liệu bài cảm nhận ghi từ client — KHÔNG bao gồm `aiScore`
+  /// Dữ liệu bài cảm nhận ghi từ client khi tạo mới — KHÔNG bao gồm `aiScore`
   /// vì `aiScore` chỉ do Cloud Function ghi bằng Admin SDK.
-  static Map<String, dynamic> _reflectionToDoc(Reflection r) => {
+  static Map<String, dynamic> reflectionToCreateDoc(Reflection r) => {
     'locationId': r.locationId,
     'displayAuthor': r.displayAuthor,
     'isAnonymous': r.isAnonymous,
@@ -310,9 +465,6 @@ class FirestorePassportRemote implements PassportRemote {
         // Tương thích ngược với các bài cũ có trường photoBase64.
         photoBase64: d['photoBase64'] as String?,
       );
-
-  static Timestamp? _ts(Object? iso) =>
-      iso == null ? null : Timestamp.fromDate(DateTime.parse(iso as String));
 
   static String? _iso(Object? v) =>
       v is Timestamp ? v.toDate().toIso8601String() : null;
