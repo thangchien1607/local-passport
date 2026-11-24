@@ -59,3 +59,8 @@ Tài liệu này ghi lại các lựa chọn kiến trúc khi thực hiện sử
 - Tự động gọi `sendEmailVerification()` sau khi đăng ký bằng email và cho phép gửi lại/kiểm tra trạng thái trong tab Hộ chiếu.
 - `changePassword()` bắt buộc `reauthenticateWithCredential` bằng mật khẩu hiện tại trước khi gọi `updatePassword`.
 - Thêm Cloud Function `deleteUserAccountData` xác thực ID Token, dọn sạch `user_passports/{uid}` (gồm `visits`, `notifications`), `reflections` + `reflection_owners`, `leaderboard_public/{uid}`, `_rate_limits`, toàn bộ file Storage dưới `users/{uid}/` và xóa user trên Firebase Auth.
+
+## 3.2 Cấu hình `MAPS_API_KEY` cho iOS bằng xcconfig
+- Dùng `ios/Flutter/Secrets.xcconfig` (được đưa vào `.gitignore`) và file mẫu `ios/Flutter/Secrets.xcconfig.example`.
+- `Debug.xcconfig` và `Release.xcconfig` nạp tùy chọn `#include? "Secrets.xcconfig"` với giá trị mặc định rỗng để không làm hỏng build khi chưa tạo file bí mật.
+- `Info.plist` ánh xạ `GMSApiKey = $(MAPS_API_KEY)` và `AppDelegate.swift` gọi `GMSServices.provideAPIKey(...)` (bọc `#if canImport(GoogleMaps)`) khi có key thật.

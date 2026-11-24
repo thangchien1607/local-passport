@@ -56,3 +56,12 @@ firebase deploy --only firestore:rules,firestore:indexes
 2. Với **Android**: thêm mã SHA-1 và SHA-256 (debug & release keystore) vào **Project Settings → Your apps → Android app**, rồi tải lại `google-services.json`.
 3. Với **Web**: xác nhận domain (`local-passport-danang.web.app`, `localhost`) nằm trong **Authentication → Settings → Authorized domains**.
 4. Với xóa tài khoản toàn bộ: đảm bảo đã triển khai Cloud Function `deleteUserAccountData` và cấu hình `--dart-define=CLOUD_FUNCTIONS_BASE_URL=...` khi build.
+
+## 6. Cấu hình Google Maps API key cho iOS (Giai đoạn 3.2)
+1. Trong Google Cloud Console bật **Maps SDK for iOS** và giới hạn key theo Bundle ID của app iOS.
+2. Trên macOS trước khi build iOS, sao chép file mẫu:
+   ```bash
+   cp ios/Flutter/Secrets.xcconfig.example ios/Flutter/Secrets.xcconfig
+   ```
+3. Điền API key thật vào `MAPS_API_KEY=<key>` trong `ios/Flutter/Secrets.xcconfig` (file đã nằm trong `.gitignore`, tuyệt đối không commit).
+4. Build/chạy iOS kèm `--dart-define=MAPS_API_KEY=<key>` để bật giao diện `GoogleDiscoveryMap`.

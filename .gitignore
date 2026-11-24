@@ -59,6 +59,7 @@ rules_tests/node_modules/
 .env
 .env.*
 !.env.example
+ios/Flutter/Secrets.xcconfig
 *.pem
 *.p12
 service-account*.json
