@@ -1,46 +1,101 @@
 # Local Passport (Flutter) — Hộ chiếu trải nghiệm văn hóa Đà Nẵng
 
-Bản Flutter của giao diện Local Passport, chạy trên **Web, Android và iOS** từ cùng một mã nguồn.
-Chuyển từ bản React trong `../../local-passport`, giữ nguyên design system và luồng sử dụng.
+Ứng dụng **Local Passport** viết bằng Flutter (Dart `^3.11.3`), chạy trên **Web, Android và iOS** từ cùng một mã nguồn, sử dụng **Firebase Auth, Cloud Firestore, Firebase Storage và Cloud Functions (TypeScript / Node 22 LTS)**.
 
-## Chạy thử
+---
 
+## Kiến trúc hiện tại
+
+### 1. Xác thực (`firebase_auth`)
+- **Email & Mật khẩu**: đăng ký (tự gửi `sendEmailVerification`), đăng nhập, quên mật khẩu, xác minh email, đổi mật khẩu (có re-authenticate).
+- **Google Sign-In & Apple Sign-In**: tích hợp qua `GoogleAuthProvider` / `AppleAuthProvider` (popup trên Web, provider flow trên Android/iOS).
+- **Tài khoản khách (Anonymous)**: vào nhanh, có thể nâng cấp lên tài khoản Email / Google / Apple mà vẫn giữ nguyên `uid`, dấu mộc và tiến độ.
+- **Xóa tài khoản vĩnh viễn**: gọi Cloud Function `deleteUserAccountData` để xóa sạch toàn bộ dữ liệu Firestore, ảnh trên Firebase Storage (`users/{uid}/`) và tài khoản Firebase Auth.
+- **Chế độ cục bộ (offline / chưa cấu hình Firebase)**: lưu trên thiết bị bằng `shared_preferences`.
+
+### 2. Dữ liệu & đồng bộ (`cloud_firestore`)
+- `user_passports/{uid}`: hồ sơ, XP, số dấu mộc (`validPassport` kiểm tra schema chặt chẽ, chỉ chủ tài khoản đọc/ghi).
+  - `user_passports/{uid}/visits/{locationId}`: trạng thái mở khóa, danh sách nhiệm vụ, `taskPhotoUrls`, thời điểm đóng dấu (từ chối `taskPhotos` base64 mới).
+  - `user_passports/{uid}/notifications/{id}`: thông báo trong ứng dụng.
+- `reflections/{id}`: bài cảm nhận công khai (chỉ lưu `photoUrl`, từ chối `photoBase64` mới; trường `aiScore` chỉ do Cloud Function ghi bằng Admin SDK; tác giả được sửa `content`/`photoUrl`/`isAnonymous`/`displayAuthor` và xóa bài).
+- `reflection_owners/{id}`: lưu `uid` chủ bài viết (`allow update: if false`, bất biến sau khi tạo).
+- `leaderboard_public/{uid}`: bảng xếp hạng công khai (`displayName`, `xp`, `stampCount`, `avatarUrl`) do Cloud Function trigger tổng hợp từ `user_passports/{uid}`; client chỉ được đọc (`allow write: if false`), không lộ `user_passports`.
+- `_rate_limits/{doc}`: dữ liệu giới hạn tần suất nội bộ của Cloud Functions (chặn hoàn toàn client).
+- **Đồng bộ & truy vấn**:
+  - `sync()` chia lô nguyên tử `WriteBatch <= 450` thao tác, không phụ thuộc cache `_written`, kiểm tra tồn tại `reflection_owners/{id}` để đảm bảo idempotent.
+  - `fetch()` tải song song bằng `Future.wait` và gom lô `whereIn` (tối đa 30 ID/nhóm), loại bỏ vòng lặp N+1.
+  - Bảng tin cộng đồng dùng phân trang `startAfterDocument` + infinite scroll + luồng `snapshots()` realtime cho bài mới.
+
+### 3. Lưu trữ ảnh (`firebase_storage`)
+- Ảnh chụp nhiệm vụ và ảnh bài cảm nhận được nén phía client trước khi tải lên (cạnh dài tối đa ~1280px, JPEG chất lượng ~80% qua `flutter_image_compress` trên mobile và `image` trên Web/desktop).
+- Đường dẫn theo `uid`:
+  - `users/{uid}/tasks/{locationId}/{file}` (chỉ chủ sở hữu đọc/ghi)
+  - `users/{uid}/reflections/{file}` (công khai đọc, chỉ chủ sở hữu ghi/xóa)
+  - `users/{uid}/avatars/{file}` (công khai đọc, chỉ chủ sở hữu ghi/xóa)
+- `storage.rules` giới hạn kích thước <= 5 MB và chỉ chấp nhận `image/(jpeg|png|webp)`.
+- Firestore chỉ lưu URL (`photoUrl`, `taskPhotoUrls`); client vẫn đọc tương thích ngược với ảnh `photoBase64` / `taskPhotos` cũ.
+
+### 4. Cloud Functions (`functions/`, TypeScript)
+- `verifyReflection` (HTTPS v2, `asia-southeast1`): xác thực `Authorization: Bearer <Firebase ID Token>` (trả 401 nếu thiếu/sai), rate limit theo `uid` (429), gọi mô hình AI qua lớp adapter có thể đổi (`GeminiAiAdapter`, `OpenAiCompatibleAdapter`, `HeuristicFallbackAdapter` dùng `AI_API_KEY` trong Secret Manager) và tự ghi `aiScore` vào Firestore bằng Admin SDK.
+- `rescoreReflectionOnUpdate` (Firestore trigger): tự động chấm lại và cập nhật `aiScore` khi tác giả sửa nội dung hoặc ảnh bài cảm nhận.
+- `syncLeaderboardOnPassportWrite` (Firestore trigger): đồng bộ dữ liệu tối thiểu từ `user_passports/{uid}` sang `leaderboard_public/{uid}`.
+- `deleteUserAccountData` (HTTPS v2): xác thực ID Token và dọn sạch Firestore, Storage (`users/{uid}/`) và tài khoản Auth.
+
+---
+
+## Cài đặt & chạy thử cục bộ
+
+### 1. Yêu cầu môi trường
+- Flutter SDK (Dart `^3.11.3`)
+- Node.js 22 LTS & npm (cho `functions/` và `rules_tests/`)
+- Java 17+ (cho Firebase Emulator Suite)
+- Android Studio (Android) / macOS + Xcode (iOS)
+
+### 2. Chạy ứng dụng Flutter
 ```bash
 flutter pub get
 flutter run -d chrome        # Web (hoặc -d edge)
-flutter run                  # Android/iOS: cắm điện thoại hoặc mở emulator
+flutter run                  # Android/iOS
 ```
 
-### Chạy bản Android demo bằng Android Studio
-
-1. Cài Flutter SDK, Android Studio, Android SDK và plugin Flutter/Dart.
-2. Mở thư mục gốc project trong Android Studio; chờ IDE đồng bộ Flutter packages.
-3. Chọn emulator hoặc bật USB debugging trên điện thoại Android rồi chọn thiết bị.
-4. Bấm **Run** để cài và chạy bản demo. Android sẽ hỏi quyền camera và vị trí khi cần.
-
-Mặc định app chỉ hiện ba tuyến chính. Để hiện thêm dữ liệu thử Hòa Khánh khi chạy local:
-
+Kèm dữ liệu thử Hòa Khánh và trỏ tới Cloud Functions Emulator cục bộ:
 ```bash
-flutter run -d <android-device-id> --dart-define=LOCAL_PASSPORT_TEST_DATA=true
+flutter run -d chrome \
+  --dart-define=LOCAL_PASSPORT_TEST_DATA=true \
+  --dart-define=CLOUD_FUNCTIONS_BASE_URL=http://127.0.0.1:5001/local-passport-danang/asia-southeast1
 ```
 
-Hồ sơ, tiến độ, ảnh nhiệm vụ và cảm nhận được lưu cục bộ trên thiết bị. Đăng nhập, bảng tin và bảng xếp hạng chưa đồng bộ cloud.
+> Camera quét QR trên Web chỉ hoạt động qua **HTTPS hoặc localhost**. Khi demo, có thể dùng nút **Giả lập quét QR (Demo)**.
 
-### Chạy bản iOS
-
-iOS dùng chung mã Flutter nhưng cần **macOS có Xcode** để chạy hoặc tạo bản cài; Windows không thể build iOS. Trên Mac, cài Flutter và Xcode, chạy `flutter doctor`, `flutter pub get`, rồi chọn iPhone simulator/thiết bị và chạy `flutter run`. Cài lên iPhone thật cần cấu hình signing/team trong Xcode.
-
-Build bản web để deploy (ví dụ Firebase Hosting):
-
+### 3. Chạy Firebase Emulator Suite & kiểm thử
 ```bash
-flutter build web --release  # kết quả ở build/web
+# 1. Cài đặt và chạy test Cloud Functions
+cd functions
+npm install
+npm run build
+npm test
+cd ..
+
+# 2. Cài đặt và chạy test Firestore Rules & Storage Rules trên Emulator
+cd rules_tests
+npm install
+npm test
+cd ..
+
+# 3. Khởi động đầy đủ Emulator (Auth, Firestore, Storage, Functions, UI)
+npx firebase emulators:start --project demo-local-passport
+
+# 4. Kiểm tra mã nguồn & test Flutter
+dart format lib test
+flutter analyze
+flutter test
 ```
 
-> Camera quét QR trên web chỉ hoạt động qua **HTTPS hoặc localhost**. Khi demo cho giám khảo, dùng nút **Giả lập quét QR (Demo)**.
+---
 
-## Google Maps (tùy chọn)
+## Google Maps (Web / Android / iOS)
 
-Bản đồ Khám phá dùng **Google Maps** khi build có API key; không có key thì dùng bản đồ minh họa như cũ.
+Bản đồ Khám phá tự dùng **Google Maps** khi có API key; nếu để trống thì dùng bản đồ minh họa (`DiscoveryMap`).
 
 ```bash
 flutter run -d chrome --dart-define=MAPS_API_KEY=<key>
@@ -48,108 +103,99 @@ flutter build web --release --dart-define=MAPS_API_KEY=<key>
 flutter build apk --dart-define=MAPS_API_KEY=<key>
 ```
 
-- Trong Google Cloud bật **Maps JavaScript API** (web) và **Maps SDK for Android**, rồi giới hạn key theo domain web và package `vn.localpassport.local_passport`.
-- Android lấy key từ `--dart-define` qua `android/app/build.gradle.kts` → `AndroidManifest.xml`.
-- iOS chưa cấu hình nên vẫn dùng bản đồ minh họa.
-- **Không commit key vào repo.**
+- **Web**: bật **Maps JavaScript API**, giới hạn theo HTTP referrer.
+- **Android**: bật **Maps SDK for Android**, đọc `--dart-define=MAPS_API_KEY` qua `android/app/build.gradle.kts` → `AndroidManifest.xml`.
+- **iOS**: bật **Maps SDK for iOS**, sao chép `ios/Flutter/Secrets.xcconfig.example` thành `ios/Flutter/Secrets.xcconfig` (đã nằm trong `.gitignore`), điền `MAPS_API_KEY=<key>`. `Info.plist` và `AppDelegate.swift` tự đọc key từ file này.
+- **Tuyệt đối không commit API key thật vào repo.**
 
-## Deploy lên Firebase Hosting
+---
 
-Bản web đang chạy tại **https://local-passport-danang.web.app** (project `local-passport-danang`).
-Mỗi lần sửa code, cập nhật bằng:
+## Triển khai (Deploy) lên Firebase
+
+> Xem hướng dẫn cấu hình chi tiết lần đầu (bật gói Blaze, đặt `AI_API_KEY` trong Secret Manager, bật Google/Apple provider, migrate ảnh cũ) tại [docs/MANUAL_STEPS.md](docs/MANUAL_STEPS.md).
 
 ```bash
-flutter build web --release
-firebase.cmd deploy --only hosting
+# 1. Thiết lập secret AI (làm một lần)
+firebase functions:secrets:set AI_API_KEY
+
+# 2. Triển khai Rules, Indexes và Cloud Functions
+cd functions && npm ci && npm run build && cd ..
+firebase deploy --only firestore:rules,firestore:indexes,storage,functions
+
+# 3. Build và triển khai bản Web lên Firebase Hosting
+flutter build web --release \
+  --dart-define=CLOUD_FUNCTIONS_BASE_URL=https://asia-southeast1-local-passport-danang.cloudfunctions.net \
+  --dart-define=MAPS_API_KEY=<key>
+firebase deploy --only hosting
 ```
 
-Cấu hình nằm trong `firebase.json` (thư mục `build/web`, chế độ SPA, `index.html` và file `.js` không cache
-để điện thoại luôn nhận bản mới) và `.firebaserc` (project mặc định).
+Bản Web mặc định: **https://local-passport-danang.web.app** (project `local-passport-danang`).
 
-## Bản demo TimeLens (public riêng, ~30% dự án)
-
-Bản nộp vòng đơn DevFest chỉ gồm **một trang Lăng kính thời gian** cho 4 di tích, build từ entrypoint riêng
-`lib/main_timelens.dart` nên không chứa các màn hình khác. Trong app đầy đủ, cùng trang này mở từ banner
-"Lăng kính thời gian" ở tab Khám phá. Kế hoạch chi tiết: `timelens_demo_plan.md`.
-
+### Bản demo TimeLens (public riêng)
+Entrypoint `lib/main_timelens.dart`, cấu hình hosting trong `firebase.timelens.json` (đã cấu hình `Permissions-Policy: camera=(self), geolocation=(self), microphone=()`):
 ```bash
 node tools/timelens/build.mjs                                      # → build/timelens
-firebase.cmd deploy --only hosting --config firebase.timelens.json # → https://local-passport-timelens.web.app
+firebase deploy --only hosting --config firebase.timelens.json     # → https://local-passport-timelens.web.app
 ```
 
-Lần đầu cần tạo site: `firebase.cmd hosting:sites:create local-passport-timelens`.
+---
 
-## Luồng demo 30 giây
+## Cấu trúc thư mục
 
-1. Đăng nhập → bản đồ Radar Hotspots, chọn Bộ lọc cảm hứng.
-2. Chọn địa điểm → **Quét QR Check-in** → **Giả lập quét QR (Demo)**.
-3. Lướt 3 thẻ câu chuyện, kéo TimeLens, tích nhiệm vụ còn lại → tiến độ 100%.
-4. Hiệu ứng **Cộp!** đóng dấu → tùy chọn viết cảm nhận (bật ẩn danh) → AI chấm điểm, cộng XP.
-5. Tab **Hộ chiếu / Bảng tin / Xếp hạng**. Nút "Làm lại từ đầu" trong tab Hộ chiếu để demo lại.
-
-## Cấu trúc
-
-```
+```text
 lib/
-  main.dart                    App, khung mobile 440px trên web, thanh điều hướng
-  main_timelens.dart           Entrypoint bản demo public: chỉ trang TimeLens
-  theme.dart                   Màu, font, nút dùng chung (design system)
-  data/routes.dart             Tuyến & 10 địa điểm (routes_branches, hotspots_locations)
-  data/community.dart          Cảm nhận & bảng xếp hạng mẫu
-  state/passport_store.dart    Hộ chiếu, tiến độ và ảnh nhiệm vụ lưu cục bộ cho bản demo
-  services/geo.dart            Haversine, GPS (geolocator), định dạng mã QR
-  services/ai_verifier.dart    Bộ chấm offline; có thể cấu hình HTTPS verifier backend
-  widgets/time_lens.dart       ★ Lăng kính thời gian (thanh trượt xưa/nay)
-  widgets/scene_art.dart       Tranh minh họa + hiệu ứng sepia/hạt phim cho ảnh "xưa"
-  widgets/stamp_seal.dart      Con dấu mộc vẽ bằng CustomPainter
-  widgets/discovery_map.dart   Bản đồ minh họa + hotspot phát sáng
-  screens/                     Welcome, Map, Location, QR Scanner, Stamp Ceremony, Passport, Community, Leaderboard
-  screens/timelens_screen.dart Lăng kính thời gian 4 di tích (demo public + mở từ tab Khám phá)
-assets/
-  photos/<id>_<past|present>.jpg      Ảnh thật xưa/nay (Wikimedia Commons, xem "Nguồn ảnh")
-  scenes/<scene>_<past|present>.svg   Tranh xưa/nay của từng địa điểm (dùng khi chưa có ảnh thật)
-  map/danang_map.svg                     Nền bản đồ
+  main.dart                          App, khởi tạo Firebase (Auth/Firestore/Storage), điều hướng
+  main_timelens.dart                 Entrypoint bản demo public TimeLens
+  firebase_options.dart              Cấu hình công khai Firebase project
+  theme.dart                         Design system (màu, font, nút dùng chung)
+  data/
+    routes.dart                      Tuyến & 10 địa điểm Đà Nẵng
+    community.dart                   Model Reflection, LeaderEntry & dữ liệu mẫu
+    notifications.dart               Model thông báo trong app
+  state/
+    passport_store.dart              Quản lý trạng thái hộ chiếu, đồng bộ, phân trang, realtime
+  services/
+    auth_service.dart                Firebase Auth (Email, Google, Apple, Guest, đổi mật khẩu, xóa TK)
+    passport_remote.dart             Firestore sync theo lô <= 450, fetch whereIn <= 30, phân trang & snapshots
+    photo_service.dart               Nén ảnh (~1280px, 80%) và tải lên Firebase Storage
+    ai_verifier.dart                 Gọi Cloud Function verifyReflection kèm Firebase ID Token
+    geo.dart                         Haversine, GPS (geolocator), định dạng mã QR
+    maps_config.dart                 Cấu hình Google Maps đa nền tảng
+    validators.dart                  Kiểm tra đầu vào form
+  screens/                           Welcome, Map, Location, QR Scanner, Stamp Ceremony, Passport, Community, Leaderboard, TimeLens, Notifications
+  widgets/                           AuthForm, ReflectionCard, EditReflectionDialog, PassportPhoto, TimeLens, StampSeal...
+functions/
+  src/ai/                            verifyReflection, adapter AI, rateLimit, rescoreOnReflectionEdit
+  src/leaderboard/                   syncLeaderboardOnPassportWrite
+  src/auth/                          deleteUserAccountData
+  test/                              Unit test Cloud Functions (Node test runner)
+rules_tests/                         Kiểm thử Firestore Rules & Storage Rules trên Firebase Emulator Suite
+firestore.rules / storage.rules      Quy tắc bảo mật Firestore & Storage
+firestore.indexes.json               Composite index cho bảng xếp hạng công khai
+docs/
+  DECISIONS.md                       Các quyết định kiến trúc trong đợt sửa lỗi kỹ thuật
+  MANUAL_STEPS.md                    Các bước thao tác thủ công trên dự án Firebase thật
+  AUDIT_FIX_REPORT.md                Báo cáo tổng kết đợt kiểm toán & khắc phục kỹ thuật
 ```
+
+---
 
 ## Mã QR dán tại di tích
 
-File in sẵn: **`tools/qr/qr_checkin.pdf`** (10 mã, 4 mã/trang A4) và bản HTML `tools/qr/qr_checkin.html`.
-
-Mỗi mã là một link, ví dụ `https://local-passport-danang.web.app/?checkin=dien-hai&k=DH-1813`:
-- Quét bằng **camera thường** của điện thoại → mở app, vào thẳng di tích, tự xác thực GPS (bán kính 300 m).
-- Quét bằng nút **Quét QR Check-in** trong app cũng được. App vẫn chấp nhận dạng cũ `LOCALPASSPORT|<id>|<secret>`.
-
-Khi thêm/sửa địa điểm trong `lib/data/routes.dart`, tạo lại trang in:
+File in sẵn: **`tools/qr/qr_checkin.pdf`** (10 mã, 4 mã/trang A4) và `tools/qr/qr_checkin.html`.
+Mỗi mã có dạng `https://local-passport-danang.web.app/?checkin=dien-hai&k=DH-1813` (vẫn hỗ trợ định dạng cũ `LOCALPASSPORT|<id>|<secret>`).
 
 ```bash
 cd tools/qr
-npm.cmd install
-npm.cmd run generate      # cập nhật qr_checkin.html → mở bằng trình duyệt, bấm "In / Lưu PDF"
+npm install
+npm run generate
 ```
 
-## Thêm ảnh thật cho TimeLens
+---
 
-4 di tích tiêu biểu (Điện Hải, Bảo tàng Chăm, Cầu Rồng, Ngũ Hành Sơn) đã có ảnh thật trong `assets/photos/`.
-Với điểm khác, trong `lib/data/routes.dart` điền đường dẫn asset hoặc URL:
+## Nguồn ảnh TimeLens
 
-```dart
-timeLens: TimeLensInfo(
-  pastYear: '1920s',            // ghi đúng năm chụp của ảnh
-  presentYear: '2024',
-  pastImageUrl: 'assets/photos/<id>_past.jpg',
-  presentImageUrl: 'assets/photos/<id>_present.jpg',
-  caption: 'Ảnh chụp gì, ở đâu',
-  credit: 'Ảnh: <tác giả> (<giấy phép>) · <nguồn>',
-),
-```
-
-Ảnh xưa sẽ tự được phủ hiệu ứng sepia + hạt phim. Hai ảnh nên cùng góc chụp, cắt về tỉ lệ 20:13
-(đang dùng 1040×676, JPEG ~80%). Chỉ dùng ảnh public domain / CC0 / CC BY / CC BY-SA và luôn điền `credit`.
-
-## Nguồn ảnh
-
-Ảnh lấy từ Wikimedia Commons, đã cắt về 20:13 và thu nhỏ; ảnh "xưa" được phủ sepia khi hiển thị.
-Bản phái sinh giữ nguyên giấy phép của ảnh gốc.
+Ảnh lấy từ Wikimedia Commons, đã cắt tỉ lệ 20:13 và thu nhỏ; ảnh "xưa" phủ hiệu ứng sepia khi hiển thị. Bản phái sinh giữ nguyên giấy phép gốc.
 
 | File | Ảnh gốc | Tác giả | Giấy phép |
 | --- | --- | --- | --- |
@@ -172,32 +218,10 @@ Bản phái sinh giữ nguyên giấy phép của ảnh gốc.
 | `nam-o_present.jpg` | [Nam Ô, Đà Nẵng](https://commons.wikimedia.org/wiki/File:Nam_%C3%94,_%C4%90%C3%A0_N%E1%BA%B5ng.jpg) | Bánhmỳchảo | CC0 |
 | `tuy-loan_present.jpg` | [Handmade rice paper wrappers drying on bamboo mats](https://commons.wikimedia.org/wiki/File:Handmade_rice_paper_wrappers_drying_on_bamboo_mats.jpg) | Wanderingspoon | [CC BY-SA 4.0](https://creativecommons.org/licenses/by-sa/4.0/) |
 
-Nam Ô và Túy Loan chưa có ảnh tư liệu xưa có giấy phép mở nên phần "xưa" vẫn dùng tranh minh họa; ảnh bánh tráng của Túy Loan là ảnh minh họa nghề, không chụp tại làng.
+---
 
-## Phần đang mô phỏng (cần làm tiếp)
+## Quyền ứng dụng
 
-| Hiện tại | Thay bằng |
-| --- | --- |
-| Đăng nhập lưu tên vào shared_preferences | `firebase_auth` + Google Sign-In |
-| Tiến độ/dấu mộc/cảm nhận lưu cục bộ | `cloud_firestore` + `firebase_storage` |
-| Bản đồ SVG minh họa | `google_maps_flutter` với cùng tọa độ |
-| Tranh SVG xưa/nay (6 điểm chưa có ảnh thật) | Ảnh tư liệu thật (`pastImageUrl` / `presentImageUrl`) |
-| `ai_verifier.dart` chấm theo độ dài + từ khóa | Đầu nối HTTPS đã có; cần triển khai Cloud Function Gemini và cấu hình `REFLECTION_VERIFIER_URL` (không để API key trong app) |
-
-Nội dung lịch sử là dữ liệu mẫu, cần đối chiếu nguồn chính thống trước khi công bố.
-
-### Kết nối bộ thẩm định cảm nhận
-
-Mặc định ứng dụng dùng bộ chấm offline. Khi đã triển khai HTTPS Cloud Function gọi Gemini phía máy chủ, chạy với endpoint:
-
-```bash
-flutter run -d chrome --dart-define=REFLECTION_VERIFIER_URL=https://<region>-<project>.cloudfunctions.net/verifyReflection
-```
-
-Endpoint nhận `content`, `hasPhoto`, `locationId`, `locationName`, `stories`; trả `score`, `approved`, `soulmate`, `bonusXp` và `comment`. Ảnh không được gửi lên dịch vụ thẩm định. Khi endpoint lỗi, nội dung không bị đăng và người dùng có thể thử gửi lại.
-
-## Quyền đã khai báo
-
-- **Android** (`AndroidManifest.xml`): INTERNET, CAMERA, ACCESS_FINE/COARSE_LOCATION.
-- **iOS** (`Info.plist`): NSCameraUsageDescription, NSLocationWhenInUseUsageDescription, NSPhotoLibraryUsageDescription.
-- **Web**: trình duyệt tự hỏi quyền camera/vị trí; cần HTTPS.
+- **Android** (`AndroidManifest.xml`): `INTERNET`, `CAMERA`, `ACCESS_FINE_LOCATION`, `ACCESS_COARSE_LOCATION`.
+- **iOS** (`Info.plist`): `NSCameraUsageDescription`, `NSLocationWhenInUseUsageDescription`, `NSPhotoLibraryUsageDescription`.
+- **Web**: trình duyệt hỏi quyền camera/vị trí; yêu cầu HTTPS hoặc `localhost`.
