@@ -115,6 +115,13 @@ service cloud.firestore {
       allow delete: if signedIn() && resource.data.uid == request.auth.uid;
     }
 
+    // Bảng xếp hạng công khai: chỉ tổng hợp displayName, xp, stampCount, avatarUrl
+    // do Cloud Function trigger `syncLeaderboardOnPassportWrite` ghi bằng Admin SDK.
+    match /leaderboard_public/{uid} {
+      allow read: if true;
+      allow write: if false;
+    }
+
     // Dữ liệu rate limit nội bộ chỉ cho Cloud Functions (Admin SDK).
     match /_rate_limits/{docId} {
       allow read, write: if false;

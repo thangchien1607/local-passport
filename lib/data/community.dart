@@ -136,12 +136,14 @@ class LeaderEntry {
     this.name,
     this.xp,
     this.stamps, {
+    this.avatarUrl,
     this.isMe = false,
   });
   final String id;
   final String name;
   final int xp;
   final int stamps;
+  final String? avatarUrl;
   final bool isMe;
 }
 

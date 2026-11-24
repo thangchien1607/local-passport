@@ -92,6 +92,9 @@ class FakeRemote implements PassportRemote {
   Future<List<Reflection>> fetchCommunity() async => [];
 
   @override
+  Future<List<LeaderEntry>> fetchLeaderboard({int limit = 50}) async => [];
+
+  @override
   Future<void> sync(Map<String, dynamic> data) async {
     final u = uid;
     if (u != null) servers[u] = data;

@@ -2,6 +2,7 @@ import 'package:flutter/material.dart';
 
 import '../data/community.dart';
 import '../data/routes.dart';
+import '../services/photo_service.dart';
 import '../state/passport_store.dart';
 import '../theme.dart';
 
@@ -16,20 +17,37 @@ String _initials(String name) => name
     .map((w) => w[0].toUpperCase())
     .join();
 
-class LeaderboardScreen extends StatelessWidget {
+class LeaderboardScreen extends StatefulWidget {
   const LeaderboardScreen({super.key});
+
+  @override
+  State<LeaderboardScreen> createState() => _LeaderboardScreenState();
+}
+
+class _LeaderboardScreenState extends State<LeaderboardScreen> {
+  @override
+  void initState() {
+    super.initState();
+    PassportScope.read(context).refreshLeaderboard();
+  }
 
   @override
   Widget build(BuildContext context) {
     final store = PassportScope.of(context);
+    final myUid = store.remote?.uid ?? 'me';
     final me = LeaderEntry(
-      'me',
+      myUid,
       store.user!.name,
       store.xp,
       store.totalStamps,
       isMe: true,
     );
-    final rows = [...leaderboard, me]
+    final base = store.remoteLeaderboard.isNotEmpty
+        ? store.remoteLeaderboard
+              .where((e) => !e.isMe && e.id != myUid)
+              .toList()
+        : leaderboard;
+    final rows = [...base, me]
       ..sort(
         (a, b) =>
             b.xp != a.xp ? b.xp.compareTo(a.xp) : b.stamps.compareTo(a.stamps),
@@ -37,69 +55,74 @@ class LeaderboardScreen extends StatelessWidget {
     final myRank = rows.indexWhere((r) => r.isMe) + 1;
     final current = rankForXp(store.xp).current;
 
-    return ListView(
-      padding: const EdgeInsets.fromLTRB(16, 24, 16, 32),
-      children: [
-        Semantics(
-          header: true,
-          child: Text('Bảng xếp hạng', style: displayStyle(28)),
-        ),
-        const SizedBox(height: 4),
-        Text(
-          'Nhà khám phá Đà Nẵng · theo XP và dấu mộc',
-          style: bodyStyle(13, color: AppColors.inkSoft),
-        ),
-        const SizedBox(height: 16),
-        _MyRankCard(
-          rank: myRank,
-          name: me.name,
-          subtitle: '${current.title} · ${store.xp} XP',
-        ),
-        const SizedBox(height: 18),
-        _Podium(top: rows.take(3).toList()),
-        const SizedBox(height: 22),
-        Container(
-          decoration: cardDecoration(),
-          clipBehavior: Clip.antiAlias,
-          child: Column(
-            children: [
-              for (final (i, r) in rows.indexed.skip(3)) ...[
-                if (i > 3)
-                  const Divider(
-                    height: 1,
-                    indent: 16,
-                    endIndent: 16,
-                    color: AppColors.line,
-                  ),
-                _RankRow(rank: i + 1, entry: r),
-              ],
-            ],
+    return RefreshIndicator(
+      onRefresh: store.refreshLeaderboard,
+      child: ListView(
+        padding: const EdgeInsets.fromLTRB(16, 24, 16, 32),
+        children: [
+          Semantics(
+            header: true,
+            child: Text('Bảng xếp hạng', style: displayStyle(28)),
           ),
-        ),
-        const SizedBox(height: 20),
-        Semantics(
-          header: true,
-          child: Text('Danh hiệu', style: displayStyle(20)),
-        ),
-        const SizedBox(height: 14),
-        IntrinsicHeight(
-          child: Row(
-            crossAxisAlignment: CrossAxisAlignment.stretch,
-            children: [
-              for (final (i, r) in ranks.indexed) ...[
-                if (i > 0) const SizedBox(width: 8),
-                Expanded(
-                  child: _RankTier(
-                    level: i + 1,
-                    rank: r,
-                    current: r.id == current.id,
-                  ),
-                ),
-              ],
-            ],
+          const SizedBox(height: 4),
+          Text(
+            'Nhà khám phá Đà Nẵng · theo XP và dấu mộc',
+            style: bodyStyle(13, color: AppColors.inkSoft),
           ),
-        ),
-      ],
+          const SizedBox(height: 16),
+          _MyRankCard(
+            rank: myRank,
+            name: me.name,
+            subtitle: '${current.title} · ${store.xp} XP',
+          ),
+          const SizedBox(height: 18),
+          _Podium(top: rows.take(3).toList()),
+          if (rows.length > 3) ...[
+            const SizedBox(height: 22),
+            Container(
+              decoration: cardDecoration(),
+              clipBehavior: Clip.antiAlias,
+              child: Column(
+                children: [
+                  for (final (i, r) in rows.indexed.skip(3)) ...[
+                    if (i > 3)
+                      const Divider(
+                        height: 1,
+                        indent: 16,
+                        endIndent: 16,
+                        color: AppColors.line,
+                      ),
+                    _RankRow(rank: i + 1, entry: r),
+                  ],
+                ],
+              ),
+            ),
+          ],
+          const SizedBox(height: 20),
+          Semantics(
+            header: true,
+            child: Text('Danh hiệu', style: displayStyle(20)),
+          ),
+          const SizedBox(height: 14),
+          IntrinsicHeight(
+            child: Row(
+              crossAxisAlignment: CrossAxisAlignment.stretch,
+              children: [
+                for (final (i, r) in ranks.indexed) ...[
+                  if (i > 0) const SizedBox(width: 8),
+                  Expanded(
+                    child: _RankTier(
+                      level: i + 1,
+                      rank: r,
+                      current: r.id == current.id,
+                    ),
+                  ),
+                ],
+              ],
+            ),
+          ),
+        ],
+      ),
     );
   }
 }
@@ -191,6 +214,7 @@ class _Podium extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
+    if (top.isEmpty) return const SizedBox.shrink();
     const heights = [134.0, 114.0, 104.0];
     Widget step(int i) => Expanded(
       child: _PodiumStep(
@@ -200,6 +224,17 @@ class _Podium extends StatelessWidget {
         minHeight: heights[i],
       ),
     );
+    if (top.length < 3) {
+      return Row(
+        crossAxisAlignment: CrossAxisAlignment.end,
+        children: [
+          for (var i = 0; i < top.length; i++) ...[
+            if (i > 0) const SizedBox(width: 14),
+            step(i),
+          ],
+        ],
+      );
+    }
     return Row(
       crossAxisAlignment: CrossAxisAlignment.end,
       children: [
@@ -306,19 +341,35 @@ class _RankRow extends StatelessWidget {
           Container(
             width: 32,
             height: 32,
+            clipBehavior: Clip.antiAlias,
             alignment: Alignment.center,
             decoration: const BoxDecoration(
               shape: BoxShape.circle,
               color: AppColors.paper2,
             ),
-            child: Text(
-              _initials(entry.name),
-              style: bodyStyle(
-                11,
-                weight: FontWeight.w700,
-                color: AppColors.primary,
-              ),
-            ),
+            child: isNetworkImageUrl(entry.avatarUrl)
+                ? Image.network(
+                    entry.avatarUrl!,
+                    width: 32,
+                    height: 32,
+                    fit: BoxFit.cover,
+                    errorBuilder: (_, _, _) => Text(
+                      _initials(entry.name),
+                      style: bodyStyle(
+                        11,
+                        weight: FontWeight.w700,
+                        color: AppColors.primary,
+                      ),
+                    ),
+                  )
+                : Text(
+                    _initials(entry.name),
+                    style: bodyStyle(
+                      11,
+                      weight: FontWeight.w700,
+                      color: AppColors.primary,
+                    ),
+                  ),
           ),
           const SizedBox(width: 12),
           Expanded(

@@ -122,6 +122,9 @@ class PassportStore extends ChangeNotifier {
   /// Bài cảm nhận của người khác tải từ Firestore.
   List<Reflection> communityReflections = [];
 
+  /// Bảng xếp hạng công khai tải từ collection `leaderboard_public`.
+  List<LeaderEntry> remoteLeaderboard = [];
+
   /// Đã có thay đổi trước khi tải xong dữ liệu từ server: không ghi đè bằng bản server.
   bool _changedBeforePull = false;
 
@@ -374,7 +377,17 @@ class PassportStore extends ChangeNotifier {
       if (rethrowErrors) rethrow;
       return;
     }
-    await refreshCommunity();
+    await Future.wait([refreshCommunity(), refreshLeaderboard()]);
+  }
+
+  /// Tải bảng xếp hạng công khai từ `leaderboard_public` (không đọc `user_passports`).
+  Future<void> refreshLeaderboard() async {
+    final r = remote;
+    if (r == null) return;
+    try {
+      remoteLeaderboard = await r.fetchLeaderboard();
+      notifyListeners();
+    } catch (_) {}
   }
 
   /// Tải lại bài cảm nhận của mọi người từ Firestore.

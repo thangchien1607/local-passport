@@ -82,6 +82,9 @@ class _CapturingRemote implements PassportRemote {
   @override
   Future<List<Reflection>> fetchCommunity() async => const [];
   @override
+  Future<List<LeaderEntry>> fetchLeaderboard({int limit = 50}) async =>
+      const [];
+  @override
   Future<void> sync(Map<String, dynamic> data) async {
     lastSynced = data;
   }

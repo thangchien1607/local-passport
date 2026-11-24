@@ -335,6 +335,9 @@ abstract class PassportRemote {
   /// Bài cảm nhận công khai của mọi người (mới nhất trước).
   Future<List<Reflection>> fetchCommunity();
 
+  /// Bảng xếp hạng công khai từ collection `leaderboard_public` (do Cloud Function tổng hợp).
+  Future<List<LeaderEntry>> fetchLeaderboard({int limit = 50});
+
   /// Ghi trạng thái hiện tại lên server (chia lô <= 450 thao tác, idempotent).
   Future<void> sync(Map<String, dynamic> data);
 
@@ -456,6 +459,28 @@ class FirestorePassportRemote implements PassportRemote {
         .limit(50)
         .get();
     return [for (final d in snap.docs) _reflectionFromDoc(d.id, d.data())];
+  }
+
+  @override
+  Future<List<LeaderEntry>> fetchLeaderboard({int limit = 50}) async {
+    final myUid = uid;
+    final snap = await _db
+        .collection('leaderboard_public')
+        .orderBy('xp', descending: true)
+        .orderBy('stampCount', descending: true)
+        .limit(limit)
+        .get();
+    return [
+      for (final d in snap.docs)
+        LeaderEntry(
+          d.id,
+          d.data()['displayName'] as String? ?? 'Lữ khách',
+          (d.data()['xp'] as num?)?.toInt() ?? 0,
+          (d.data()['stampCount'] as num?)?.toInt() ?? 0,
+          avatarUrl: d.data()['avatarUrl'] as String?,
+          isMe: myUid != null && d.id == myUid,
+        ),
+    ];
   }
 
   @override

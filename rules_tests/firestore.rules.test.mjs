@@ -265,3 +265,34 @@ test('1.4 Xác nhận chưa đăng nhập bị chặn ghi user_passports', async
   );
   assert.ok(true);
 });
+
+// ---- 2.2: Leaderboard công khai chỉ đọc bởi client, ghi bởi Cloud Function ----
+
+test('2.2 leaderboard_public cho phép mọi người đọc nhưng chặn client tự ghi/sửa', async () => {
+  await testEnv.withSecurityRulesDisabled(async (ctx) => {
+    await setDoc(doc(ctx.firestore(), 'leaderboard_public', 'alice'), {
+      displayName: 'Minh Anh',
+      xp: 900,
+      stampCount: 9,
+      avatarUrl: null,
+      updatedAt: Timestamp.now(),
+    });
+  });
+
+  const anonDb = testEnv.unauthenticatedContext().firestore();
+  await assertSucceeds(getDoc(doc(anonDb, 'leaderboard_public', 'alice')));
+
+  const aliceDb = testEnv.authenticatedContext('alice').firestore();
+  await assertSucceeds(getDoc(doc(aliceDb, 'leaderboard_public', 'alice')));
+  await assertFails(
+    setDoc(doc(aliceDb, 'leaderboard_public', 'alice'), {
+      displayName: 'Hack',
+      xp: 999999,
+      stampCount: 99,
+      avatarUrl: null,
+    }),
+  );
+  await assertFails(
+    updateDoc(doc(aliceDb, 'leaderboard_public', 'alice'), { xp: 999999 }),
+  );
+});

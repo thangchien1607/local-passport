@@ -37,3 +37,9 @@ Tài liệu này ghi lại các lựa chọn kiến trúc khi thực hiện sử
 ## 2.1 Loại bỏ vòng lặp N+1 trong `fetch()`
 - Tải song song `user_passports/{uid}`, `visits`, `notifications` và `reflection_owners` trong cùng `Future.wait`.
 - Thay vòng lặp `get()` từng bài cảm nhận bằng `fetchInChunks` sử dụng `where(FieldPath.documentId, whereIn: chunk)` với tối đa `30` ID/lô, chạy song song bằng `Future.wait`.
+
+## 2.2 Leaderboard công khai (`leaderboard_public`)
+- Thêm Cloud Function Firestore trigger `syncLeaderboardOnPassportWrite` lắng nghe `user_passports/{uid}` và chỉ đồng bộ `displayName`, `xp`, `stampCount`, `avatarUrl`, `updatedAt` sang `leaderboard_public/{uid}`.
+- `firestore.rules` cho phép `allow read: if true` và `allow write: if false` trên `leaderboard_public/{uid}`; `user_passports/{uid}` vẫn khóa hoàn toàn cho riêng chủ sở hữu.
+- Thêm composite index `(xp DESC, stampCount DESC)` trong `firestore.indexes.json`.
+- `LeaderboardScreen` tự tải `leaderboard_public`, hỗ trợ kéo làm mới (`RefreshIndicator`), tự xử lý an toàn khi danh sách có < 3 người dùng, và fallback sang dữ liệu mẫu khi chạy offline/chưa có dữ liệu cloud.
