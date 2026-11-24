@@ -64,3 +64,6 @@ Tài liệu này ghi lại các lựa chọn kiến trúc khi thực hiện sử
 - Dùng `ios/Flutter/Secrets.xcconfig` (được đưa vào `.gitignore`) và file mẫu `ios/Flutter/Secrets.xcconfig.example`.
 - `Debug.xcconfig` và `Release.xcconfig` nạp tùy chọn `#include? "Secrets.xcconfig"` với giá trị mặc định rỗng để không làm hỏng build khi chưa tạo file bí mật.
 - `Info.plist` ánh xạ `GMSApiKey = $(MAPS_API_KEY)` và `AppDelegate.swift` gọi `GMSServices.provideAPIKey(...)` (bọc `#if canImport(GoogleMaps)`) khi có key thật.
+
+## 3.3 Rà soát `Permissions-Policy` trong `firebase.timelens.json`
+- Đổi `camera=(), geolocation=(), microphone=()` thành `camera=(self), geolocation=(self), microphone=()` để nhất quán với `firebase.json` và không chặn quyền camera/GPS trên chính origin khi chia sẻ hoặc nhúng tính năng check-in.
