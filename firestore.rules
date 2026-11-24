@@ -1,12 +1,18 @@
 rules_version = '2';
 
-// Mỗi người chỉ đọc/ghi hộ chiếu của mình (uid từ Firebase Auth ẩn danh).
-// Bài cảm nhận công khai cho mọi người đọc; chỉ chủ bài (ghi trong
-// reflection_owners) được sửa hoặc xóa.
+// Quy tắc bảo mật Cloud Firestore cho Local Passport:
+// - Mỗi người chỉ đọc/ghi hộ chiếu của mình (`user_passports/{uid}`) theo schema nghiêm ngặt.
+// - Không chấp nhận lưu ảnh base64 mới (`photoBase64`, `taskPhotos`); chỉ lưu URL Storage.
+// - Trường `aiScore` chỉ do Cloud Function (Admin SDK) ghi; client bị chặn tạo/sửa `aiScore`.
+// - `reflection_owners/{id}` bất biến sau khi tạo (`allow update: if false`).
 service cloud.firestore {
   match /databases/{database}/documents {
     function signedIn() {
       return request.auth != null;
+    }
+
+    function isOwnerUid(uid) {
+      return signedIn() && request.auth.uid == uid;
     }
 
     function ownerOf(id) {
@@ -18,15 +24,50 @@ service cloud.firestore {
         || (v is string && v.size() > 0 && v.size() <= 2048 && v.matches('^https?://.*'));
     }
 
+    function validPassport(d) {
+      return d.keys().hasOnly(['name', 'passportNo', 'joinedAt', 'xp', 'stampCount', 'avatarUrl'])
+        && d.keys().hasAll(['name', 'passportNo', 'joinedAt', 'xp', 'stampCount'])
+        && d.name is string && d.name.size() >= 1 && d.name.size() <= 60
+        && d.passportNo is string && d.passportNo.size() >= 3 && d.passportNo.size() <= 32
+        && d.joinedAt is timestamp
+        && d.xp is int && d.xp >= 0 && d.xp <= 1000000
+        && d.stampCount is int && d.stampCount >= 0 && d.stampCount <= 500
+        && validPhotoUrl(d.get('avatarUrl', null));
+    }
+
+    function validVisit(d) {
+      return d.keys().hasOnly(['unlocked', 'unlockedAt', 'tasks', 'taskPhotoUrls', 'stampedAt'])
+        && d.keys().hasAll(['unlocked', 'tasks'])
+        && !('taskPhotos' in d)
+        && d.unlocked is bool
+        && (d.get('unlockedAt', null) == null || d.unlockedAt is timestamp)
+        && (d.get('stampedAt', null) == null || d.stampedAt is timestamp)
+        && d.tasks is list && d.tasks.size() <= 30
+        && d.get('taskPhotoUrls', {}) is map
+        && d.get('taskPhotoUrls', {}).size() <= 20;
+    }
+
+    function validNotification(d) {
+      return d.keys().hasOnly(['type', 'title', 'body', 'locationId', 'read', 'createdAt'])
+        && d.keys().hasAll(['type', 'title', 'body', 'read', 'createdAt'])
+        && d.type is string && d.type.size() >= 1 && d.type.size() <= 32
+        && d.title is string && d.title.size() >= 1 && d.title.size() <= 120
+        && d.body is string && d.body.size() >= 1 && d.body.size() <= 400
+        && (d.get('locationId', null) == null || (d.locationId is string && d.locationId.size() <= 80))
+        && d.read is bool
+        && d.createdAt is timestamp;
+    }
+
     function validReflectionCreate() {
       let d = request.resource.data;
       return d.keys().hasOnly(['locationId', 'displayAuthor', 'isAnonymous', 'content', 'createdAt', 'photoUrl'])
+        && d.keys().hasAll(['locationId', 'displayAuthor', 'isAnonymous', 'content', 'createdAt'])
         && !('aiScore' in d)
         && !('photoBase64' in d)
         && d.locationId is string && d.locationId.size() > 0 && d.locationId.size() <= 80
         && d.displayAuthor is string && d.displayAuthor.size() > 0 && d.displayAuthor.size() <= 80
         && d.isAnonymous is bool
-        && d.content is string && d.content.size() <= 2000
+        && d.content is string && d.content.size() > 0 && d.content.size() <= 2000
         && d.createdAt is timestamp
         && validPhotoUrl(d.get('photoUrl', null));
     }
@@ -41,28 +82,18 @@ service cloud.firestore {
     }
 
     match /user_passports/{uid} {
-      allow read, write: if signedIn() && request.auth.uid == uid;
+      allow read, delete: if isOwnerUid(uid);
+      allow create, update: if isOwnerUid(uid) && validPassport(request.resource.data);
 
       match /visits/{locationId} {
-        allow read, delete: if signedIn() && request.auth.uid == uid;
-        allow create, update: if signedIn() && request.auth.uid == uid
-          && !('taskPhotos' in request.resource.data)
-          && request.resource.data.keys().hasOnly(['unlocked', 'unlockedAt', 'tasks', 'taskPhotoUrls', 'stampedAt'])
-          && request.resource.data.unlocked is bool
-          && request.resource.data.tasks is list && request.resource.data.tasks.size() <= 30
-          && request.resource.data.get('taskPhotoUrls', {}) is map
-          && request.resource.data.get('taskPhotoUrls', {}).size() <= 20;
+        allow read, delete: if isOwnerUid(uid);
+        allow create, update: if isOwnerUid(uid) && validVisit(request.resource.data);
       }
 
       // Thông báo trong app: chỉ chủ hộ chiếu đọc, ghi.
       match /notifications/{notificationId} {
-        allow read, delete: if signedIn() && request.auth.uid == uid;
-        allow create, update: if signedIn() && request.auth.uid == uid
-          && request.resource.data.title is string
-          && request.resource.data.title.size() <= 120
-          && request.resource.data.body is string
-          && request.resource.data.body.size() <= 400
-          && request.resource.data.read is bool;
+        allow read, delete: if isOwnerUid(uid);
+        allow create, update: if isOwnerUid(uid) && validNotification(request.resource.data);
       }
     }
 

@@ -28,3 +28,8 @@ Tài liệu này ghi lại các lựa chọn kiến trúc khi thực hiện sử
 - **Bỏ cache `_written`**: Thay vì tin vào map cache trong RAM (dễ lệch trạng thái khi khởi động lại hoặc khi Cloud Function đã tạo `reflection_owners/{id}`), mỗi lần đồng bộ đối chiếu trực tiếp với trạng thái hiện có trên Firestore (`listVisitIds`, `listNotificationIds`, `listOwnedReflectionIds`, `reflectionOwnerExists`, `reflectionDocExists`).
 - **Chia lô `<= 450` thao tác nguyên tử**: Hàm `chunkAtomicOps` gom thao tác theo từng nhóm nguyên tử (cặp `reflection_owners/{id}` + `reflections/{id}` không bao giờ bị cắt sang 2 batch khác nhau để thỏa điều kiện `getAfter(...)` trong Firestore Rules), mỗi lô tối đa `450` thao tác.
 - **Idempotent**: Khi `reflection_owners/{id}` đã tồn tại, chỉ cập nhật merge các trường cho phép trên `reflections/{id}`, tuyệt đối không ghi đè `reflection_owners/{id}` (`allow update: if false`) và không đụng vào `aiScore`.
+
+## 1.4 Siết schema cho `user_passports/{uid}` và kiểm thử Rules bằng Emulator
+- Tách các hàm kiểm tra schema trong `firestore.rules`: `validPassport`, `validVisit`, `validNotification`, `validReflectionCreate`, `validReflectionUpdate`, `validPhotoUrl`.
+- Mọi thao tác ghi thiếu trường bắt buộc, thừa trường lạ, sai kiểu dữ liệu hoặc vượt giới hạn độ dài chuỗi/kích thước danh sách đều bị từ chối ở tầng Security Rules.
+- Bộ test `rules_tests/` dùng `@firebase/rules-unit-testing` chạy trên Firebase Emulator Suite (`firestore` + `storage`) để xác minh toàn bộ các ràng buộc từ 1.1 đến 1.4.
