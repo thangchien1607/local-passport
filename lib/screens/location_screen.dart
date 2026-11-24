@@ -8,6 +8,7 @@ import '../data/routes.dart';
 import '../state/passport_store.dart';
 import '../theme.dart';
 import '../widgets/common.dart';
+import '../widgets/edit_reflection_dialog.dart';
 import '../widgets/passport_photo.dart';
 import '../widgets/reflection_card.dart';
 import '../widgets/scene_art.dart';
@@ -530,6 +531,9 @@ class LocationScreen extends StatelessWidget {
                           ReflectionCard(
                             reflection: r,
                             showLocation: false,
+                            onEdit: store.isMyReflection(r.id)
+                                ? () => showEditReflectionDialog(context, r)
+                                : null,
                             onToggleAnonymous: store.isMyReflection(r.id)
                                 ? () => store.setReflectionAnonymous(
                                     r.id,

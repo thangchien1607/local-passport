@@ -264,6 +264,8 @@ Future<int> runIdempotentChunkedSync({
           SyncSetOp('reflections/${r.id}', {
             'displayAuthor': r.displayAuthor,
             'isAnonymous': r.isAnonymous,
+            'content': r.content,
+            'photoUrl': r.photoUrl,
           }, merge: true),
         ]);
       } else if (item.ownerExists && !item.docExists) {

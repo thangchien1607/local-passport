@@ -775,6 +775,47 @@ class PassportStore extends ChangeNotifier {
     return true;
   }
 
+  /// Sửa nội dung và/hoặc ảnh bài cảm nhận của chính tác giả; cập nhật `aiScore`
+  /// từ kết quả chấm lại của Cloud Function (không cộng trùng XP).
+  bool updateReflection({
+    required String id,
+    required String content,
+    String? photoUrl,
+    String? photoBase64,
+    bool clearPhoto = false,
+    int? aiScore,
+  }) {
+    final i = reflections.indexWhere((r) => r.id == id);
+    if (i < 0) return false;
+    final current = reflections[i];
+    final trimmed = content.trim();
+    if (trimmed.isEmpty) return false;
+
+    final oldUrl = current.photoUrl;
+    final nextPhotoUrl = clearPhoto ? null : (photoUrl ?? current.photoUrl);
+    final nextPhotoBase64 = clearPhoto
+        ? null
+        : (nextPhotoUrl != null ? null : (photoBase64 ?? current.photoBase64));
+
+    if (oldUrl != null && oldUrl != nextPhotoUrl) {
+      unawaited(photos?.deleteByUrl(oldUrl));
+    }
+
+    reflections[i] = Reflection(
+      id: current.id,
+      locationId: current.locationId,
+      displayAuthor: current.displayAuthor,
+      isAnonymous: current.isAnonymous,
+      content: trimmed,
+      aiScore: aiScore ?? current.aiScore,
+      createdAt: current.createdAt,
+      photoUrl: nextPhotoUrl,
+      photoBase64: nextPhotoBase64,
+    );
+    _commit();
+    return true;
+  }
+
   /// Xóa bài cảm nhận. Không trừ XP, không đụng dấu mộc.
   bool deleteReflection(String id) {
     final before = reflections.length;

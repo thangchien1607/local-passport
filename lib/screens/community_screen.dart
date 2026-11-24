@@ -6,6 +6,7 @@ import '../services/text_search.dart';
 import '../state/passport_store.dart';
 import '../theme.dart';
 import '../widgets/common.dart';
+import '../widgets/edit_reflection_dialog.dart';
 import '../widgets/reflection_card.dart';
 
 class CommunityScreen extends StatefulWidget {
@@ -130,6 +131,9 @@ class _CommunityScreenState extends State<CommunityScreen> {
             for (final r in list) ...[
               ReflectionCard(
                 reflection: r,
+                onEdit: store.isMyReflection(r.id)
+                    ? () => showEditReflectionDialog(context, r)
+                    : null,
                 onToggleAnonymous: store.isMyReflection(r.id)
                     ? () => store.setReflectionAnonymous(r.id, !r.isAnonymous)
                     : null,

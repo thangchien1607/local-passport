@@ -296,3 +296,46 @@ test('2.2 leaderboard_public cho phép mọi người đọc nhưng chặn clien
     updateDoc(doc(aliceDb, 'leaderboard_public', 'alice'), { xp: 999999 }),
   );
 });
+
+// ---- 2.4: Cho tác giả sửa content/photoUrl nhưng vẫn chặn sửa aiScore/photoBase64 ----
+
+test('2.4 Tác giả sửa được content và photoUrl nhưng vẫn bị chặn sửa aiScore hoặc thêm photoBase64', async () => {
+  await testEnv.withSecurityRulesDisabled(async (ctx) => {
+    const adminDb = ctx.firestore();
+    await setDoc(doc(adminDb, 'reflection_owners', 'r-edit'), { uid: 'alice' });
+    await setDoc(
+      doc(adminDb, 'reflections', 'r-edit'),
+      validReflectionDoc({ aiScore: 70 }),
+    );
+  });
+
+  const aliceDb = testEnv.authenticatedContext('alice').firestore();
+  const ref = doc(aliceDb, 'reflections', 'r-edit');
+
+  await assertSucceeds(
+    updateDoc(ref, {
+      content: 'Nội dung cảm nhận đã được tác giả chỉnh sửa chi tiết hơn.',
+      photoUrl: 'https://firebasestorage.googleapis.com/v0/b/test/o/new.jpg',
+    }),
+  );
+
+  await assertFails(
+    updateDoc(ref, {
+      content: 'Thử gian lận điểm AI',
+      aiScore: 100,
+    }),
+  );
+
+  await assertFails(
+    updateDoc(ref, {
+      photoBase64: 'YWJjZA==',
+    }),
+  );
+
+  const bobDb = testEnv.authenticatedContext('bob').firestore();
+  await assertFails(
+    updateDoc(doc(bobDb, 'reflections', 'r-edit'), {
+      content: 'Người khác sửa trộm',
+    }),
+  );
+});

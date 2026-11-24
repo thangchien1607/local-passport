@@ -48,3 +48,8 @@ Tài liệu này ghi lại các lựa chọn kiến trúc khi thực hiện sử
 - Thêm `CommunityPage`, `fetchCommunityPage(limit, startAfter)` (dùng `startAfterDocument` trên Firestore) và `watchLatestCommunity(limit)` (dùng `snapshots()`) trên `PassportRemote`.
 - `PassportStore` hợp nhất trang đã tải (`_pagedCommunity`) với luồng realtime (`_realtimeCommunity`), tự cập nhật `aiScore` khi server ghi điểm mới, và hỗ trợ `loadMoreCommunity()` cho infinite scroll.
 - `CommunityScreen` gắn `ScrollController` tự tải trang tiếp theo khi cuộn gần cuối (`<= 240px`), có `RefreshIndicator` kéo làm mới và nút dự phòng "Tải thêm cảm nhận".
+
+## 2.4 Sửa bài cảm nhận & tự chấm lại AI
+- Cập nhật `firestore.rules` cho phép chủ sở hữu (`ownerOf(id) == request.auth.uid`) sửa thêm `content`, `photoUrl`, `updatedAt` nhưng vẫn khóa chặt `aiScore`, `photoBase64`, `locationId`, `createdAt`.
+- Thêm Cloud Function trigger `rescoreReflectionOnUpdate` (bên cạnh `verifyReflection`) để tự động chấm lại và ghi `aiScore` mới bằng Admin SDK khi `content` hoặc `photoUrl` thay đổi, có điều kiện chống vòng lặp vô hạn.
+- Thêm hộp thoại `EditReflectionDialog` và nút **Sửa** trên `ReflectionCard` cho tác giả sửa nội dung/ảnh và nhận điểm AI mới mà không cộng trùng XP.

@@ -5,4 +5,5 @@ if (admin.apps.length === 0) {
 }
 
 export { verifyReflection } from './ai/verifyReflection';
+export { rescoreReflectionOnUpdate } from './ai/rescoreOnReflectionEdit';
 export { syncLeaderboardOnPassportWrite } from './leaderboard/syncLeaderboard';

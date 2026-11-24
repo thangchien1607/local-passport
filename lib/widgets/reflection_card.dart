@@ -16,12 +16,16 @@ class ReflectionCard extends StatelessWidget {
     super.key,
     required this.reflection,
     this.showLocation = true,
+    this.onEdit,
     this.onToggleAnonymous,
     this.onDelete,
   });
 
   final Reflection reflection;
   final bool showLocation;
+
+  /// Chỉ truyền cho bài của chính tác giả để mở hộp thoại sửa & chấm lại AI.
+  final VoidCallback? onEdit;
 
   /// Chỉ truyền cho bài của chính người dùng; bài mẫu để null (chỉ đọc).
   final VoidCallback? onToggleAnonymous;
@@ -178,12 +182,23 @@ class ReflectionCard extends StatelessWidget {
               ),
             ),
           ],
-          if (onToggleAnonymous != null || onDelete != null) ...[
+          if (onEdit != null ||
+              onToggleAnonymous != null ||
+              onDelete != null) ...[
             const SizedBox(height: 8),
             const Divider(height: 1, color: AppColors.line),
             Wrap(
               spacing: 4,
               children: [
+                if (onEdit != null)
+                  TextButton.icon(
+                    onPressed: onEdit,
+                    style: TextButton.styleFrom(
+                      foregroundColor: AppColors.inkSoft,
+                    ),
+                    icon: const Icon(Icons.edit_outlined, size: 18),
+                    label: const Text('Sửa'),
+                  ),
                 if (onToggleAnonymous != null)
                   TextButton.icon(
                     onPressed: onToggleAnonymous,
