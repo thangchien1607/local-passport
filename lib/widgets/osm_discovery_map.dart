@@ -23,6 +23,13 @@ final _bounds = LatLngBounds(
   const ll.LatLng(16.30, 108.45),
 );
 
+/// Tâm ban đầu nằm trong [_bounds]. Thiếu nó, flutter_map dùng tâm mặc định ở
+/// châu Âu trước khi canh khung, vi phạm ràng buộc khung (lỗi assert/null).
+const _center = ll.LatLng(16.047, 108.206);
+
+/// Giữ cùng một đối tượng giữa các lần build để MapOptions không bị coi là đổi.
+final _constraint = CameraConstraint.containCenter(bounds: _bounds);
+
 /// Bản đồ thật từ OpenStreetMap: không cần API key, không cần thẻ thanh toán.
 /// Cùng tham số với DiscoveryMap để map_screen đổi qua lại được.
 class OsmDiscoveryMap extends StatefulWidget {
@@ -152,13 +159,13 @@ class _OsmDiscoveryMapState extends State<OsmDiscoveryMap> {
               FlutterMap(
                 mapController: _map,
                 options: MapOptions(
+                  initialCenter: _center,
+                  initialZoom: 12,
                   initialCameraFit: _fit,
                   minZoom: 11,
                   maxZoom: 18,
                   backgroundColor: AppColors.paper2,
-                  cameraConstraint: CameraConstraint.containCenter(
-                    bounds: _bounds,
-                  ),
+                  cameraConstraint: _constraint,
                   interactionOptions: const InteractionOptions(
                     flags: InteractiveFlag.all & ~InteractiveFlag.rotate,
                   ),
