@@ -80,3 +80,8 @@ Tài liệu này ghi lại các lựa chọn kiến trúc khi thực hiện sử
 ## S3. Chấm điểm AI heuristic offline + tùy chọn endpoint ngoài
 - Mặc định dùng `scoreReflectionHeuristic` hoàn toàn ở client. Nếu cấu hình `--dart-define=REFLECTION_VERIFIER_URL=https://...`, client gửi request kèm `Authorization: Bearer <Firebase ID Token>` và tự fallback về heuristic khi lỗi mạng/HTTP/timeout.
 - **Đánh đổi của kiến trúc Spark**: Trường `aiScore` được client gửi trực tiếp lên Firestore (rules chỉ kiểm tra `aiScore is int && 0..100`) nên **KHÔNG chống gian lận hoàn toàn** nếu người dùng gọi API Firestore trực tiếp. Không còn rate limit phía máy chủ. Chấp nhận được cho đồ án/MVP trên gói Spark.
+
+## S4. Leaderboard công khai do client tự ghi (có debounce 5 giây)
+- Không dùng Cloud Function trigger `syncLeaderboard`; `PassportStore` tự ghi tóm tắt `{displayName, xp, stampCount, avatarUrl, updatedAt}` vào `leaderboard_public/{uid}` với debounce `5 giây` mỗi khi thông tin hộ chiếu thay đổi.
+- `firestore.rules` cho phép `allow read: if true`, chỉ cho phép chủ tài khoản (`request.auth.uid == uid`) tạo/cập nhật/xóa bản ghi của chính mình với kiểm tra nghiêm ngặt: `displayName` 1–40 ký tự, `xp` int `0..50000`, `stampCount` int `0..200`, `avatarUrl` URL HTTP/HTTPS <= 2048 ký tự hoặc null, `updatedAt` timestamp.
+- **Đánh đổi của kiến trúc Spark**: Người dùng am hiểu kỹ thuật có thể tự sửa `xp` hoặc `stampCount` của chính mình trong ngưỡng `0..50000` (không thể sửa của người khác). Điều này được chấp nhận cho phạm vi đồ án/MVP miễn phí trên gói Spark.

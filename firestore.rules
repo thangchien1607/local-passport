@@ -102,6 +102,16 @@ service cloud.firestore {
         && (d.get('updatedAt', null) == null || d.updatedAt is timestamp);
     }
 
+    function validLeaderboardEntry(d) {
+      return d.keys().hasOnly(['displayName', 'xp', 'stampCount', 'avatarUrl', 'updatedAt'])
+        && d.keys().hasAll(['displayName', 'xp', 'stampCount', 'updatedAt'])
+        && d.displayName is string && d.displayName.size() >= 1 && d.displayName.size() <= 40
+        && d.xp is int && d.xp >= 0 && d.xp <= 50000
+        && d.stampCount is int && d.stampCount >= 0 && d.stampCount <= 200
+        && validPhotoUrl(d.get('avatarUrl', null))
+        && d.updatedAt is timestamp;
+    }
+
     match /user_passports/{uid} {
       allow read, delete: if isOwnerUid(uid);
       allow create, update: if isOwnerUid(uid) && validPassport(request.resource.data);
@@ -136,10 +146,12 @@ service cloud.firestore {
       allow delete: if signedIn() && resource.data.uid == request.auth.uid;
     }
 
-    // Bảng xếp hạng công khai.
+    // Bảng xếp hạng công khai (kiến trúc Spark): mọi người đọc được,
+    // chỉ chủ sở hữu (request.auth.uid == uid) được tạo/sửa/xóa bản ghi của mình.
     match /leaderboard_public/{uid} {
       allow read: if true;
-      allow write: if false;
+      allow create, update: if isOwnerUid(uid) && validLeaderboardEntry(request.resource.data);
+      allow delete: if isOwnerUid(uid);
     }
   }
 }

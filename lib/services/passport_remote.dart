@@ -13,6 +13,10 @@ const maxBatchOperations = 450;
 /// Giới hạn số phần tử tối đa của toán tử `whereIn` trong Cloud Firestore.
 const maxWhereInIds = 30;
 
+/// Trần hợp lý cho XP và số dấu mộc trên bảng xếp hạng (khớp `firestore.rules`).
+const maxLeaderboardXp = 50000;
+const maxLeaderboardStamps = 200;
+
 /// Chia danh sách ID thành các nhóm nhỏ tối đa [chunkSize] phần tử (mặc định 30)
 /// để dùng với truy vấn `whereIn`.
 List<List<T>> chunkIds<T>(List<T> ids, {int chunkSize = maxWhereInIds}) {
@@ -378,8 +382,16 @@ abstract class PassportRemote {
   /// Luồng realtime (`snapshots()`) lắng nghe các bài cảm nhận mới nhất.
   Stream<List<Reflection>> watchLatestCommunity({int limit = 20});
 
-  /// Bảng xếp hạng công khai từ collection `leaderboard_public` (do Cloud Function tổng hợp).
+  /// Bảng xếp hạng công khai từ collection `leaderboard_public`.
   Future<List<LeaderEntry>> fetchLeaderboard({int limit = 50});
+
+  /// Client tự đẩy tóm tắt hồ sơ lên `leaderboard_public/{uid}` (kiến trúc Spark).
+  Future<void> syncLeaderboardEntry({
+    required String displayName,
+    required int xp,
+    required int stampCount,
+    String? avatarUrl,
+  });
 
   /// Ghi trạng thái hiện tại lên server (chia lô <= 450 thao tác, idempotent).
   Future<void> sync(Map<String, dynamic> data);
@@ -557,6 +569,34 @@ class FirestorePassportRemote implements PassportRemote {
           isMe: myUid != null && d.id == myUid,
         ),
     ];
+  }
+
+  @override
+  Future<void> syncLeaderboardEntry({
+    required String displayName,
+    required int xp,
+    required int stampCount,
+    String? avatarUrl,
+  }) async {
+    final myUid = uid;
+    if (myUid == null) return;
+    final trimmed = displayName.trim().isEmpty
+        ? 'Lữ khách'
+        : displayName.trim();
+    final safeName = trimmed.length > 40 ? trimmed.substring(0, 40) : trimmed;
+    final safeAvatar =
+        (avatarUrl != null &&
+            avatarUrl.length <= 2048 &&
+            isNetworkImageUrl(avatarUrl))
+        ? avatarUrl
+        : null;
+    await _db.collection('leaderboard_public').doc(myUid).set({
+      'displayName': safeName,
+      'xp': xp.clamp(0, maxLeaderboardXp),
+      'stampCount': stampCount.clamp(0, maxLeaderboardStamps),
+      'avatarUrl': safeAvatar,
+      'updatedAt': FieldValue.serverTimestamp(),
+    });
   }
 
   @override

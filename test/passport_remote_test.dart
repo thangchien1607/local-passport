@@ -39,6 +39,14 @@ class _FakeRemote implements PassportRemote {
       const [];
 
   @override
+  Future<void> syncLeaderboardEntry({
+    required String displayName,
+    required int xp,
+    required int stampCount,
+    String? avatarUrl,
+  }) async {}
+
+  @override
   Future<void> sync(Map<String, dynamic> data) async {
     synced.add(data);
     server = data;

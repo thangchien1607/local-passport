@@ -308,35 +308,48 @@ test('1.4 Xác nhận chưa đăng nhập bị chặn ghi user_passports', async
   assert.ok(true);
 });
 
-// ---- 2.2: Leaderboard công khai chỉ đọc bởi client, ghi bởi Cloud Function ----
+// ---- S4: Leaderboard công khai do chủ tài khoản tự ghi trong giới hạn schema ----
 
-test('2.2 leaderboard_public cho phép mọi người đọc nhưng chặn client tự ghi/sửa', async () => {
-  await testEnv.withSecurityRulesDisabled(async (ctx) => {
-    await setDoc(doc(ctx.firestore(), 'leaderboard_public', 'alice'), {
-      displayName: 'Minh Anh',
-      xp: 900,
-      stampCount: 9,
-      avatarUrl: null,
-      updatedAt: Timestamp.now(),
-    });
-  });
-
-  const anonDb = testEnv.unauthenticatedContext().firestore();
-  await assertSucceeds(getDoc(doc(anonDb, 'leaderboard_public', 'alice')));
-
+test('S4 leaderboard_public cho chủ sở hữu ghi/xóa đúng schema và chặn sai uid hoặc sai dữ liệu', async () => {
   const aliceDb = testEnv.authenticatedContext('alice').firestore();
-  await assertSucceeds(getDoc(doc(aliceDb, 'leaderboard_public', 'alice')));
+  const bobDb = testEnv.authenticatedContext('bob').firestore();
+  const anonDb = testEnv.unauthenticatedContext().firestore();
+  const aliceRef = doc(aliceDb, 'leaderboard_public', 'alice');
+
+  const validEntry = {
+    displayName: 'Minh Anh',
+    xp: 900,
+    stampCount: 9,
+    avatarUrl: 'https://example.com/avatar.jpg',
+    updatedAt: Timestamp.now(),
+  };
+
+  // Chủ tài khoản tạo & cập nhật thành công.
+  await assertSucceeds(setDoc(aliceRef, validEntry));
+  await assertSucceeds(
+    updateDoc(aliceRef, { xp: 1050, stampCount: 10, updatedAt: Timestamp.now() }),
+  );
+
+  // Khách và người dùng khác đều đọc được bảng xếp hạng.
+  await assertSucceeds(getDoc(doc(anonDb, 'leaderboard_public', 'alice')));
+  await assertSucceeds(getDoc(doc(bobDb, 'leaderboard_public', 'alice')));
+
+  // Người khác KHÔNG được ghi/sửa/xóa bản ghi của alice.
   await assertFails(
-    setDoc(doc(aliceDb, 'leaderboard_public', 'alice'), {
-      displayName: 'Hack',
-      xp: 999999,
-      stampCount: 99,
-      avatarUrl: null,
-    }),
+    setDoc(doc(bobDb, 'leaderboard_public', 'alice'), validEntry),
   );
   await assertFails(
-    updateDoc(doc(aliceDb, 'leaderboard_public', 'alice'), { xp: 999999 }),
+    updateDoc(doc(bobDb, 'leaderboard_public', 'alice'), { xp: 10 }),
   );
+
+  // Chặn displayName > 40 ký tự, xp vượt trần/âm/sai kiểu, stampCount âm, trường thừa.
+  await assertFails(setDoc(aliceRef, { ...validEntry, displayName: 'A'.repeat(41) }));
+  await assertFails(setDoc(aliceRef, { ...validEntry, xp: -1 }));
+  await assertFails(setDoc(aliceRef, { ...validEntry, xp: 50001 }));
+  await assertFails(setDoc(aliceRef, { ...validEntry, xp: '900' }));
+  await assertFails(setDoc(aliceRef, { ...validEntry, stampCount: -1 }));
+  await assertFails(setDoc(aliceRef, { ...validEntry, avatarUrl: 'ftp://bad.url' }));
+  await assertFails(setDoc(aliceRef, { ...validEntry, isAdmin: true }));
 });
 
 // ---- 2.4: Cho tác giả sửa content/photoUrl nhưng vẫn chặn sửa aiScore/photoBase64 ----

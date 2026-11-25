@@ -90,7 +90,12 @@ class LocationProgress {
 typedef RouteProgress = ({int stamped, int total, int percent});
 
 class PassportStore extends ChangeNotifier {
-  PassportStore._(this._prefs, this.remote, this.auth) {
+  PassportStore._(
+    this._prefs,
+    this.remote,
+    this.auth, {
+    Duration leaderboardDebounce = const Duration(seconds: 5),
+  }) : _leaderboardDebounce = leaderboardDebounce {
     remote?.state.addListener(_onSyncState);
   }
 
@@ -101,6 +106,10 @@ class PassportStore extends ChangeNotifier {
 
   /// Tài khoản (Firebase Auth). null: chỉ có hồ sơ cục bộ, không đăng nhập.
   final AuthGateway? auth;
+
+  final Duration _leaderboardDebounce;
+  Timer? _leaderboardTimer;
+  String? _lastLeaderboardDigest;
 
   /// Thông báo trong app, mới nhất trước.
   List<AppNotification> notifications = [];
@@ -136,11 +145,13 @@ class PassportStore extends ChangeNotifier {
   static Future<PassportStore> load({
     PassportRemote? remote,
     AuthGateway? auth,
+    Duration leaderboardDebounce = const Duration(seconds: 5),
   }) async {
     final store = PassportStore._(
       await SharedPreferences.getInstance(),
       remote,
       auth,
+      leaderboardDebounce: leaderboardDebounce,
     );
     store._load();
     if (auth != null) {
@@ -302,8 +313,9 @@ class PassportStore extends ChangeNotifier {
     newPassword: newPassword,
   );
 
-  /// Xóa vĩnh viễn tài khoản và toàn bộ dữ liệu liên quan (Firestore + Storage).
+  /// Xóa vĩnh viễn tài khoản và toàn bộ dữ liệu liên quan.
   Future<void> deleteAccount() async {
+    _cancelLeaderboardSync();
     stopWatchingCommunity();
     final a = auth;
     if (a != null) {
@@ -358,6 +370,7 @@ class PassportStore extends ChangeNotifier {
 
   /// Đăng xuất: chỉ xóa dữ liệu trên máy, dữ liệu trên server vẫn giữ.
   Future<void> logout() async {
+    _cancelLeaderboardSync();
     stopWatchingCommunity();
     await auth?.signOut();
     remote?.forget();
@@ -370,6 +383,7 @@ class PassportStore extends ChangeNotifier {
 
   @override
   void dispose() {
+    _cancelLeaderboardSync();
     stopWatchingCommunity();
     remote?.state.removeListener(_onSyncState);
     super.dispose();
@@ -637,6 +651,49 @@ class PassportStore extends ChangeNotifier {
     _saveLocal();
     _changedBeforePull = true;
     remote?.sync(_toJson());
+    _scheduleLeaderboardSync();
+  }
+
+  void _cancelLeaderboardSync() {
+    _leaderboardTimer?.cancel();
+    _leaderboardTimer = null;
+    _lastLeaderboardDigest = null;
+  }
+
+  /// Đẩy tóm tắt `{displayName, xp, stampCount, avatarUrl}` lên `leaderboard_public/{uid}`
+  /// có debounce (mặc định 5 giây) để tránh ghi liên tục khi người dùng tích nhiều nhiệm vụ.
+  void _scheduleLeaderboardSync() {
+    final r = remote;
+    final u = user;
+    if (r == null || u == null) return;
+    final digest = '${u.name}|$xp|$totalStamps';
+    if (digest == _lastLeaderboardDigest) return;
+    _leaderboardTimer?.cancel();
+    _leaderboardTimer = Timer(_leaderboardDebounce, () {
+      unawaited(flushLeaderboardNow());
+    });
+  }
+
+  /// Ghi ngay tóm tắt bảng xếp hạng hiện tại nếu có thay đổi.
+  Future<void> flushLeaderboardNow() async {
+    _leaderboardTimer?.cancel();
+    _leaderboardTimer = null;
+    final r = remote;
+    final u = user;
+    if (r == null || u == null) return;
+    final digest = '${u.name}|$xp|$totalStamps';
+    if (digest == _lastLeaderboardDigest) return;
+    _lastLeaderboardDigest = digest;
+    try {
+      await r.syncLeaderboardEntry(
+        displayName: u.name,
+        xp: xp,
+        stampCount: totalStamps,
+      );
+    } catch (_) {
+      // Cho phép thử lại ở lần đồng bộ tiếp theo.
+      _lastLeaderboardDigest = null;
+    }
   }
 
   int get totalStamps => stamps.keys

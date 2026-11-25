@@ -51,6 +51,13 @@ class _PagedCommunityRemote implements PassportRemote {
   Future<List<LeaderEntry>> fetchLeaderboard({int limit = 50}) async =>
       const [];
   @override
+  Future<void> syncLeaderboardEntry({
+    required String displayName,
+    required int xp,
+    required int stampCount,
+    String? avatarUrl,
+  }) async {}
+  @override
   Future<void> sync(Map<String, dynamic> data) async {}
   @override
   void forget() {}

@@ -11,6 +11,8 @@ class _LeaderboardFakeRemote implements PassportRemote {
   _LeaderboardFakeRemote(this.entries);
 
   final List<LeaderEntry> entries;
+  final pushedEntries =
+      <({String displayName, int xp, int stampCount, String? avatarUrl})>[];
 
   @override
   final state = ValueNotifier(SyncState.synced);
@@ -30,6 +32,21 @@ class _LeaderboardFakeRemote implements PassportRemote {
       const Stream.empty();
   @override
   Future<List<LeaderEntry>> fetchLeaderboard({int limit = 50}) async => entries;
+  @override
+  Future<void> syncLeaderboardEntry({
+    required String displayName,
+    required int xp,
+    required int stampCount,
+    String? avatarUrl,
+  }) async {
+    pushedEntries.add((
+      displayName: displayName,
+      xp: xp,
+      stampCount: stampCount,
+      avatarUrl: avatarUrl,
+    ));
+  }
+
   @override
   Future<void> sync(Map<String, dynamic> data) async {}
   @override
@@ -99,6 +116,47 @@ void main() {
       expect(find.text('950 XP'), findsOneWidget);
       expect(find.text('#2'), findsOneWidget);
       expect(tester.takeException(), isNull);
+      store.dispose();
+    },
+  );
+
+  test(
+    'Đẩy leaderboard_public từ client có debounce gộp nhiều thay đổi liên tiếp',
+    () async {
+      SharedPreferences.setMockInitialValues({});
+      final remote = _LeaderboardFakeRemote(const []);
+      final store = await PassportStore.load(
+        remote: remote,
+        leaderboardDebounce: const Duration(milliseconds: 60),
+      );
+
+      store.login('Gia Huy');
+      store.addReflection(
+        locationId: 'dien-hai',
+        content: 'Cảm nhận thứ nhất khá dài về Thành Điện Hải.',
+        isAnonymous: false,
+        aiScore: 80,
+        bonusXp: 40,
+      );
+      store.addReflection(
+        locationId: 'cau-rong',
+        content: 'Cảm nhận thứ hai khá dài về Cầu Rồng.',
+        isAnonymous: false,
+        aiScore: 90,
+        bonusXp: 45,
+      );
+
+      // Chưa hết thời gian debounce: chưa gửi lên Firestore.
+      expect(remote.pushedEntries, isEmpty);
+
+      await Future<void>.delayed(const Duration(milliseconds: 120));
+      // Chỉ gửi đúng 1 lần với tổng XP mới nhất (40 + 45 = 85).
+      expect(remote.pushedEntries, hasLength(1));
+      expect(remote.pushedEntries.single.displayName, 'Gia Huy');
+      expect(remote.pushedEntries.single.xp, 85);
+      expect(remote.pushedEntries.single.stampCount, 0);
+
+      store.dispose();
     },
   );
 }
