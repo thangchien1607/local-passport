@@ -97,6 +97,11 @@ class FakeRemote implements PassportRemote {
     if (u != null) servers[u] = data;
   }
 
+  final leaders = <LeaderEntry>[];
+
+  @override
+  Future<List<LeaderEntry>> fetchLeaderboard() async => [...leaders];
+
   @override
   void forget() {}
 }

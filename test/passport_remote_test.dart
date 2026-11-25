@@ -30,6 +30,11 @@ class _FakeRemote implements PassportRemote {
     server = data;
   }
 
+  final leaders = <LeaderEntry>[];
+
+  @override
+  Future<List<LeaderEntry>> fetchLeaderboard() async => [...leaders];
+
   @override
   void forget() {}
 }
@@ -81,5 +86,32 @@ void main() {
     expect(store.user?.name, 'Từ server');
     expect(store.xp, 42);
     expect(store.communityReflections, hasLength(1));
+  });
+
+  test('Bảng xếp hạng: người khác từ server, bản thân từ máy', () async {
+    SharedPreferences.setMockInitialValues({});
+    final remote = _FakeRemote()
+      ..leaders.addAll(const [
+        LeaderEntry('a', 'An', 500, 3),
+        LeaderEntry('u-test', 'Bản cũ trên server', 1, 0),
+        LeaderEntry('b', 'Bình', 5, 1),
+      ]);
+    final store = await PassportStore.load(remote: remote);
+    await Future<void>.delayed(Duration.zero);
+    store.login('Gia Huy');
+    store.addReflection(
+      locationId: 'dien-hai',
+      content: 'Đẹp',
+      isAnonymous: false,
+      aiScore: 70,
+      bonusXp: 40,
+    );
+    expect(await store.refreshLeaderboard(), isTrue);
+
+    final rows = store.rankedEntries();
+    expect(rows.map((r) => r.name), ['An', 'Gia Huy', 'Bình']);
+    expect(rows[1].isMe, isTrue);
+    expect(rows[1].xp, 40);
+    expect(remote.server!['stampCount'], 0);
   });
 }

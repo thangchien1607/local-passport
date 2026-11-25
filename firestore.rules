@@ -44,6 +44,21 @@ service cloud.firestore {
       }
     }
 
+    // Bảng xếp hạng công khai: ai cũng đọc được, mỗi người chỉ ghi mục của mình.
+    match /leaderboard/{uid} {
+      allow read: if true;
+      allow create, update: if signedIn() && request.auth.uid == uid
+        && request.resource.data.keys().hasOnly(['name', 'xp', 'stamps'])
+        && request.resource.data.name is string
+        && request.resource.data.name.size() > 0
+        && request.resource.data.name.size() <= 40
+        && request.resource.data.xp is int
+        && request.resource.data.xp >= 0 && request.resource.data.xp <= 1000000
+        && request.resource.data.stamps is int
+        && request.resource.data.stamps >= 0 && request.resource.data.stamps <= 100;
+      allow delete: if signedIn() && request.auth.uid == uid;
+    }
+
     match /reflections/{id} {
       allow read: if true;
       allow create: if signedIn() && validReflection()
