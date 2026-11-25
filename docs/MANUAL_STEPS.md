@@ -26,6 +26,8 @@ Trong [Firebase Console](https://console.firebase.google.com/) → project **`lo
 ---
 
 ## 3. Cấu hình Google Maps API key cho Web / Android / iOS
+Mặc định ứng dụng dùng **OpenStreetMap** và không cần thực hiện mục này. Cấu hình Google Maps dưới đây chỉ dành cho tích hợp tùy chọn đã có; bản Spark miễn phí không phụ thuộc Google Maps.
+
 1. Trong Google Cloud Console bật **Maps JavaScript API** (Web), **Maps SDK for Android** và **Maps SDK for iOS**, giới hạn key theo từng nền tảng.
 2. Trên macOS trước khi build iOS, sao chép file mẫu và điền API key thật (tuyệt đối không commit file thật vào git):
    ```bash

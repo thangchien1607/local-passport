@@ -2,6 +2,8 @@
 
 Ứng dụng **Local Passport** viết bằng Flutter (Dart `^3.11.3`), chạy trên **Web, Android và iOS** từ cùng một mã nguồn, vận hành hoàn toàn trên gói **Firebase Spark (miễn phí)** với **Firebase Auth + Cloud Firestore** (không dùng Cloud Functions, không dùng Firebase Storage).
 
+Bản đồ Khám phá mặc định dùng **OpenStreetMap** qua `flutter_map`, không cần API key. Cấu hình Firebase đi kèm hiện có cho Web và Android; iOS dùng chế độ cục bộ cho đến khi bổ sung cấu hình Firebase cho nền tảng này.
+
 ---
 
 ## Kiến trúc hiện tại (Thuần Firebase Spark)
@@ -82,9 +84,11 @@ flutter test
 
 ---
 
-## Google Maps (Web / Android / iOS)
+## Bản đồ OpenStreetMap và Google Maps tùy chọn
 
-Bản đồ Khám phá tự dùng **Google Maps** khi có API key; nếu để trống thì dùng bản đồ minh họa (`DiscoveryMap`).
+Bản đồ Khám phá mặc định dùng **OpenStreetMap** (`OsmDiscoveryMap`), giữ định vị GPS, bộ lọc tuyến và các điểm check-in. Chạy `flutter run -d chrome` không cần key hay cấu hình dịch vụ bản đồ trả phí. Tile bản đồ cần kết nối mạng.
+
+Tích hợp **Google Maps** có sẵn là tùy chọn riêng: chỉ được chọn khi truyền API key và khởi tạo SDK thành công; nếu thiếu key hoặc SDK lỗi, ứng dụng dùng OpenStreetMap. Bản Spark mặc định không cần bật Google Maps.
 
 ```bash
 flutter run -d chrome --dart-define=MAPS_API_KEY=<key>
@@ -96,6 +100,10 @@ flutter build apk --dart-define=MAPS_API_KEY=<key>
 - **Android**: bật **Maps SDK for Android**, đọc `--dart-define=MAPS_API_KEY` qua `android/app/build.gradle.kts` → `AndroidManifest.xml`.
 - **iOS**: bật **Maps SDK for iOS**, sao chép `ios/Flutter/Secrets.xcconfig.example` thành `ios/Flutter/Secrets.xcconfig` (đã nằm trong `.gitignore`), điền `MAPS_API_KEY=<key>`. `Info.plist` và `AppDelegate.swift` tự đọc key từ file này.
 - **Tuyệt đối không commit API key thật vào repo.**
+
+## Quy trình đóng góp
+
+Đọc [git.md](git.md) trước khi commit hoặc mở PR. Tạo nhánh `feature/`, `fix/`, `chore/`, `docs/` hoặc `refactor/` từ `develop` mới nhất, dùng commit/tiêu đề PR dạng `<type>(<scope>): <mô tả tiếng Việt>` và mở PR vào `develop`. Hai check **Quy ước Git** và **Format, analyze, test** phải xanh trước khi merge.
 
 ---
 

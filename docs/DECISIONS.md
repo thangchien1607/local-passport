@@ -1,5 +1,7 @@
 # Quyết định kỹ thuật (Audit Fixes)
 
+> **Kiến trúc đang dùng là Firebase Spark**: chỉ Firebase Auth + Cloud Firestore; xem phần [Chuyển sang thuần Firebase Spark](#quyết-định-kiến-trúc--chuyển-sang-thuần-firebase-spark-refactorspark-only) bên dưới. Các mục 0–3.3 ngay sau đây ghi lại lịch sử bản `fix/audit-all-phases` dùng Blaze; các mô tả Functions/Storage trong phần lịch sử không phải hướng dẫn triển khai bản hiện tại.
+
 Tài liệu này ghi lại các lựa chọn kiến trúc khi thực hiện sửa lỗi kỹ thuật Giai đoạn 1–3 cho Local Passport trên nhánh `fix/audit-all-phases`.
 
 ## 0. Quy trình Git & nhánh làm việc

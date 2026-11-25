@@ -101,3 +101,22 @@
 
 - Hướng dẫn cấu hình & triển khai thủ công cho gói Spark: **[docs/MANUAL_STEPS.md](MANUAL_STEPS.md)**
 - Chi tiết quyết định kỹ thuật & đánh đổi kiến trúc: **[docs/DECISIONS.md](DECISIONS.md)**
+
+## 8. Tích hợp Spark vào develop — 25/11/2026
+
+- Tạo `refactor/spark-only-firebase-free` từ `origin/develop` tại `6ee207f`, sau đó merge bản Spark `refactor/spark-only` tại `cf09710`. Merge tự động thành công, không có xung đột cần chọn lại nội dung.
+- Giữ nguyên bản đồ OpenStreetMap, dữ liệu địa điểm, màn hình Khám phá và màn hình quét QR của `develop`; bổ sung lên trên các thay đổi Spark về Auth, đồng bộ, ảnh Base64, bài cảm nhận và leaderboard.
+- PR tích hợp có base `develop`, tiêu đề theo Conventional Commits tiếng Việt; dùng để thay thế phương án Blaze trong PR #28. Các commit lịch sử Functions/Storage vẫn được giữ trong lịch sử Git, còn cây mã nguồn cuối cùng không có `functions/`, `storage.rules` hay dependency `firebase_storage`/`cloud_functions`.
+- `firebase_options.dart` là cấu hình client công khai được giữ lại; trường `storageBucket` trong cấu hình không tạo tài nguyên hay gọi Firebase Storage. Không có tệp Secrets.xcconfig thật, biến môi trường bí mật, service account hoặc keystore được track.
+- README nêu rõ OpenStreetMap là mặc định và Firebase đi kèm mới cấu hình cho Web/Android; phần quyết định Blaze cũ được đánh dấu là lịch sử.
+
+| Kiểm tra bản tích hợp | Kết quả cục bộ |
+| --- | --- |
+| `flutter pub get` | Đạt |
+| `dart format lib test` | 58 tệp, 0 thay đổi |
+| `flutter analyze` | `No issues found!` |
+| `flutter test` | 55/55 test đạt |
+| `cd rules_tests` rồi `npm test` | 12/12 test đạt trên Firestore Emulator, project `demo-local-passport` |
+| `flutter build web --release` | Build thành công, không truyền Maps API key hoặc endpoint chấm điểm |
+
+Môi trường kiểm tra cục bộ: Flutter 3.47.9 / Dart 3.13.7. Workflow của repo giữ nguyên Flutter 3.41.5 và hai check bắt buộc **Quy ước Git**, **Format, analyze, test**. Không deploy Firebase, không đổi nhánh bảo vệ và không thao tác với stash.
