@@ -928,7 +928,7 @@ class PassportStore extends ChangeNotifier {
   }
 
   /// Sửa nội dung và/hoặc ảnh bài cảm nhận của chính tác giả; cập nhật `aiScore`
-  /// từ kết quả chấm lại của Cloud Function (không cộng trùng XP).
+  /// từ kết quả chấm lại (heuristic offline hoặc endpoint ngoài), không cộng trùng XP.
   bool updateReflection({
     required String id,
     required String content,

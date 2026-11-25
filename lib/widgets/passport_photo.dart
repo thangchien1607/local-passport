@@ -5,8 +5,8 @@ import 'package:flutter/material.dart';
 import '../services/photo_service.dart';
 import '../theme.dart';
 
-/// Hiển thị ảnh từ URL Firebase Storage (`photoUrl`) hoặc dữ liệu `photoBase64`
-/// cũ để đảm bảo tương thích ngược không làm mất ảnh đã lưu trước đó.
+/// Hiển thị ảnh từ dữ liệu nén `photoBase64` trong Firestore hoặc URL ảnh cũ
+/// (`photoUrl`) để đảm bảo tương thích ngược không làm mất dữ liệu.
 class PassportPhoto extends StatelessWidget {
   const PassportPhoto({
     super.key,

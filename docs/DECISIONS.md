@@ -92,3 +92,19 @@ Tài liệu này ghi lại các lựa chọn kiến trúc khi thực hiện sử
   2. **Xóa toàn bộ dữ liệu Firestore của `uid`** qua `runChunkedUserDataDeletion` (chia lô `<= 450` thao tác): xóa hết `user_passports/{uid}/visits/*`, `user_passports/{uid}/notifications/*`, mọi cặp nguyên tử `reflections/{id}` + `reflection_owners/{id}`, `leaderboard_public/{uid}` và `user_passports/{uid}`.
   3. **Chỉ gọi `user.delete()` khi bước (1) và (2) thành công**. Nếu bước (2) gặp lỗi mạng giữa chừng, giữ nguyên phiên Auth để người dùng có thể bấm thử lại một cách idempotent.
 - **Đánh đổi của kiến trúc Spark**: Vì việc xóa diễn ra qua nhiều batch từ phía client, nếu người dùng tắt ứng dụng hoặc mất kết nối vĩnh viễn giữa các lô mà không mở lại để thử lại, có thể còn sót một phần document trên Firestore. Rủi ro này đã được giảm thiểu tối đa bằng cách xóa Firestore trước khi xóa Auth user và đảm bảo mọi bước xóa đều idempotent.
+
+## Đánh đổi của kiến trúc Spark (Tổng hợp Trade-offs)
+Khi chuyển từ kiến trúc Blaze (`fix/audit-all-phases`) sang thuần Firebase Spark (`refactor/spark-only`, chỉ dùng Firebase Auth + Cloud Firestore), dự án đánh đổi 4 điểm sau để vận hành hoàn toàn miễn phí và không cần backend:
+
+1. **Chống gian lận điểm AI (`aiScore`) và điểm bảng xếp hạng (`xp`, `stampCount`) không tuyệt đối**:
+   - Không có Cloud Function dùng Admin SDK để ghi `aiScore` hay đồng bộ `leaderboard_public`; client tự tính và gửi trực tiếp lên Firestore.
+   - `firestore.rules` vẫn ràng buộc chặt kiểu dữ liệu, phạm vi (`aiScore` int `0..100`, `xp` int `0..50000`, `stampCount` int `0..200`), và chỉ chủ tài khoản (`request.auth.uid == uid`) mới ghi được bản ghi của chính mình (không thể sửa của người khác).
+   - Người dùng có kiến thức kỹ thuật vẫn có thể gửi request trực tiếp để nâng điểm của chính mình trong ngưỡng cho phép — đánh đổi có chủ đích, chấp nhận được cho phạm vi đồ án/MVP.
+2. **Ảnh Base64 làm document Firestore nặng hơn và tốn băng thông đọc**:
+   - Mỗi ảnh được nén vòng lặp xuống mục tiêu `40–80 KB` (tối đa `120 KB` / `120000` ký tự Base64), mỗi visit giới hạn tối đa `3` ảnh và client chặn ghi khi ước lượng document vượt `800 KB` (an toàn dưới trần `1 MiB` của Firestore).
+   - Dù tránh được lỗi vượt trần 1 MiB, chi phí đọc/băng thông Firestore cho bảng tin cộng đồng và chi tiết chuyến thăm vẫn cao hơn so với lưu URL trên Firebase Storage + CDN.
+3. **Xóa tài khoản từ client có thể còn sót dữ liệu nếu mất kết nối giữa các lô**:
+   - Không có Cloud Function xóa ngầm, nên client phải truy vấn và xóa tuần tự từng lô `<= 450` thao tác.
+   - Rủi ro được giảm thiểu tối đa bằng thứ tự bắt buộc: **(1) Re-auth → (2) Xóa toàn bộ dữ liệu Firestore → (3) Chỉ gọi `user.delete()` sau khi xóa xong**. Nếu mạng đứt ở bước (2), tài khoản Auth chưa bị xóa nên người dùng có thể bấm thử lại (idempotent). Chỉ còn sót dữ liệu nếu người dùng tắt ứng dụng giữa bước (2) và không quay lại hoàn tất.
+4. **Không có rate limit phía máy chủ**:
+   - Không còn Cloud Function và collection `_rate_limits`. Ở chế độ mặc định (heuristic offline), việc chấm điểm không tốn tài nguyên máy chủ. Nếu sau này cấu hình thêm endpoint ngoài qua `REFLECTION_VERIFIER_URL`, trách nhiệm rate limit và bảo vệ API key thuộc về dịch vụ ngoài đó.

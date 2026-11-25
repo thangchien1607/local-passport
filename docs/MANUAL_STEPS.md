@@ -1,67 +1,56 @@
-# Các bước cần thực hiện thủ công trên dự án Firebase thật
+# Các bước cần thực hiện thủ công trên dự án Firebase thật (Gói Spark)
 
-> **Lưu ý**: Trong quá trình sửa lỗi, không có lệnh `firebase deploy` nào được chạy và không có dữ liệu thật nào bị thay đổi. Toàn bộ kiểm thử được chạy bằng Firebase Emulator Suite và unit/widget test.
+> **Lưu ý**: Kiến trúc hiện tại chạy hoàn toàn trên gói **Firebase Spark miễn phí** (chỉ dùng **Firebase Auth** và **Cloud Firestore**, không cần nâng gói Blaze, không dùng Cloud Functions, không dùng Firebase Storage hay Secret Manager).
+> Trong quá trình phát triển/kiểm thử, không có lệnh `firebase deploy` nào được chạy và không có dữ liệu thật nào bị thay đổi.
 
 ---
 
-## 1. Bật gói Blaze & Firebase Storage
-1. Mở [Firebase Console](https://console.firebase.google.com/) → chọn project **`local-passport-danang`**.
-2. Nâng cấp lên gói **Blaze (Pay as you go)** (bắt buộc để triển khai Cloud Functions v2 và dùng Secret Manager). Thiết lập Budget Alert trên Google Cloud Billing (ví dụ 5–10 USD/tháng).
-3. Vào **Build → Storage** → bấm **Get started** để kích hoạt bucket mặc định `local-passport-danang.firebasestorage.app`.
-4. Triển khai Storage rules sau khi merge:
-   ```bash
-   firebase deploy --only storage
-   ```
-
-## 2. Triển khai Firestore Rules & Indexes
+## 1. Triển khai Firestore Rules & Indexes
+Chạy sau khi đã kiểm tra và merge nhánh `refactor/spark-only`:
 ```bash
 firebase deploy --only firestore:rules,firestore:indexes
 ```
+- `firestore.rules` áp dụng ràng buộc schema cho `user_passports/{uid}`, `visits`, `notifications`, `reflections` (`photoBase64 <= 120000` ký tự, `aiScore` nguyên `0..100`), `reflection_owners` (`allow update: if false`), và `leaderboard_public/{uid}` (chỉ chủ tài khoản ghi/xóa).
+- `firestore.indexes.json` tạo composite index `(xp DESC, stampCount DESC)` cho bảng xếp hạng công khai `leaderboard_public`.
 
-## 3. Di chuyển (migrate) dữ liệu ảnh Base64 cũ (nếu đã có trên production)
-- Các document `reflections` cũ có `photoBase64` và `user_passports/{uid}/visits/*` cũ có `taskPhotos` **vẫn đọc và hiển thị bình thường** nhờ tương thích ngược ở client.
-- Nếu muốn dọn gọn dữ liệu cũ trên production, viết/chạy một script Admin SDK một lần để:
-  1. Đọc các document còn `photoBase64` / `taskPhotos`.
-  2. Decode base64 → upload lên Firebase Storage theo đường dẫn `users/{uid}/reflections/{id}.jpg` hoặc `users/{uid}/tasks/{locationId}/{taskId}.jpg`.
-  3. Cập nhật document với `photoUrl` / `taskPhotoUrls` và xóa trường `photoBase64` / `taskPhotos`.
+---
 
-## 4. Cấu hình Secret & triển khai Cloud Function chấm điểm AI (Giai đoạn 1.2)
-1. Thiết lập API key cho mô hình AI trong Firebase Secret Manager (KHÔNG lưu trong mã nguồn hay client):
-   ```bash
-   firebase functions:secrets:set AI_API_KEY
-   ```
-   Nhập khóa API của nhà cung cấp AI (ví dụ Google Gemini API key từ Google AI Studio).
-2. (Tùy chọn) Đổi nhà cung cấp / mô hình / endpoint bằng file cấu hình môi trường `functions/.env.local-passport-danang` (không commit key):
-   ```env
-   AI_PROVIDER=gemini           # hoặc openai-compatible | heuristic
-   AI_MODEL=gemini-2.0-flash    # tên mô hình tương ứng
-   AI_ENDPOINT=                 # để trống dùng endpoint mặc định của Gemini; điền URL nếu dùng OpenAI-compatible
-   AI_RATE_LIMIT_PER_MIN=10     # số lượt chấm tối đa/phút cho mỗi uid
-   ```
-3. Cài thư viện & triển khai Cloud Functions:
-   ```bash
-   cd functions && npm ci && npm run build && cd ..
-   firebase deploy --only functions
-   ```
-4. Khi build/chạy ứng dụng Flutter trỏ vào Cloud Function thật:
-   ```bash
-   flutter build web --release --dart-define=CLOUD_FUNCTIONS_BASE_URL=https://asia-southeast1-local-passport-danang.cloudfunctions.net
-   ```
-   (Hoặc trỏ vào Emulator cục bộ khi phát triển: `--dart-define=CLOUD_FUNCTIONS_BASE_URL=http://127.0.0.1:5001/local-passport-danang/asia-southeast1`.)
+## 2. Bật nhà cung cấp xác thực (Firebase Authentication)
+Trong [Firebase Console](https://console.firebase.google.com/) → project **`local-passport-danang`** → **Authentication → Sign-in method**:
+1. Đảm bảo đã bật **Email/Password** và **Anonymous** (cho chế độ khách).
+2. Bật **Google** (chọn Support email của dự án).
+3. Bật **Apple** (điền Services ID, Team ID, Key ID và Private Key từ Apple Developer Portal nếu chạy Web/Android; với iOS bật thêm Capability *Sign in with Apple* trong Xcode).
+4. Với **Android**: thêm mã SHA-1 và SHA-256 (debug & release keystore) vào **Project Settings → Your apps → Android app**, rồi tải lại `google-services.json`.
+5. Với **Web**: xác nhận các domain (`local-passport-danang.web.app`, `localhost`) nằm trong **Authentication → Settings → Authorized domains**.
 
-## 5. Bật nhà cung cấp Google Sign-In & Apple Sign-In (Giai đoạn 3.1)
-1. Trong **Firebase Console → Authentication → Sign-in method**:
-   - Bật **Google** (chọn Support email của dự án).
-   - Bật **Apple** (điền Services ID, Team ID, Key ID và Private Key từ Apple Developer Portal để chạy trên Web/Android; với iOS bật thêm Capability *Sign in with Apple* trong Xcode).
-2. Với **Android**: thêm mã SHA-1 và SHA-256 (debug & release keystore) vào **Project Settings → Your apps → Android app**, rồi tải lại `google-services.json`.
-3. Với **Web**: xác nhận domain (`local-passport-danang.web.app`, `localhost`) nằm trong **Authentication → Settings → Authorized domains**.
-4. Với xóa tài khoản toàn bộ: đảm bảo đã triển khai Cloud Function `deleteUserAccountData` và cấu hình `--dart-define=CLOUD_FUNCTIONS_BASE_URL=...` khi build.
+---
 
-## 6. Cấu hình Google Maps API key cho iOS (Giai đoạn 3.2)
-1. Trong Google Cloud Console bật **Maps SDK for iOS** và giới hạn key theo Bundle ID của app iOS.
-2. Trên macOS trước khi build iOS, sao chép file mẫu:
+## 3. Cấu hình Google Maps API key cho Web / Android / iOS
+1. Trong Google Cloud Console bật **Maps JavaScript API** (Web), **Maps SDK for Android** và **Maps SDK for iOS**, giới hạn key theo từng nền tảng.
+2. Trên macOS trước khi build iOS, sao chép file mẫu và điền API key thật (tuyệt đối không commit file thật vào git):
    ```bash
    cp ios/Flutter/Secrets.xcconfig.example ios/Flutter/Secrets.xcconfig
    ```
-3. Điền API key thật vào `MAPS_API_KEY=<key>` trong `ios/Flutter/Secrets.xcconfig` (file đã nằm trong `.gitignore`, tuyệt đối không commit).
-4. Build/chạy iOS kèm `--dart-define=MAPS_API_KEY=<key>` để bật giao diện `GoogleDiscoveryMap`.
+   Điền `MAPS_API_KEY=<key>` vào `ios/Flutter/Secrets.xcconfig`.
+3. Khi build Web/Android/iOS, truyền `--dart-define=MAPS_API_KEY=<key>`.
+
+---
+
+## 4. Triển khai bản Web lên Firebase Hosting (tùy chọn)
+```bash
+flutter build web --release --dart-define=MAPS_API_KEY=<key>
+firebase deploy --only hosting
+```
+Nếu sau này muốn gắn một dịch vụ thẩm định bài cảm nhận bên ngoài (tùy chọn), chỉ cần truyền thêm:
+```bash
+flutter build web --release \
+  --dart-define=MAPS_API_KEY=<key> \
+  --dart-define=REFLECTION_VERIFIER_URL=https://your-verifier.example.com/verify
+```
+(Nếu không truyền biến này, ứng dụng mặc định chấm điểm bằng bộ heuristic offline.)
+
+---
+
+## 5. Ghi chú về dữ liệu cũ & phương án quay lại gói Blaze
+- **Tương thích ngược ảnh cũ**: Nếu trên production đã có document cũ lưu `photoUrl` hoặc `taskPhotoUrls`, ứng dụng vẫn đọc và hiển thị bình thường song song với ảnh mới dạng `photoBase64` / `taskPhotos`.
+- **Nâng lên gói Blaze sau này (nếu cần)**: Phiên bản đầy đủ dùng Firebase Storage + Cloud Functions vẫn được giữ nguyên vẹn trên nhánh `fix/audit-all-phases`. Có thể chuyển lại bất kỳ lúc nào bằng `git checkout fix/audit-all-phases`.

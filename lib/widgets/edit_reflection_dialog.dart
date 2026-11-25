@@ -12,8 +12,8 @@ import '../state/passport_store.dart';
 import '../theme.dart';
 import 'passport_photo.dart';
 
-/// Hộp thoại cho tác giả sửa nội dung/ảnh bài cảm nhận và tự động kích hoạt
-/// chấm lại điểm AI qua Cloud Function `verifyReflection`.
+/// Hộp thoại cho tác giả sửa nội dung/ảnh bài cảm nhận và tự động chấm lại điểm
+/// bằng `verifyReflection` (heuristic offline hoặc endpoint cấu hình ngoài).
 Future<void> showEditReflectionDialog(
   BuildContext context,
   Reflection reflection,

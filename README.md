@@ -1,45 +1,41 @@
 # Local Passport (Flutter) — Hộ chiếu trải nghiệm văn hóa Đà Nẵng
 
-Ứng dụng **Local Passport** viết bằng Flutter (Dart `^3.11.3`), chạy trên **Web, Android và iOS** từ cùng một mã nguồn, sử dụng **Firebase Auth, Cloud Firestore, Firebase Storage và Cloud Functions (TypeScript / Node 22 LTS)**.
+Ứng dụng **Local Passport** viết bằng Flutter (Dart `^3.11.3`), chạy trên **Web, Android và iOS** từ cùng một mã nguồn, vận hành hoàn toàn trên gói **Firebase Spark (miễn phí)** với **Firebase Auth + Cloud Firestore** (không dùng Cloud Functions, không dùng Firebase Storage).
 
 ---
 
-## Kiến trúc hiện tại
+## Kiến trúc hiện tại (Thuần Firebase Spark)
 
 ### 1. Xác thực (`firebase_auth`)
 - **Email & Mật khẩu**: đăng ký (tự gửi `sendEmailVerification`), đăng nhập, quên mật khẩu, xác minh email, đổi mật khẩu (có re-authenticate).
 - **Google Sign-In & Apple Sign-In**: tích hợp qua `GoogleAuthProvider` / `AppleAuthProvider` (popup trên Web, provider flow trên Android/iOS).
 - **Tài khoản khách (Anonymous)**: vào nhanh, có thể nâng cấp lên tài khoản Email / Google / Apple mà vẫn giữ nguyên `uid`, dấu mộc và tiến độ.
-- **Xóa tài khoản vĩnh viễn**: gọi Cloud Function `deleteUserAccountData` để xóa sạch toàn bộ dữ liệu Firestore, ảnh trên Firebase Storage (`users/{uid}/`) và tài khoản Firebase Auth.
+- **Xóa tài khoản vĩnh viễn từ client**: thực hiện theo đúng thứ tự **(1) Re-authenticate** (mật khẩu hiện tại / popup Google hoặc Apple) → **(2) Xóa toàn bộ dữ liệu Firestore của `uid`** theo lô `<= 450` thao tác (`visits`, `notifications`, cặp `reflections` + `reflection_owners`, `leaderboard_public`, `user_passports`) → **(3) Gọi `user.delete()`**. Nếu bước (2) gặp lỗi mạng giữa chừng, hệ thống không xóa Auth user vội để người dùng giữ phiên và thử lại an toàn (idempotent).
 - **Chế độ cục bộ (offline / chưa cấu hình Firebase)**: lưu trên thiết bị bằng `shared_preferences`.
 
 ### 2. Dữ liệu & đồng bộ (`cloud_firestore`)
-- `user_passports/{uid}`: hồ sơ, XP, số dấu mộc (`validPassport` kiểm tra schema chặt chẽ, chỉ chủ tài khoản đọc/ghi).
-  - `user_passports/{uid}/visits/{locationId}`: trạng thái mở khóa, danh sách nhiệm vụ, `taskPhotoUrls`, thời điểm đóng dấu (từ chối `taskPhotos` base64 mới).
+- `user_passports/{uid}`: hồ sơ, XP, số dấu mộc (`validPassport` kiểm tra schema chặt chẽ, chỉ chủ tài khoản đọc/ghi/xóa).
+  - `user_passports/{uid}/visits/{locationId}`: trạng thái mở khóa, danh sách nhiệm vụ, `taskPhotos` (list tối đa 3 ảnh nén Base64, mỗi phần tử `<= 120000` ký tự), thời điểm đóng dấu; đọc tương thích ngược với `taskPhotoUrls` cũ.
   - `user_passports/{uid}/notifications/{id}`: thông báo trong ứng dụng.
-- `reflections/{id}`: bài cảm nhận công khai (chỉ lưu `photoUrl`, từ chối `photoBase64` mới; trường `aiScore` chỉ do Cloud Function ghi bằng Admin SDK; tác giả được sửa `content`/`photoUrl`/`isAnonymous`/`displayAuthor` và xóa bài).
-- `reflection_owners/{id}`: lưu `uid` chủ bài viết (`allow update: if false`, bất biến sau khi tạo).
-- `leaderboard_public/{uid}`: bảng xếp hạng công khai (`displayName`, `xp`, `stampCount`, `avatarUrl`) do Cloud Function trigger tổng hợp từ `user_passports/{uid}`; client chỉ được đọc (`allow write: if false`), không lộ `user_passports`.
-- `_rate_limits/{doc}`: dữ liệu giới hạn tần suất nội bộ của Cloud Functions (chặn hoàn toàn client).
+- `reflections/{id}`: bài cảm nhận công khai (lưu ảnh nén `photoBase64 <= 120000` ký tự, đọc tương thích ngược `photoUrl` cũ; `aiScore` nguyên `0..100`; tác giả được sửa nội dung/ảnh/ẩn danh/điểm chấm lại và xóa bài).
+- `reflection_owners/{id}`: lưu `uid` chủ bài viết (`allow update: if false`, bất biến sau khi tạo; chỉ chủ bài đọc/tạo/xóa).
+- `leaderboard_public/{uid}`: bảng xếp hạng công khai (`displayName`, `xp`, `stampCount`, `avatarUrl`, `updatedAt`). Client tự cập nhật bản ghi của chính mình (`request.auth.uid == uid`) có **debounce 5 giây**; mọi người đọc được mà không lộ `user_passports`.
 - **Đồng bộ & truy vấn**:
   - `sync()` chia lô nguyên tử `WriteBatch <= 450` thao tác, không phụ thuộc cache `_written`, kiểm tra tồn tại `reflection_owners/{id}` để đảm bảo idempotent.
   - `fetch()` tải song song bằng `Future.wait` và gom lô `whereIn` (tối đa 30 ID/nhóm), loại bỏ vòng lặp N+1.
   - Bảng tin cộng đồng dùng phân trang `startAfterDocument` + infinite scroll + luồng `snapshots()` realtime cho bài mới.
 
-### 3. Lưu trữ ảnh (`firebase_storage`)
-- Ảnh chụp nhiệm vụ và ảnh bài cảm nhận được nén phía client trước khi tải lên (cạnh dài tối đa ~1280px, JPEG chất lượng ~80% qua `flutter_image_compress` trên mobile và `image` trên Web/desktop).
-- Đường dẫn theo `uid`:
-  - `users/{uid}/tasks/{locationId}/{file}` (chỉ chủ sở hữu đọc/ghi)
-  - `users/{uid}/reflections/{file}` (công khai đọc, chỉ chủ sở hữu ghi/xóa)
-  - `users/{uid}/avatars/{file}` (công khai đọc, chỉ chủ sở hữu ghi/xóa)
-- `storage.rules` giới hạn kích thước <= 5 MB và chỉ chấp nhận `image/(jpeg|png|webp)`.
-- Firestore chỉ lưu URL (`photoUrl`, `taskPhotoUrls`); client vẫn đọc tương thích ngược với ảnh `photoBase64` / `taskPhotos` cũ.
+### 3. Nén ảnh & lưu Base64 an toàn dưới trần 1 MiB (`photo_service.dart`)
+- Ảnh chụp nhiệm vụ và ảnh bài cảm nhận được nén phía client bằng `flutter_image_compress` (Android/iOS) và fallback thuần Dart qua package `image` (Web/desktop/test).
+- Nén theo vòng lặp giảm dần kích thước/chất lượng từ cạnh dài **`720px`, JPEG quality `70`** cho tới khi dung lượng ảnh **`<= 80 KB`** (mục tiêu 40–80 KB, tối đa `120000` ký tự Base64). Nếu giảm tới mức tối thiểu mà vẫn `> 120 KB`, ứng dụng từ chối và báo lỗi thân thiện.
+- Giới hạn tối đa **3 ảnh/visit** và ước lượng dung lượng document **`<= 800 KB`** trước khi ghi Firestore để không bao giờ chạm trần 1 MiB.
 
-### 4. Cloud Functions (`functions/`, TypeScript)
-- `verifyReflection` (HTTPS v2, `asia-southeast1`): xác thực `Authorization: Bearer <Firebase ID Token>` (trả 401 nếu thiếu/sai), rate limit theo `uid` (429), gọi mô hình AI qua lớp adapter có thể đổi (`GeminiAiAdapter`, `OpenAiCompatibleAdapter`, `HeuristicFallbackAdapter` dùng `AI_API_KEY` trong Secret Manager) và tự ghi `aiScore` vào Firestore bằng Admin SDK.
-- `rescoreReflectionOnUpdate` (Firestore trigger): tự động chấm lại và cập nhật `aiScore` khi tác giả sửa nội dung hoặc ảnh bài cảm nhận.
-- `syncLeaderboardOnPassportWrite` (Firestore trigger): đồng bộ dữ liệu tối thiểu từ `user_passports/{uid}` sang `leaderboard_public/{uid}`.
-- `deleteUserAccountData` (HTTPS v2): xác thực ID Token và dọn sạch Firestore, Storage (`users/{uid}/`) và tài khoản Auth.
+### 4. Chấm điểm cảm nhận (`ai_verifier.dart`)
+- Mặc định dùng bộ chấm **heuristic offline** hoàn toàn ở client (không cần backend hay gói Blaze).
+- Tùy chọn gọi endpoint thẩm định ngoài nếu truyền `--dart-define=REFLECTION_VERIFIER_URL=https://...` (tự đính kèm `Authorization: Bearer <Firebase ID Token>` và tự động fallback về heuristic khi lỗi mạng/HTTP/timeout).
+- Khi tác giả sửa bài cảm nhận, điểm được tính lại trực tiếp bằng cùng hàm `verifyReflection`.
+
+> Xem các đánh đổi kỹ thuật của kiến trúc Spark (anti-cheat, dung lượng document, xóa tài khoản từ client, rate limit) tại [docs/DECISIONS.md](docs/DECISIONS.md).
 
 ---
 
@@ -47,8 +43,8 @@
 
 ### 1. Yêu cầu môi trường
 - Flutter SDK (Dart `^3.11.3`)
-- Node.js 22 LTS & npm (cho `functions/` và `rules_tests/`)
-- Java 17+ (cho Firebase Emulator Suite)
+- Node.js 20/22 LTS & npm (cho `rules_tests/` và `tools/`)
+- Java 17+ (cho Firebase Emulator Suite — Firestore Rules test)
 - Android Studio (Android) / macOS + Xcode (iOS)
 
 ### 2. Chạy ứng dụng Flutter
@@ -58,35 +54,28 @@ flutter run -d chrome        # Web (hoặc -d edge)
 flutter run                  # Android/iOS
 ```
 
-Kèm dữ liệu thử Hòa Khánh và trỏ tới Cloud Functions Emulator cục bộ:
+Kèm dữ liệu thử Hòa Khánh hoặc cấu hình endpoint thẩm định ngoài tùy chọn:
 ```bash
 flutter run -d chrome \
   --dart-define=LOCAL_PASSPORT_TEST_DATA=true \
-  --dart-define=CLOUD_FUNCTIONS_BASE_URL=http://127.0.0.1:5001/local-passport-danang/asia-southeast1
+  --dart-define=REFLECTION_VERIFIER_URL=https://your-verifier.example.com/verify
 ```
 
 > Camera quét QR trên Web chỉ hoạt động qua **HTTPS hoặc localhost**. Khi demo, có thể dùng nút **Giả lập quét QR (Demo)**.
 
-### 3. Chạy Firebase Emulator Suite & kiểm thử
+### 3. Chạy Firebase Emulator Suite (Auth + Firestore) & kiểm thử
 ```bash
-# 1. Cài đặt và chạy test Cloud Functions
-cd functions
-npm install
-npm run build
-npm test
-cd ..
-
-# 2. Cài đặt và chạy test Firestore Rules & Storage Rules trên Emulator
+# 1. Cài đặt và chạy bộ test Firestore Rules trên Firestore Emulator
 cd rules_tests
 npm install
 npm test
 cd ..
 
-# 3. Khởi động đầy đủ Emulator (Auth, Firestore, Storage, Functions, UI)
-npx firebase emulators:start --project demo-local-passport
+# 2. Khởi động Emulator (chỉ Auth + Firestore + UI)
+npx firebase emulators:start --only auth,firestore --project demo-local-passport
 
-# 4. Kiểm tra mã nguồn & test Flutter
-dart format lib test
+# 3. Kiểm tra format, phân tích tĩnh & unit/widget test Flutter
+dart format --output=none --set-exit-if-changed lib test
 flutter analyze
 flutter test
 ```
@@ -110,22 +99,16 @@ flutter build apk --dart-define=MAPS_API_KEY=<key>
 
 ---
 
-## Triển khai (Deploy) lên Firebase
+## Triển khai (Deploy) lên Firebase (Gói Spark)
 
-> Xem hướng dẫn cấu hình chi tiết lần đầu (bật gói Blaze, đặt `AI_API_KEY` trong Secret Manager, bật Google/Apple provider, migrate ảnh cũ) tại [docs/MANUAL_STEPS.md](docs/MANUAL_STEPS.md).
+> Xem hướng dẫn cấu hình chi tiết lần đầu (bật Google/Apple Auth, cấu hình iOS Maps key, triển khai Rules & Hosting) tại [docs/MANUAL_STEPS.md](docs/MANUAL_STEPS.md).
 
 ```bash
-# 1. Thiết lập secret AI (làm một lần)
-firebase functions:secrets:set AI_API_KEY
+# 1. Triển khai Firestore Rules & Indexes
+firebase deploy --only firestore:rules,firestore:indexes
 
-# 2. Triển khai Rules, Indexes và Cloud Functions
-cd functions && npm ci && npm run build && cd ..
-firebase deploy --only firestore:rules,firestore:indexes,storage,functions
-
-# 3. Build và triển khai bản Web lên Firebase Hosting
-flutter build web --release \
-  --dart-define=CLOUD_FUNCTIONS_BASE_URL=https://asia-southeast1-local-passport-danang.cloudfunctions.net \
-  --dart-define=MAPS_API_KEY=<key>
+# 2. Build và triển khai bản Web lên Firebase Hosting
+flutter build web --release --dart-define=MAPS_API_KEY=<key>
 firebase deploy --only hosting
 ```
 
@@ -144,7 +127,7 @@ firebase deploy --only hosting --config firebase.timelens.json     # → https:/
 
 ```text
 lib/
-  main.dart                          App, khởi tạo Firebase (Auth/Firestore/Storage), điều hướng
+  main.dart                          App, khởi tạo Firebase (Auth + Firestore), điều hướng
   main_timelens.dart                 Entrypoint bản demo public TimeLens
   firebase_options.dart              Cấu hình công khai Firebase project
   theme.dart                         Design system (màu, font, nút dùng chung)
@@ -153,29 +136,24 @@ lib/
     community.dart                   Model Reflection, LeaderEntry & dữ liệu mẫu
     notifications.dart               Model thông báo trong app
   state/
-    passport_store.dart              Quản lý trạng thái hộ chiếu, đồng bộ, phân trang, realtime
+    passport_store.dart              Quản lý trạng thái hộ chiếu, đồng bộ, leaderboard debounce, phân trang, realtime
   services/
-    auth_service.dart                Firebase Auth (Email, Google, Apple, Guest, đổi mật khẩu, xóa TK)
-    passport_remote.dart             Firestore sync theo lô <= 450, fetch whereIn <= 30, phân trang & snapshots
-    photo_service.dart               Nén ảnh (~1280px, 80%) và tải lên Firebase Storage
-    ai_verifier.dart                 Gọi Cloud Function verifyReflection kèm Firebase ID Token
+    auth_service.dart                Firebase Auth (Email, Google, Apple, Guest, đổi mật khẩu, xóa TK có re-auth)
+    passport_remote.dart             Firestore sync/delete theo lô <= 450, fetch whereIn <= 30, phân trang & snapshots
+    photo_service.dart               Nén ảnh vòng lặp <= 80 KB (720px, Q70), Base64, ước lượng doc <= 800 KB
+    ai_verifier.dart                 Heuristic offline mặc định + tùy chọn REFLECTION_VERIFIER_URL kèm ID Token
     geo.dart                         Haversine, GPS (geolocator), định dạng mã QR
     maps_config.dart                 Cấu hình Google Maps đa nền tảng
     validators.dart                  Kiểm tra đầu vào form
   screens/                           Welcome, Map, Location, QR Scanner, Stamp Ceremony, Passport, Community, Leaderboard, TimeLens, Notifications
   widgets/                           AuthForm, ReflectionCard, EditReflectionDialog, PassportPhoto, TimeLens, StampSeal...
-functions/
-  src/ai/                            verifyReflection, adapter AI, rateLimit, rescoreOnReflectionEdit
-  src/leaderboard/                   syncLeaderboardOnPassportWrite
-  src/auth/                          deleteUserAccountData
-  test/                              Unit test Cloud Functions (Node test runner)
-rules_tests/                         Kiểm thử Firestore Rules & Storage Rules trên Firebase Emulator Suite
-firestore.rules / storage.rules      Quy tắc bảo mật Firestore & Storage
+rules_tests/                         Kiểm thử Firestore Rules trên Firebase Emulator Suite
+firestore.rules                      Quy tắc bảo mật Cloud Firestore (Spark)
 firestore.indexes.json               Composite index cho bảng xếp hạng công khai
 docs/
-  DECISIONS.md                       Các quyết định kiến trúc trong đợt sửa lỗi kỹ thuật
+  DECISIONS.md                       Quyết định kiến trúc & đánh đổi của gói Spark
   MANUAL_STEPS.md                    Các bước thao tác thủ công trên dự án Firebase thật
-  AUDIT_FIX_REPORT.md                Báo cáo tổng kết đợt kiểm toán & khắc phục kỹ thuật
+  AUDIT_FIX_REPORT.md                Báo cáo tổng kết sửa lỗi & chuyển sang thuần Spark
 ```
 
 ---

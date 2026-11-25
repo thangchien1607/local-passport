@@ -343,19 +343,23 @@ test('S4 leaderboard_public cho chủ sở hữu ghi/xóa đúng schema và ch�
     updateDoc(doc(bobDb, 'leaderboard_public', 'alice'), { xp: 10 }),
   );
 
-  // Chặn displayName > 40 ký tự, xp vượt trần/âm/sai kiểu, stampCount âm, trường thừa.
+  // Chặn displayName > 40 ký tự, xp vượt trần/âm/sai kiểu, stampCount ngoài 0..200, thiếu updatedAt, trường thừa.
   await assertFails(setDoc(aliceRef, { ...validEntry, displayName: 'A'.repeat(41) }));
   await assertFails(setDoc(aliceRef, { ...validEntry, xp: -1 }));
   await assertFails(setDoc(aliceRef, { ...validEntry, xp: 50001 }));
   await assertFails(setDoc(aliceRef, { ...validEntry, xp: '900' }));
   await assertFails(setDoc(aliceRef, { ...validEntry, stampCount: -1 }));
+  await assertFails(setDoc(aliceRef, { ...validEntry, stampCount: 201 }));
   await assertFails(setDoc(aliceRef, { ...validEntry, avatarUrl: 'ftp://bad.url' }));
+  const noUpdatedAt = { ...validEntry };
+  delete noUpdatedAt.updatedAt;
+  await assertFails(setDoc(aliceRef, noUpdatedAt));
   await assertFails(setDoc(aliceRef, { ...validEntry, isAdmin: true }));
 });
 
-// ---- 2.4: Cho tác giả sửa content/photoUrl nhưng vẫn chặn sửa aiScore/photoBase64 ----
+// ---- 2.4: Tác giả sửa bài trong giới hạn schema Spark ----
 
-test('2.4 Tác giả sửa được content và photoUrl nhưng vẫn bị chặn sửa aiScore hoặc thêm photoBase64', async () => {
+test('2.4 Tác giả sửa được content/photo hợp lệ nhưng bị chặn aiScore ngoài 0..100 hoặc photoBase64 > 120000', async () => {
   await testEnv.withSecurityRulesDisabled(async (ctx) => {
     const adminDb = ctx.firestore();
     await setDoc(doc(adminDb, 'reflection_owners', 'r-edit'), { uid: 'alice' });
