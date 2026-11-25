@@ -101,6 +101,9 @@ class PassportStore extends ChangeNotifier {
   /// Bài cảm nhận của người khác tải từ Firestore.
   List<Reflection> communityReflections = [];
 
+  /// Bảng xếp hạng tải từ Firestore (null: chưa tải được lần nào).
+  List<LeaderEntry>? leaders;
+
   /// Đã có thay đổi trước khi tải xong dữ liệu từ server: không ghi đè bằng bản server.
   bool _changedBeforePull = false;
 
@@ -352,6 +355,40 @@ class PassportStore extends ChangeNotifier {
       return;
     }
     await refreshCommunity();
+    await refreshLeaderboard();
+  }
+
+  /// Tải lại bảng xếp hạng từ Firestore. Trả về false nếu không tải được.
+  Future<bool> refreshLeaderboard() async {
+    final r = remote;
+    if (r == null) return false;
+    try {
+      leaders = await r.fetchLeaderboard();
+      notifyListeners();
+      return true;
+    } catch (_) {
+      return false;
+    }
+  }
+
+  /// Danh sách xếp hạng để hiện: người khác lấy từ server, bản thân lấy từ
+  /// máy (luôn mới nhất). Không có Firebase thì dùng danh sách mẫu.
+  List<LeaderEntry> rankedEntries() {
+    final myId = remote?.uid ?? _ownerUid;
+    final me = LeaderEntry(
+      myId ?? 'me',
+      user?.name ?? 'Bạn',
+      xp,
+      totalStamps,
+      isMe: true,
+    );
+    final others = remote == null
+        ? sampleLeaderboard
+        : (leaders ?? const <LeaderEntry>[]).where((e) => e.id != myId);
+    return [...others, me]..sort(
+      (a, b) =>
+          b.xp != a.xp ? b.xp.compareTo(a.xp) : b.stamps.compareTo(a.stamps),
+    );
   }
 
   /// Tải lại bài cảm nhận của mọi người từ Firestore.
@@ -399,6 +436,7 @@ class PassportStore extends ChangeNotifier {
     'progress': progress.map((k, v) => MapEntry(k, v.toJson())),
     'stamps': stamps.map((k, v) => MapEntry(k, v.toIso8601String())),
     'xp': xp,
+    'stampCount': totalStamps,
     'reflections': reflections.map((r) => r.toJson()).toList(),
   };
 

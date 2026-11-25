@@ -24,6 +24,9 @@ abstract class PassportRemote {
   /// Bài cảm nhận công khai của mọi người (mới nhất trước).
   Future<List<Reflection>> fetchCommunity();
 
+  /// Những người có nhiều XP nhất (cao nhất trước).
+  Future<List<LeaderEntry>> fetchLeaderboard();
+
   /// Ghi trạng thái hiện tại lên server (chỉ ghi phần thay đổi).
   Future<void> sync(Map<String, dynamic> data);
 
@@ -37,6 +40,7 @@ abstract class PassportRemote {
 /// - `user_passports/{uid}/notifications/{id}`: thông báo trong app
 /// - `reflections/{reflectionId}`: bài cảm nhận công khai (không chứa uid)
 /// - `reflection_owners/{reflectionId}`: uid chủ bài, chỉ chủ bài đọc được
+/// - `leaderboard/{uid}`: tên, XP, số dấu mộc, công khai cho bảng xếp hạng
 class FirestorePassportRemote implements PassportRemote {
   FirestorePassportRemote({FirebaseFirestore? db, FirebaseAuth? auth})
     : _db = db ?? FirebaseFirestore.instance,
@@ -64,6 +68,19 @@ class FirestorePassportRemote implements PassportRemote {
 
   DocumentReference<Map<String, dynamic>> _userDoc(String uid) =>
       _db.collection('user_passports').doc(uid);
+
+  DocumentReference<Map<String, dynamic>> _leaderDoc(String uid) =>
+      _db.collection('leaderboard').doc(uid);
+
+  /// Thứ tự khóa cố định để so sánh với bản đã ghi.
+  static Map<String, dynamic> _leaderFields(
+    Object? name,
+    Object? xp,
+    Object? stamps,
+  ) => {'name': name, 'xp': xp, 'stamps': stamps};
+
+  static String _encode(Map<String, dynamic> doc) =>
+      jsonEncode(doc, toEncodable: (o) => o.toString());
 
   @override
   Future<Map<String, dynamic>?> fetch() async {
@@ -109,6 +126,7 @@ class FirestorePassportRemote implements PassportRemote {
       _state.value = SyncState.synced;
       if (u == null) return null;
       _written['user'] = '';
+      await _ensureLeaderEntry(uid, u);
       final progress = <String, dynamic>{};
       final stamps = <String, dynamic>{};
       for (final v in visits.docs) {
@@ -145,6 +163,45 @@ class FirestorePassportRemote implements PassportRemote {
     }
   }
 
+  /// Hộ chiếu tạo trước khi có bảng xếp hạng chưa có mục `leaderboard/{uid}`:
+  /// tạo luôn để người đó xuất hiện mà không cần thao tác gì thêm.
+  Future<void> _ensureLeaderEntry(String uid, Map<String, dynamic> u) async {
+    try {
+      final snap = await _leaderDoc(uid).get();
+      final d = snap.data();
+      if (d != null) {
+        _written['leaderboard'] = _encode(
+          _leaderFields(d['name'], d['xp'], d['stamps']),
+        );
+        return;
+      }
+      final doc = _leaderFields(u['name'], u['xp'] ?? 0, u['stampCount'] ?? 0);
+      await _leaderDoc(uid).set(doc);
+      _written['leaderboard'] = _encode(doc);
+    } catch (e) {
+      // Không chặn việc mở hộ chiếu; lần ghi sau sẽ thử lại.
+      debugPrint('Firestore leaderboard lỗi: $e');
+    }
+  }
+
+  @override
+  Future<List<LeaderEntry>> fetchLeaderboard() async {
+    final snap = await _db
+        .collection('leaderboard')
+        .orderBy('xp', descending: true)
+        .limit(50)
+        .get();
+    return [
+      for (final d in snap.docs)
+        LeaderEntry(
+          d.id,
+          d.data()['name'] as String? ?? 'Lữ khách',
+          (d.data()['xp'] as num?)?.toInt() ?? 0,
+          (d.data()['stamps'] as num?)?.toInt() ?? 0,
+        ),
+    ];
+  }
+
   @override
   Future<List<Reflection>> fetchCommunity() async {
     final snap = await _db
@@ -178,13 +235,14 @@ class FirestorePassportRemote implements PassportRemote {
 
     void put(String key, DocumentReference ref, Map<String, dynamic> doc) {
       seen.add(key);
-      final encoded = jsonEncode(doc, toEncodable: (o) => o.toString());
+      final encoded = _encode(doc);
       if (_written[key] == encoded) return;
       batch.set(ref, doc);
       _written[key] = encoded;
       ops++;
     }
 
+    Map<String, dynamic>? leader;
     final user = data['user'] as Map<String, dynamic>?;
     final progress = data['progress'] as Map<String, dynamic>;
     final stamps = data['stamps'] as Map<String, dynamic>;
@@ -202,6 +260,11 @@ class FirestorePassportRemote implements PassportRemote {
         'xp': data['xp'],
         'stampCount': stamps.length,
       });
+      leader = _leaderFields(
+        user['name'],
+        data['xp'],
+        data['stampCount'] ?? stamps.length,
+      );
       for (final id in {...progress.keys, ...stamps.keys}) {
         final p = progress[id] as Map<String, dynamic>? ?? const {};
         put('visits/$id', _userDoc(uid).collection('visits').doc(id), {
@@ -241,6 +304,7 @@ class FirestorePassportRemote implements PassportRemote {
     }
 
     // Xóa những document không còn trong trạng thái hiện tại.
+    seen.add('leaderboard');
     for (final key in _written.keys.where((k) => !seen.contains(k)).toList()) {
       _written.remove(key);
       final slash = key.indexOf('/');
@@ -269,7 +333,25 @@ class FirestorePassportRemote implements PassportRemote {
         ..addAll(before);
       rethrow;
     }
+    await _syncLeader(uid, leader);
     _state.value = SyncState.synced;
+  }
+
+  /// Bảng xếp hạng ghi riêng: lỗi ở đây không làm hỏng việc lưu hộ chiếu.
+  Future<void> _syncLeader(String uid, Map<String, dynamic>? doc) async {
+    final encoded = doc == null ? null : _encode(doc);
+    if (_written['leaderboard'] == encoded) return;
+    try {
+      if (doc == null) {
+        await _leaderDoc(uid).delete();
+        _written.remove('leaderboard');
+      } else {
+        await _leaderDoc(uid).set(doc);
+        _written['leaderboard'] = encoded!;
+      }
+    } catch (e) {
+      debugPrint('Firestore leaderboard lỗi: $e');
+    }
   }
 
   static Map<String, dynamic> _reflectionToDoc(Reflection r) => {

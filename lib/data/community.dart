@@ -125,7 +125,8 @@ class LeaderEntry {
   final bool isMe;
 }
 
-const leaderboard = <LeaderEntry>[
+/// Chỉ dùng khi chạy không có Firebase (chế độ offline).
+const sampleLeaderboard = <LeaderEntry>[
   LeaderEntry('u1', 'Bảo Ngọc', 1180, 10),
   LeaderEntry('u2', 'Minh Anh', 940, 9),
   LeaderEntry('u3', 'Hoàng Long', 720, 7),
