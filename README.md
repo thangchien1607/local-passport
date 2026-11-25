@@ -1,6 +1,6 @@
 # Local Passport (Flutter) — Hộ chiếu trải nghiệm văn hóa Đà Nẵng
 
-Ứng dụng **Local Passport** viết bằng Flutter (Dart `^3.11.3`), chạy trên **Web, Android và iOS** từ cùng một mã nguồn, vận hành hoàn toàn trên gói **Firebase Spark (miễn phí)** với **Firebase Auth + Cloud Firestore** (không dùng Cloud Functions, không dùng Firebase Storage).
+Ứng dụng **Local Passport** viết bằng Flutter (Dart `^3.11.3`), chạy trên **Web, Android và iOS** từ cùng một mã nguồn, vận hành hoàn toàn trên gói **Firebase Spark (miễn phí)** với **Firebase Auth + Cloud Firestore**.
 
 Bản đồ Khám phá mặc định dùng **OpenStreetMap** qua `flutter_map`, không cần API key. Cấu hình Firebase đi kèm hiện có cho Web và Android; iOS dùng chế độ cục bộ cho đến khi bổ sung cấu hình Firebase cho nền tảng này.
 
@@ -33,7 +33,7 @@ Bản đồ Khám phá mặc định dùng **OpenStreetMap** qua `flutter_map`, 
 - Giới hạn tối đa **3 ảnh/visit** và ước lượng dung lượng document **`<= 800 KB`** trước khi ghi Firestore để không bao giờ chạm trần 1 MiB.
 
 ### 4. Chấm điểm cảm nhận (`ai_verifier.dart`)
-- Mặc định dùng bộ chấm **heuristic offline** hoàn toàn ở client (không cần backend hay gói Blaze).
+- Mặc định dùng bộ chấm **heuristic offline** hoàn toàn ở client.
 - Tùy chọn gọi endpoint thẩm định ngoài nếu truyền `--dart-define=REFLECTION_VERIFIER_URL=https://...` (tự đính kèm `Authorization: Bearer <Firebase ID Token>` và tự động fallback về heuristic khi lỗi mạng/HTTP/timeout).
 - Khi tác giả sửa bài cảm nhận, điểm được tính lại trực tiếp bằng cùng hàm `verifyReflection`.
 
