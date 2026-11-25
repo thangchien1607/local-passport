@@ -93,13 +93,16 @@ class _QrScannerScreenState extends State<QrScannerScreen>
     final qr = parseQr(raw);
     final loc = widget.location;
     if (qr == null) return _fail('Mã QR này không thuộc Local Passport.');
-    if (qr.locationId != loc.id || qr.secret != loc.qrCodeSecret) {
+    if (qr.locationId != loc.id) {
       final other = locationById[qr.locationId];
       return _fail(
         other != null
             ? 'Mã này thuộc "${other.name}", không phải điểm bạn đang mở.'
             : 'Mã QR không hợp lệ.',
       );
+    }
+    if (qr.secret != loc.qrCodeSecret) {
+      return _fail('Mã xác thực QR không hợp lệ.');
     }
 
     setState(() => _status = _Status.verifying);
