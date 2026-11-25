@@ -1,13 +1,37 @@
+import 'dart:convert';
+import 'dart:typed_data';
+
 import 'package:flutter/material.dart';
 import 'package:flutter_test/flutter_test.dart';
 import 'package:google_fonts/google_fonts.dart';
+import 'package:image/image.dart' as img;
+import 'package:image_picker_platform_interface/image_picker_platform_interface.dart';
 import 'package:local_passport/data/community.dart';
 import 'package:local_passport/data/routes.dart';
 import 'package:local_passport/state/passport_store.dart';
+import 'package:local_passport/widgets/edit_reflection_dialog.dart';
 import 'package:local_passport/widgets/reflection_card.dart';
 import 'package:shared_preferences/shared_preferences.dart';
 
 const _loc = 'bach-khoa';
+
+class _FakeImagePicker extends ImagePickerPlatform {
+  _FakeImagePicker(this.bytes);
+
+  final Uint8List bytes;
+
+  @override
+  Future<XFile?> getImageFromSource({
+    required ImageSource source,
+    ImagePickerOptions options = const ImagePickerOptions(),
+  }) async => XFile.fromData(bytes, mimeType: 'image/png');
+}
+
+Uint8List _png(img.Color color) {
+  final image = img.Image(width: 4, height: 4);
+  img.fill(image, color: color);
+  return img.encodePng(image);
+}
 
 /// Người dùng đã nhận dấu mộc tại [_loc] và viết một bài cảm nhận có tên.
 Future<PassportStore> _storeWithReflection({String? photo = 'YWJj'}) async {
@@ -164,6 +188,64 @@ void main() {
     await tester.pumpAndSettle();
     expect(s.reflections, isEmpty);
     expect(find.text('Hiện tên của tôi'), findsNothing);
+    expect(tester.takeException(), isNull);
+  });
+
+  testWidgets('Bỏ ảnh mới giữ nguyên ảnh cũ khi lưu cảm nhận', (tester) async {
+    GoogleFonts.config.allowRuntimeFetching = false;
+    final oldPhoto = base64Encode(_png(img.ColorRgb8(150, 95, 40)));
+    final store = (await tester.runAsync(
+      () => _storeWithReflection(photo: oldPhoto),
+    ))!;
+    final originalPicker = ImagePickerPlatform.instance;
+    ImagePickerPlatform.instance = _FakeImagePicker(
+      _png(img.ColorRgb8(45, 100, 140)),
+    );
+    addTearDown(() => ImagePickerPlatform.instance = originalPicker);
+
+    await tester.pumpWidget(
+      PassportScope(
+        store: store,
+        child: MaterialApp(
+          home: Scaffold(
+            body: Builder(
+              builder: (context) => TextButton(
+                onPressed: () =>
+                    showEditReflectionDialog(context, store.reflections.single),
+                child: const Text('Mở chỉnh sửa'),
+              ),
+            ),
+          ),
+        ),
+      ),
+    );
+
+    await tester.tap(find.text('Mở chỉnh sửa'));
+    await tester.pumpAndSettle();
+    await tester.tap(find.text('Đổi ảnh'));
+    await tester.pumpAndSettle();
+    expect(find.byTooltip('Bỏ ảnh mới'), findsOneWidget);
+    await tester.tap(find.byTooltip('Bỏ ảnh mới'));
+    await tester.pumpAndSettle();
+    await tester.tap(find.text('Lưu & chấm lại'));
+    await tester.pumpAndSettle();
+
+    expect(find.text('Sửa cảm nhận'), findsNothing);
+    expect(store.reflections.single.photoBase64, oldPhoto);
+
+    await tester.tap(find.text('Mở chỉnh sửa'));
+    await tester.pumpAndSettle();
+    await tester.tap(find.byTooltip('Xóa ảnh'));
+    await tester.pumpAndSettle();
+    await tester.tap(find.text('Thêm ảnh'));
+    await tester.pumpAndSettle();
+    await tester.tap(find.byTooltip('Bỏ ảnh mới'));
+    await tester.pumpAndSettle();
+    await tester.tap(find.text('Lưu & chấm lại'));
+    await tester.pumpAndSettle();
+
+    expect(find.text('Sửa cảm nhận'), findsNothing);
+    expect(store.reflections.single.hasPhoto, isFalse);
     expect(tester.takeException(), isNull);
   });
 
