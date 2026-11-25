@@ -58,18 +58,18 @@ class LocationProgress {
   DateTime? unlockedAt;
   final Set<String> tasks;
 
-  /// URL ảnh nhiệm vụ trên Firebase Storage (chuẩn mới, lưu vào Firestore).
-  final Map<String, String> taskPhotoUrls;
-
-  /// Ảnh nhiệm vụ base64 cũ — chỉ dùng để đọc tương thích ngược / chế độ offline.
+  /// Ảnh nhiệm vụ dạng Base64 đã nén nhỏ (tối đa [maxTaskPhotosPerVisit] ảnh/visit).
   final Map<String, String> taskPhotos;
+
+  /// URL ảnh nhiệm vụ cũ — giữ để đọc tương thích ngược nếu từng lưu Storage URL.
+  final Map<String, String> taskPhotoUrls;
 
   Map<String, dynamic> toJson() => {
     'unlocked': unlocked,
     'unlockedAt': unlockedAt?.toIso8601String(),
     'tasks': tasks.toList(),
-    'taskPhotoUrls': taskPhotoUrls,
-    if (taskPhotos.isNotEmpty) 'taskPhotos': taskPhotos,
+    'taskPhotos': taskPhotos,
+    if (taskPhotoUrls.isNotEmpty) 'taskPhotoUrls': taskPhotoUrls,
   };
 
   factory LocationProgress.fromJson(Map<String, dynamic> j) => LocationProgress(
@@ -649,7 +649,7 @@ class PassportStore extends ChangeNotifier {
       progress[id]?.tasks.contains(taskId) ?? false;
 
   String? taskPhoto(String id, String taskId) =>
-      progress[id]?.taskPhotoUrls[taskId] ?? progress[id]?.taskPhotos[taskId];
+      progress[id]?.taskPhotos[taskId] ?? progress[id]?.taskPhotoUrls[taskId];
 
   /// Progress_location = (QR + số mục checklist xong) / (1 + tổng số mục checklist) × 100%
   int locationProgress(String id) {
@@ -720,7 +720,9 @@ class PassportStore extends ChangeNotifier {
     return stamped;
   }
 
-  /// Nén ảnh phía client rồi lưu vào trạng thái nhiệm vụ.
+  /// Nén ảnh nhỏ (<= 80 KB, cạnh dài ~720px, lặp giảm chất lượng) rồi lưu Base64
+  /// vào trạng thái nhiệm vụ. Giới hạn tối đa [maxTaskPhotosPerVisit] ảnh/visit
+  /// và kiểm tra ước lượng dung lượng document không vượt [maxFirestoreDocBytes].
   /// Trả về true nếu vừa nhận dấu mộc mới.
   Future<bool> saveTaskPhotoBytes(
     String id,
@@ -732,8 +734,41 @@ class PassportStore extends ChangeNotifier {
     final task = location?.tasks.where((t) => t.id == taskId).firstOrNull;
     if (p == null || !p.unlocked || task?.type != TaskType.photo) return false;
 
-    final compressed = await compressImageBytes(bytes);
-    return setTaskPhoto(id, taskId, base64Encode(compressed));
+    final alreadyHasSlot = p.taskPhotos.containsKey(taskId);
+    if (!alreadyHasSlot && p.taskPhotos.length >= maxTaskPhotosPerVisit) {
+      throw const PhotoLimitException(
+        'Mỗi địa điểm chỉ lưu tối đa $maxTaskPhotosPerVisit ảnh nhiệm vụ.',
+      );
+    }
+
+    // Trừ dung lượng prefix "<taskId>:" để phần tử list luôn <= 120000 ký tự.
+    final maxB64 = photoMaxBase64Length - taskId.length - 1;
+    var encoded = await compressImageToBase64(bytes, maxBase64Length: maxB64);
+
+    // Ước lượng dung lượng document visit trước khi ghi; nếu > 800 KB thì nén thêm.
+    Map<String, dynamic> buildCandidateDoc(String value) => {
+      'unlocked': p.unlocked,
+      'unlockedAt': p.unlockedAt?.toIso8601String(),
+      'tasks': {...p.tasks, taskId}.toList(),
+      'taskPhotos': encodeTaskPhotosList({...p.taskPhotos, taskId: value}),
+      'taskPhotoUrls': p.taskPhotoUrls,
+    };
+    if (estimateFirestoreDocBytes(buildCandidateDoc(encoded)) >
+        maxFirestoreDocBytes) {
+      encoded = await compressImageToBase64(
+        bytes,
+        targetBytes: 40 * 1024,
+        maxBase64Length: maxB64,
+      );
+      if (estimateFirestoreDocBytes(buildCandidateDoc(encoded)) >
+          maxFirestoreDocBytes) {
+        throw const PhotoLimitException(
+          'Dung lượng dữ liệu địa điểm vượt giới hạn an toàn 800 KB. Hãy xóa bớt ảnh cũ trước khi thêm.',
+        );
+      }
+    }
+
+    return setTaskPhoto(id, taskId, encoded);
   }
 
   bool setTaskPhoto(String id, String taskId, String? photoValue) {
@@ -750,6 +785,12 @@ class PassportStore extends ChangeNotifier {
       p.taskPhotos.remove(taskId);
       p.tasks.add(taskId);
     } else {
+      if (!p.taskPhotos.containsKey(taskId) &&
+          p.taskPhotos.length >= maxTaskPhotosPerVisit) {
+        throw const PhotoLimitException(
+          'Mỗi địa điểm chỉ lưu tối đa $maxTaskPhotosPerVisit ảnh nhiệm vụ.',
+        );
+      }
       p.taskPhotos[taskId] = photoValue;
       p.taskPhotoUrls.remove(taskId);
       p.tasks.add(taskId);

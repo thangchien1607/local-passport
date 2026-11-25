@@ -37,9 +37,7 @@ function validVisitDoc(overrides = {}) {
     unlocked: true,
     unlockedAt: Timestamp.fromDate(new Date('2026-11-01T01:00:00Z')),
     tasks: ['story', 'timelens'],
-    taskPhotoUrls: {
-      photo: 'https://firebasestorage.googleapis.com/v0/b/test/o/task.jpg',
-    },
+    taskPhotos: ['photo:YWJjZA=='],
     stampedAt: Timestamp.fromDate(new Date('2026-11-01T02:00:00Z')),
     ...overrides,
   };
@@ -52,7 +50,7 @@ function validReflectionDoc(overrides = {}) {
     isAnonymous: false,
     content: 'Đứng trên tường thành Điện Hải nhìn ra sông Hàn rất xúc động.',
     createdAt: Timestamp.fromDate(new Date('2026-11-01T03:00:00Z')),
-    photoUrl: 'https://firebasestorage.googleapis.com/v0/b/test/o/ref.jpg',
+    photoBase64: 'YWJjZA==',
     ...overrides,
   };
 }
@@ -76,50 +74,83 @@ after(async () => {
   await testEnv.cleanup();
 });
 
-// ---- 1.1: Chặn Base64 mới, chấp nhận photoUrl / taskPhotoUrls ----
+// ---- S2: Ảnh Base64 nén nhỏ (<= 120000 ký tự) và taskPhotos list (<= 3 phần tử) ----
 
-test('1.1 Chặn ghi photoBase64 khi tạo bài cảm nhận mới', async () => {
+test('S2 Cho phép ghi photoBase64 <= 120000 ký tự và chặn photoBase64 quá lớn', async () => {
   const db = testEnv.authenticatedContext('alice').firestore();
-  const batch = writeBatch(db);
-  batch.set(doc(db, 'reflection_owners', 'r-b64'), { uid: 'alice' });
-  batch.set(
-    doc(db, 'reflections', 'r-b64'),
-    validReflectionDoc({ photoBase64: 'YWJjZA==' }),
+
+  const okBatch = writeBatch(db);
+  okBatch.set(doc(db, 'reflection_owners', 'r-b64-ok'), { uid: 'alice' });
+  okBatch.set(
+    doc(db, 'reflections', 'r-b64-ok'),
+    validReflectionDoc({ photoBase64: 'A'.repeat(80000) }),
   );
-  await assertFails(batch.commit());
+  await assertSucceeds(okBatch.commit());
+
+  const hugeBatch = writeBatch(db);
+  hugeBatch.set(doc(db, 'reflection_owners', 'r-b64-huge'), { uid: 'alice' });
+  hugeBatch.set(
+    doc(db, 'reflections', 'r-b64-huge'),
+    validReflectionDoc({ photoBase64: 'A'.repeat(120001) }),
+  );
+  await assertFails(hugeBatch.commit());
 });
 
-test('1.1 Cho phép tạo bài cảm nhận với photoUrl hợp lệ (HTTPS)', async () => {
+test('S2 Cho phép tương thích ngược photoUrl hợp lệ và chặn photoUrl sai giao thức', async () => {
   const db = testEnv.authenticatedContext('alice').firestore();
-  const batch = writeBatch(db);
-  batch.set(doc(db, 'reflection_owners', 'r-ok'), { uid: 'alice' });
-  batch.set(doc(db, 'reflections', 'r-ok'), validReflectionDoc());
-  await assertSucceeds(batch.commit());
-});
+  const okBatch = writeBatch(db);
+  okBatch.set(doc(db, 'reflection_owners', 'r-url-ok'), { uid: 'alice' });
+  okBatch.set(
+    doc(db, 'reflections', 'r-url-ok'),
+    validReflectionDoc({
+      photoBase64: null,
+      photoUrl: 'https://example.com/old.jpg',
+    }),
+  );
+  await assertSucceeds(okBatch.commit());
 
-test('1.1 Chặn photoUrl không phải HTTP/HTTPS', async () => {
-  const db = testEnv.authenticatedContext('alice').firestore();
-  const batch = writeBatch(db);
-  batch.set(doc(db, 'reflection_owners', 'r-badurl'), { uid: 'alice' });
-  batch.set(
+  const badBatch = writeBatch(db);
+  badBatch.set(doc(db, 'reflection_owners', 'r-badurl'), { uid: 'alice' });
+  badBatch.set(
     doc(db, 'reflections', 'r-badurl'),
     validReflectionDoc({ photoUrl: 'data:image/png;base64,AAAA' }),
   );
-  await assertFails(batch.commit());
+  await assertFails(badBatch.commit());
 });
 
-test('1.1 Chặn ghi taskPhotos (base64) trong visits, cho phép taskPhotoUrls', async () => {
+test('S2 Ràng buộc taskPhotos là list <= 3 chuỗi, mỗi chuỗi <= 120000 ký tự', async () => {
   const db = testEnv.authenticatedContext('alice').firestore();
-  await assertFails(
-    setDoc(
-      doc(db, 'user_passports', 'alice', 'visits', 'dien-hai'),
-      validVisitDoc({ taskPhotos: { photo: 'YWJj' } }),
-    ),
-  );
+  const visitRef = doc(db, 'user_passports', 'alice', 'visits', 'dien-hai');
+
+  // Hợp lệ: list 3 ảnh nhỏ
   await assertSucceeds(
     setDoc(
-      doc(db, 'user_passports', 'alice', 'visits', 'dien-hai'),
-      validVisitDoc(),
+      visitRef,
+      validVisitDoc({ taskPhotos: ['t1:AAA', 't2:BBB', 't3:CCC'] }),
+    ),
+  );
+
+  // Vượt quá 3 ảnh -> từ chối
+  await assertFails(
+    setDoc(
+      visitRef,
+      validVisitDoc({ taskPhotos: ['t1:A', 't2:B', 't3:C', 't4:D'] }),
+    ),
+  );
+
+  // Phần tử vượt 120000 ký tự -> từ chối
+  await assertFails(
+    setDoc(
+      visitRef,
+      validVisitDoc({ taskPhotos: ['A'.repeat(120001)] }),
+    ),
+  );
+
+  // Sai kiểu (map thay vì list) -> từ chối
+  await assertFails(
+    setDoc(
+      visitRef,
+      validVisitDoc({ taskPhotos: { photo: 'YWJj' } }),
     ),
   );
 });
@@ -328,7 +359,7 @@ test('2.4 Tác giả sửa được content và photoUrl nhưng vẫn bị chặ
 
   await assertFails(
     updateDoc(ref, {
-      photoBase64: 'YWJjZA==',
+      photoBase64: 'A'.repeat(120001),
     }),
   );
 

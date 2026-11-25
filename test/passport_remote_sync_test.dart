@@ -60,10 +60,13 @@ class _RuleEnforcingMemoryAdapter implements SyncStorageAdapter {
             );
           }
           if (path.startsWith('reflections/')) {
-            if (data.containsKey('aiScore') ||
-                data.containsKey('photoBase64')) {
+            if (data.containsKey('aiScore')) {
+              throw StateError('permission-denied: client cấm ghi aiScore');
+            }
+            final b64 = data['photoBase64'];
+            if (b64 is String && b64.length > 120000) {
               throw StateError(
-                'permission-denied: client cấm ghi aiScore/photoBase64',
+                'permission-denied: photoBase64 vượt 120000 ký tự',
               );
             }
           }

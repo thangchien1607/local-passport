@@ -5,6 +5,7 @@ import 'package:image_picker/image_picker.dart';
 
 import '../data/community.dart';
 import '../data/routes.dart';
+import '../services/photo_service.dart';
 import '../state/passport_store.dart';
 import '../theme.dart';
 import '../widgets/common.dart';
@@ -76,6 +77,16 @@ class LocationScreen extends StatelessWidget {
       if (stamped && context.mounted) {
         await showStampCeremony(context, locationId);
       }
+    } on PhotoTooLargeException catch (e) {
+      if (!context.mounted) return;
+      ScaffoldMessenger.maybeOf(
+        context,
+      )?.showSnackBar(SnackBar(content: Text(e.message)));
+    } on PhotoLimitException catch (e) {
+      if (!context.mounted) return;
+      ScaffoldMessenger.maybeOf(
+        context,
+      )?.showSnackBar(SnackBar(content: Text(e.message)));
     } catch (_) {
       if (!context.mounted) return;
       ScaffoldMessenger.maybeOf(context)?.showSnackBar(

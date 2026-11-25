@@ -1,4 +1,3 @@
-import 'dart:convert';
 import 'dart:math';
 import 'dart:typed_data';
 
@@ -116,8 +115,7 @@ class _CeremonyState extends State<_Ceremony> {
       String? photoBase64;
       if (_photo != null) {
         try {
-          final compressed = await compressImageBytes(_photo!);
-          photoBase64 = base64Encode(compressed);
+          photoBase64 = await compressImageToBase64(_photo!);
         } catch (e) {
           if (!mounted) return;
           setState(() => _step = _Step.form);

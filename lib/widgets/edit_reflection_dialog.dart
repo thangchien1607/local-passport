@@ -1,4 +1,3 @@
-import 'dart:convert';
 import 'dart:typed_data';
 
 import 'package:flutter/material.dart';
@@ -99,8 +98,7 @@ class _EditReflectionDialogState extends State<_EditReflectionDialog> {
 
     if (_newPhotoBytes != null) {
       try {
-        final compressed = await compressImageBytes(_newPhotoBytes!);
-        compressedBase64 = base64Encode(compressed);
+        compressedBase64 = await compressImageToBase64(_newPhotoBytes!);
       } catch (e) {
         if (!mounted) return;
         setState(() {

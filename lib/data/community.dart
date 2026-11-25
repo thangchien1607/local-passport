@@ -23,21 +23,22 @@ class Reflection {
   final int aiScore;
   final DateTime createdAt;
 
-  /// URL ảnh trên Firebase Storage (chuẩn mới).
-  final String? photoUrl;
-
-  /// Ảnh base64 cũ — chỉ giữ để đọc tương thích ngược, không ghi mới lên Firestore.
+  /// Ảnh đã nén lưu dạng Base64 trong Firestore (kiến trúc Spark).
   final String? photoBase64;
 
+  /// URL ảnh cũ (nếu đã lưu từ trước) — chỉ giữ để đọc tương thích ngược.
+  final String? photoUrl;
+
   bool get hasPhoto =>
-      (photoUrl != null && photoUrl!.isNotEmpty) ||
-      (photoBase64 != null && photoBase64!.isNotEmpty);
+      (photoBase64 != null && photoBase64!.isNotEmpty) ||
+      (photoUrl != null && photoUrl!.isNotEmpty);
 
   Reflection copyWith({
     String? displayAuthor,
     bool? isAnonymous,
     String? content,
     int? aiScore,
+    String? photoBase64,
     String? photoUrl,
     bool clearPhoto = false,
   }) => Reflection(
@@ -48,8 +49,8 @@ class Reflection {
     content: content ?? this.content,
     aiScore: aiScore ?? this.aiScore,
     createdAt: createdAt,
+    photoBase64: clearPhoto ? null : (photoBase64 ?? this.photoBase64),
     photoUrl: clearPhoto ? null : (photoUrl ?? this.photoUrl),
-    photoBase64: clearPhoto ? null : photoBase64,
   );
 
   Map<String, dynamic> toJson() => {
@@ -60,8 +61,8 @@ class Reflection {
     'content': content,
     'aiScore': aiScore,
     'createdAt': createdAt.toIso8601String(),
-    'photoUrl': photoUrl,
-    if (photoBase64 != null) 'photoBase64': photoBase64,
+    'photoBase64': photoBase64,
+    'photoUrl': ?photoUrl,
   };
 
   factory Reflection.fromJson(Map<String, dynamic> j) => Reflection(

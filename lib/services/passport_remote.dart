@@ -3,6 +3,7 @@ import 'package:firebase_auth/firebase_auth.dart';
 import 'package:flutter/foundation.dart';
 
 import '../data/community.dart';
+import 'photo_service.dart';
 
 enum SyncState { offline, syncing, synced, error }
 
@@ -213,15 +214,24 @@ Future<int> runIdempotentChunkedSync({
 
     for (final id in currentVisitIds) {
       final p = progress[id] as Map<String, dynamic>? ?? const {};
-      groups.add([
-        SyncSetOp('user_passports/$uid/visits/$id', {
-          'unlocked': p['unlocked'] ?? false,
-          'unlockedAt': _toTimestamp(p['unlockedAt']),
-          'tasks': p['tasks'] ?? const <String>[],
-          'taskPhotoUrls': p['taskPhotoUrls'] ?? const <String, dynamic>{},
-          'stampedAt': _toTimestamp(stamps[id]),
-        }),
-      ]);
+      final taskPhotosMap = decodeTaskPhotosField(p['taskPhotos']);
+      final taskPhotoUrlsMap =
+          (p['taskPhotoUrls'] as Map<String, dynamic>? ??
+          const <String, dynamic>{});
+      final visitDoc = <String, dynamic>{
+        'unlocked': p['unlocked'] ?? false,
+        'unlockedAt': _toTimestamp(p['unlockedAt']),
+        'tasks': p['tasks'] ?? const <String>[],
+        'taskPhotos': encodeTaskPhotosList(taskPhotosMap),
+        if (taskPhotoUrlsMap.isNotEmpty) 'taskPhotoUrls': taskPhotoUrlsMap,
+        'stampedAt': _toTimestamp(stamps[id]),
+      };
+      if (estimateFirestoreDocBytes(visitDoc) > maxFirestoreDocBytes) {
+        throw const PhotoLimitException(
+          'Document chuyến thăm vượt ngưỡng an toàn 800 KB, không thể đồng bộ.',
+        );
+      }
+      groups.add([SyncSetOp('user_passports/$uid/visits/$id', visitDoc)]);
     }
 
     for (final n in notes) {
@@ -258,32 +268,38 @@ Future<int> runIdempotentChunkedSync({
     for (final item in existenceChecks) {
       final r = item.reflection;
       if (item.ownerExists && item.docExists) {
-        // Document đã tồn tại: KHÔNG ghi đè `reflection_owners/{id}` (allow update: if false)
-        // và KHÔNG ghi `aiScore` hay các trường bất biến.
-        groups.add([
-          SyncSetOp('reflections/${r.id}', {
-            'displayAuthor': r.displayAuthor,
-            'isAnonymous': r.isAnonymous,
-            'content': r.content,
-            'photoUrl': r.photoUrl,
-          }, merge: true),
-        ]);
+        final updateDoc = <String, dynamic>{
+          'displayAuthor': r.displayAuthor,
+          'isAnonymous': r.isAnonymous,
+          'content': r.content,
+          'photoBase64': r.photoBase64,
+          'photoUrl': ?r.photoUrl,
+        };
+        if (estimateFirestoreDocBytes(updateDoc) > maxFirestoreDocBytes) {
+          throw const PhotoLimitException(
+            'Bài cảm nhận vượt ngưỡng an toàn 800 KB, không thể đồng bộ.',
+          );
+        }
+        groups.add([SyncSetOp('reflections/${r.id}', updateDoc, merge: true)]);
       } else if (item.ownerExists && !item.docExists) {
-        // Owner đã có nhưng reflection chưa có: chỉ tạo reflection (không đụng owner).
-        groups.add([
-          SyncSetOp(
-            'reflections/${r.id}',
-            FirestorePassportRemote.reflectionToCreateDoc(r),
-          ),
-        ]);
+        final createDoc = FirestorePassportRemote.reflectionToCreateDoc(r);
+        if (estimateFirestoreDocBytes(createDoc) > maxFirestoreDocBytes) {
+          throw const PhotoLimitException(
+            'Bài cảm nhận vượt ngưỡng an toàn 800 KB, không thể đồng bộ.',
+          );
+        }
+        groups.add([SyncSetOp('reflections/${r.id}', createDoc)]);
       } else {
+        final createDoc = FirestorePassportRemote.reflectionToCreateDoc(r);
+        if (estimateFirestoreDocBytes(createDoc) > maxFirestoreDocBytes) {
+          throw const PhotoLimitException(
+            'Bài cảm nhận vượt ngưỡng an toàn 800 KB, không thể đồng bộ.',
+          );
+        }
         // Tạo mới cả cặp trong cùng một nhóm nguyên tử để qua kiểm tra `getAfter`.
         groups.add([
           SyncSetOp('reflection_owners/${r.id}', {'uid': uid}),
-          SyncSetOp(
-            'reflections/${r.id}',
-            FirestorePassportRemote.reflectionToCreateDoc(r),
-          ),
+          SyncSetOp('reflections/${r.id}', createDoc),
         ]);
       }
     }
@@ -447,9 +463,9 @@ class FirestorePassportRemote implements PassportRemote {
           'unlocked': d['unlocked'] ?? false,
           'unlockedAt': _iso(d['unlockedAt']),
           'tasks': d['tasks'] ?? const [],
-          'taskPhotoUrls': d['taskPhotoUrls'] ?? const <String, dynamic>{},
-          // Tương thích ngược với ảnh base64 cũ đã lưu trước khi chuyển Storage.
-          if (d['taskPhotos'] != null) 'taskPhotos': d['taskPhotos'],
+          'taskPhotos': decodeTaskPhotosField(d['taskPhotos']),
+          // Tương thích ngược với URL ảnh cũ (nếu đã lưu trước khi chuyển Spark).
+          'taskPhotoUrls': ?d['taskPhotoUrls'],
         };
         final stampedAt = _iso(d['stampedAt']);
         if (stampedAt != null) stamps[v.id] = stampedAt;
@@ -566,15 +582,15 @@ class FirestorePassportRemote implements PassportRemote {
     _state.value = SyncState.synced;
   }
 
-  /// Dữ liệu bài cảm nhận ghi từ client khi tạo mới — KHÔNG bao gồm `aiScore`
-  /// vì `aiScore` chỉ do Cloud Function ghi bằng Admin SDK.
+  /// Dữ liệu bài cảm nhận ghi từ client (lưu `photoBase64` đã nén <= 120 KB).
   static Map<String, dynamic> reflectionToCreateDoc(Reflection r) => {
     'locationId': r.locationId,
     'displayAuthor': r.displayAuthor,
     'isAnonymous': r.isAnonymous,
     'content': r.content,
     'createdAt': Timestamp.fromDate(r.createdAt),
-    'photoUrl': r.photoUrl,
+    'photoBase64': r.photoBase64,
+    'photoUrl': ?r.photoUrl,
   };
 
   static Reflection _reflectionFromDoc(String id, Map<String, dynamic> d) =>
@@ -586,9 +602,9 @@ class FirestorePassportRemote implements PassportRemote {
         content: d['content'] as String,
         aiScore: (d['aiScore'] as num?)?.toInt() ?? 0,
         createdAt: (d['createdAt'] as Timestamp).toDate(),
-        photoUrl: d['photoUrl'] as String?,
-        // Tương thích ngược với các bài cũ có trường photoBase64.
         photoBase64: d['photoBase64'] as String?,
+        // Tương thích ngược với URL ảnh cũ (nếu có).
+        photoUrl: d['photoUrl'] as String?,
       );
 
   static String? _iso(Object? v) =>
