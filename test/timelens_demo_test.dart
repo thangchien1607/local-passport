@@ -1,3 +1,4 @@
+import 'dart:convert';
 import 'dart:io';
 
 import 'package:flutter_test/flutter_test.dart';
@@ -26,4 +27,24 @@ void main() {
       }
     }
   });
+
+  test(
+    'firebase.timelens.json không chặn camera và geolocation trong Permissions-Policy',
+    () {
+      final cfg =
+          jsonDecode(File('firebase.timelens.json').readAsStringSync())
+              as Map<String, dynamic>;
+      final headers =
+          (cfg['hosting'] as Map<String, dynamic>)['headers'] as List;
+      final policyHeader = headers
+          .cast<Map<String, dynamic>>()
+          .expand((h) => (h['headers'] as List).cast<Map<String, dynamic>>())
+          .firstWhere((h) => h['key'] == 'Permissions-Policy');
+      final value = policyHeader['value'] as String;
+      expect(value, contains('camera=(self)'));
+      expect(value, contains('geolocation=(self)'));
+      expect(value, isNot(contains('camera=()')));
+      expect(value, isNot(contains('geolocation=()')));
+    },
+  );
 }

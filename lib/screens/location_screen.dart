@@ -1,13 +1,15 @@
-import 'dart:convert';
 import 'dart:ui';
 
 import 'package:flutter/material.dart';
 import 'package:image_picker/image_picker.dart';
 
 import '../data/routes.dart';
+import '../services/photo_service.dart';
 import '../state/passport_store.dart';
 import '../theme.dart';
 import '../widgets/common.dart';
+import '../widgets/edit_reflection_dialog.dart';
+import '../widgets/passport_photo.dart';
 import '../widgets/reflection_card.dart';
 import '../widgets/scene_art.dart';
 import '../widgets/stamp_seal.dart';
@@ -61,19 +63,29 @@ class LocationScreen extends StatelessWidget {
     try {
       final image = await ImagePicker().pickImage(
         source: ImageSource.camera,
-        maxWidth: 720,
-        maxHeight: 720,
-        imageQuality: 65,
+        maxWidth: 1920,
+        maxHeight: 1920,
+        imageQuality: 90,
       );
       if (image == null || !context.mounted) return;
       final bytes = await image.readAsBytes();
       if (!context.mounted) return;
-      final stamped = PassportScope.read(
+      final stamped = await PassportScope.read(
         context,
-      ).setTaskPhoto(locationId, taskId, base64Encode(bytes));
+      ).saveTaskPhotoBytes(locationId, taskId, bytes);
       if (stamped && context.mounted) {
         await showStampCeremony(context, locationId);
       }
+    } on PhotoTooLargeException catch (e) {
+      if (!context.mounted) return;
+      ScaffoldMessenger.maybeOf(
+        context,
+      )?.showSnackBar(SnackBar(content: Text(e.message)));
+    } on PhotoLimitException catch (e) {
+      if (!context.mounted) return;
+      ScaffoldMessenger.maybeOf(
+        context,
+      )?.showSnackBar(SnackBar(content: Text(e.message)));
     } catch (_) {
       if (!context.mounted) return;
       ScaffoldMessenger.maybeOf(context)?.showSnackBar(
@@ -525,6 +537,9 @@ class LocationScreen extends StatelessWidget {
                           ReflectionCard(
                             reflection: r,
                             showLocation: false,
+                            onEdit: store.isMyReflection(r.id)
+                                ? () => showEditReflectionDialog(context, r)
+                                : null,
                             onToggleAnonymous: store.isMyReflection(r.id)
                                 ? () => store.setReflectionAnonymous(
                                     r.id,
@@ -587,15 +602,15 @@ class LocationScreen extends StatelessWidget {
   }
 
   Future<void> _showTaskPhoto(BuildContext context, String taskId) async {
-    final encoded = PassportScope.read(context).taskPhoto(locationId, taskId);
-    if (encoded == null || !context.mounted) return;
+    final value = PassportScope.read(context).taskPhoto(locationId, taskId);
+    if (value == null || !context.mounted) return;
     await showDialog<void>(
       context: context,
       builder: (dialogContext) => AlertDialog(
         title: const Text('Ảnh nhiệm vụ'),
         content: ClipRRect(
           borderRadius: BorderRadius.circular(14),
-          child: Image.memory(base64Decode(encoded), fit: BoxFit.contain),
+          child: PassportPhoto.fromValue(value, fit: BoxFit.contain),
         ),
         actions: [
           TextButton(
