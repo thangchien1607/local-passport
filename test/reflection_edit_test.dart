@@ -166,4 +166,54 @@ void main() {
     expect(find.text('Hiện tên của tôi'), findsNothing);
     expect(tester.takeException(), isNull);
   });
+
+  test(
+    'Sửa nội dung/ảnh bài cảm nhận cập nhật nội dung, photoUrl và aiScore mới',
+    () async {
+      final store = await _storeWithReflection(photo: null);
+      final before = store.reflections.single;
+      final xpBefore = store.xp;
+
+      final ok = store.updateReflection(
+        id: before.id,
+        content:
+            'Nội dung cảm nhận mới sâu sắc hơn nhiều về kiến trúc di tích.',
+        photoUrl:
+            'https://firebasestorage.googleapis.com/v0/b/test/o/updated.jpg',
+        aiScore: 92,
+      );
+      expect(ok, isTrue);
+      final after = store.reflections.single;
+      expect(
+        after.content,
+        'Nội dung cảm nhận mới sâu sắc hơn nhiều về kiến trúc di tích.',
+      );
+      expect(
+        after.photoUrl,
+        'https://firebasestorage.googleapis.com/v0/b/test/o/updated.jpg',
+      );
+      expect(after.aiScore, 92);
+      expect(store.xp, xpBefore);
+
+      // Xóa ảnh khỏi bài đã đăng.
+      expect(
+        store.updateReflection(
+          id: before.id,
+          content: after.content,
+          clearPhoto: true,
+        ),
+        isTrue,
+      );
+      expect(store.reflections.single.hasPhoto, isFalse);
+
+      // Không thể sửa bài mẫu.
+      expect(
+        store.updateReflection(
+          id: seedReflections.first.id,
+          content: 'Thử sửa bài mẫu không hợp lệ.',
+        ),
+        isFalse,
+      );
+    },
+  );
 }

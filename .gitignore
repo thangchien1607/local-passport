@@ -46,11 +46,17 @@ app.*.map.json
 
 # Firebase
 .firebase/
+firebase-debug.log
+firebase-debug.*.log
+firestore-debug.log
+ui-debug.log
+rules_tests/node_modules/
 
 # Biến môi trường & bí mật (key ký app Android đã chặn trong android/.gitignore)
 .env
 .env.*
 !.env.example
+ios/Flutter/Secrets.xcconfig
 *.pem
 *.p12
 service-account*.json

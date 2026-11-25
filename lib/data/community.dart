@@ -11,6 +11,7 @@ class Reflection {
     required this.content,
     required this.aiScore,
     required this.createdAt,
+    this.photoUrl,
     this.photoBase64,
   });
 
@@ -21,17 +22,35 @@ class Reflection {
   final String content;
   final int aiScore;
   final DateTime createdAt;
+
+  /// Ảnh đã nén lưu dạng Base64 trong Firestore (kiến trúc Spark).
   final String? photoBase64;
 
-  Reflection copyWith({String? displayAuthor, bool? isAnonymous}) => Reflection(
+  /// URL ảnh cũ (nếu đã lưu từ trước) — chỉ giữ để đọc tương thích ngược.
+  final String? photoUrl;
+
+  bool get hasPhoto =>
+      (photoBase64 != null && photoBase64!.isNotEmpty) ||
+      (photoUrl != null && photoUrl!.isNotEmpty);
+
+  Reflection copyWith({
+    String? displayAuthor,
+    bool? isAnonymous,
+    String? content,
+    int? aiScore,
+    String? photoBase64,
+    String? photoUrl,
+    bool clearPhoto = false,
+  }) => Reflection(
     id: id,
     locationId: locationId,
     displayAuthor: displayAuthor ?? this.displayAuthor,
     isAnonymous: isAnonymous ?? this.isAnonymous,
-    content: content,
-    aiScore: aiScore,
+    content: content ?? this.content,
+    aiScore: aiScore ?? this.aiScore,
     createdAt: createdAt,
-    photoBase64: photoBase64,
+    photoBase64: clearPhoto ? null : (photoBase64 ?? this.photoBase64),
+    photoUrl: clearPhoto ? null : (photoUrl ?? this.photoUrl),
   );
 
   Map<String, dynamic> toJson() => {
@@ -43,6 +62,7 @@ class Reflection {
     'aiScore': aiScore,
     'createdAt': createdAt.toIso8601String(),
     'photoBase64': photoBase64,
+    'photoUrl': ?photoUrl,
   };
 
   factory Reflection.fromJson(Map<String, dynamic> j) => Reflection(
@@ -51,8 +71,9 @@ class Reflection {
     displayAuthor: j['displayAuthor'] as String,
     isAnonymous: j['isAnonymous'] as bool,
     content: j['content'] as String,
-    aiScore: j['aiScore'] as int,
+    aiScore: (j['aiScore'] as num?)?.toInt() ?? 0,
     createdAt: DateTime.parse(j['createdAt'] as String),
+    photoUrl: j['photoUrl'] as String?,
     photoBase64: j['photoBase64'] as String?,
   );
 }
@@ -116,12 +137,14 @@ class LeaderEntry {
     this.name,
     this.xp,
     this.stamps, {
+    this.avatarUrl,
     this.isMe = false,
   });
   final String id;
   final String name;
   final int xp;
   final int stamps;
+  final String? avatarUrl;
   final bool isMe;
 }
 

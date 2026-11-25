@@ -12,11 +12,11 @@ var _ready = false;
 bool get useGoogleMaps => _ready;
 
 /// Gọi một lần trong main() trước runApp.
+/// - Web: nạp Maps JS SDK bằng `MAPS_API_KEY` từ `--dart-define`.
+/// - Android: nhận `MAPS_API_KEY` qua `build.gradle.kts` -> `AndroidManifest.xml`.
+/// - iOS: nhận `MAPS_API_KEY` từ `ios/Flutter/Secrets.xcconfig` -> `Info.plist` -> `AppDelegate.swift`.
 Future<void> initGoogleMaps() async {
   if (mapsApiKey.isEmpty) return;
-  // iOS cần gọi GMSServices.provideAPIKey trong AppDelegate, chưa cấu hình
-  // nên tạm dùng bản đồ OpenStreetMap.
-  if (!kIsWeb && defaultTargetPlatform == TargetPlatform.iOS) return;
   try {
     await loadMapsSdk(mapsApiKey);
     _ready = true;
