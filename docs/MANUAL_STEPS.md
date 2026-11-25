@@ -1,6 +1,6 @@
 # Các bước cần thực hiện thủ công trên dự án Firebase thật (Gói Spark)
 
-> **Lưu ý**: Kiến trúc hiện tại chạy hoàn toàn trên gói **Firebase Spark miễn phí** (chỉ dùng **Firebase Auth** và **Cloud Firestore**, không cần nâng gói Blaze, không dùng Cloud Functions, không dùng Firebase Storage hay Secret Manager).
+> **Lưu ý**: Kiến trúc hiện tại chạy hoàn toàn trên gói **Firebase Spark miễn phí** (chỉ dùng **Firebase Auth** và **Cloud Firestore**).
 > Trong quá trình phát triển/kiểm thử, không có lệnh `firebase deploy` nào được chạy và không có dữ liệu thật nào bị thay đổi.
 
 ---
@@ -53,6 +53,6 @@ flutter build web --release \
 
 ---
 
-## 5. Ghi chú về dữ liệu cũ & phương án quay lại gói Blaze
+## 5. Dữ liệu cũ và hướng nâng cấp
 - **Tương thích ngược ảnh cũ**: Nếu trên production đã có document cũ lưu `photoUrl` hoặc `taskPhotoUrls`, ứng dụng vẫn đọc và hiển thị bình thường song song với ảnh mới dạng `photoBase64` / `taskPhotos`.
-- **Nâng lên gói Blaze sau này (nếu cần)**: Phiên bản đầy đủ dùng Firebase Storage + Cloud Functions vẫn được giữ nguyên vẹn trên nhánh `fix/audit-all-phases`. Có thể chuyển lại bất kỳ lúc nào bằng `git checkout fix/audit-all-phases`.
+- **Nâng lên gói Blaze sau này (nếu cần)**: Phiên bản đầy đủ dùng Firebase Storage + Cloud Functions vẫn được giữ nguyên vẹn trên nhánh `fix/audit-all-phases`. Có thể xem lại mã nguồn trong lịch sử tại commit `7445da1`.

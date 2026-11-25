@@ -1,10 +1,16 @@
 # Local Passport (Flutter) — Hộ chiếu trải nghiệm văn hóa Đà Nẵng
 
-Ứng dụng **Local Passport** viết bằng Flutter (Dart `^3.11.3`), chạy trên **Web, Android và iOS** từ cùng một mã nguồn, vận hành hoàn toàn trên gói **Firebase Spark (miễn phí)** với **Firebase Auth + Cloud Firestore** (không dùng Cloud Functions, không dùng Firebase Storage).
+Ứng dụng **Local Passport** viết bằng Flutter (Dart `^3.11.3`), chạy trên **Web, Android và iOS** từ cùng một mã nguồn, vận hành hoàn toàn trên gói **Firebase Spark (miễn phí)** với **Firebase Auth + Cloud Firestore**.
 
 Bản đồ Khám phá mặc định dùng **OpenStreetMap** qua `flutter_map`, không cần API key. Cấu hình Firebase đi kèm hiện có cho Web và Android; iOS dùng chế độ cục bộ cho đến khi bổ sung cấu hình Firebase cho nền tảng này.
 
 ---
+
+## Tính năng
+
+- Khám phá các tuyến văn hóa Đà Nẵng trên bản đồ. Tại mỗi điểm, người dùng quét mã QR, hoàn thành nhiệm vụ và nhận dấu vào hộ chiếu.
+- Chụp ảnh nhiệm vụ, viết cảm nhận, theo dõi bảng tin cộng đồng và xem thứ hạng theo XP.
+- So sánh hình ảnh di tích xưa và nay trong TimeLens.
 
 ## Kiến trúc hiện tại (Thuần Firebase Spark)
 
@@ -33,7 +39,7 @@ Bản đồ Khám phá mặc định dùng **OpenStreetMap** qua `flutter_map`, 
 - Giới hạn tối đa **3 ảnh/visit** và ước lượng dung lượng document **`<= 800 KB`** trước khi ghi Firestore để không bao giờ chạm trần 1 MiB.
 
 ### 4. Chấm điểm cảm nhận (`ai_verifier.dart`)
-- Mặc định dùng bộ chấm **heuristic offline** hoàn toàn ở client (không cần backend hay gói Blaze).
+- Mặc định dùng bộ chấm **heuristic offline** hoàn toàn ở client.
 - Tùy chọn gọi endpoint thẩm định ngoài nếu truyền `--dart-define=REFLECTION_VERIFIER_URL=https://...` (tự đính kèm `Authorization: Bearer <Firebase ID Token>` và tự động fallback về heuristic khi lỗi mạng/HTTP/timeout).
 - Khi tác giả sửa bài cảm nhận, điểm được tính lại trực tiếp bằng cùng hàm `verifyReflection`.
 
@@ -74,7 +80,7 @@ npm test
 cd ..
 
 # 2. Khởi động Emulator (chỉ Auth + Firestore + UI)
-npx firebase emulators:start --only auth,firestore --project demo-local-passport
+npx firebase-tools emulators:start --only auth,firestore --project demo-local-passport
 
 # 3. Kiểm tra format, phân tích tĩnh & unit/widget test Flutter
 dart format --output=none --set-exit-if-changed lib test
@@ -116,7 +122,7 @@ flutter build apk --dart-define=MAPS_API_KEY=<key>
 firebase deploy --only firestore:rules,firestore:indexes
 
 # 2. Build và triển khai bản Web lên Firebase Hosting
-flutter build web --release --dart-define=MAPS_API_KEY=<key>
+flutter build web --release
 firebase deploy --only hosting
 ```
 
@@ -211,3 +217,12 @@ npm run generate
 - **Android** (`AndroidManifest.xml`): `INTERNET`, `CAMERA`, `ACCESS_FINE_LOCATION`, `ACCESS_COARSE_LOCATION`.
 - **iOS** (`Info.plist`): `NSCameraUsageDescription`, `NSLocationWhenInUseUsageDescription`, `NSPhotoLibraryUsageDescription`.
 - **Web**: trình duyệt hỏi quyền camera/vị trí; yêu cầu HTTPS hoặc `localhost`.
+
+## Bảo mật và đánh đổi trên gói Spark
+
+Firestore Rules kiểm tra chủ sở hữu và giới hạn giá trị ghi. Điểm cảm nhận và XP do client gửi nên người dùng vẫn có thể sửa điểm của mình trong phạm vi Rules cho phép. Ảnh Base64 làm tăng kích thước document và lượng dữ liệu tải về. Khi xóa tài khoản, ứng dụng xóa dữ liệu theo lô trước khi xóa tài khoản Auth. Nếu mất kết nối giữa các lô, người dùng cần mở lại ứng dụng và thử lại. Bộ chấm điểm mặc định chạy cục bộ. Nếu dùng endpoint ngoài, dịch vụ đó cần tự xác thực và giới hạn tần suất yêu cầu.
+
+## Thành viên và giấy phép
+
+- Thành viên: `<điền tên thành viên>`
+- Giấy phép mã nguồn: `<điền giấy phép>`. Giấy phép từng ảnh được ghi trong mục Nguồn ảnh TimeLens.
