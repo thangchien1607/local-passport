@@ -3,6 +3,7 @@ import 'package:mobile_scanner/mobile_scanner.dart';
 
 import '../data/routes.dart';
 import '../services/geo.dart';
+import '../state/passport_store.dart';
 import '../theme.dart';
 
 enum ScanResult { real, demo }
@@ -381,12 +382,14 @@ class _QrScannerScreenState extends State<QrScannerScreen>
                       ),
                     const SizedBox(height: 12),
                   ],
-                  SecondaryButton(
-                    label: 'Giả lập quét QR (Demo)',
-                    icon: Icons.auto_awesome,
-                    color: AppColors.paper,
-                    onPressed: busy ? null : _simulate,
-                  ),
+                  // Chỉ hiện khi bật "Chế độ trình diễn" ở tab Hộ chiếu.
+                  if (PassportScope.of(context).demoQrEnabled)
+                    SecondaryButton(
+                      label: 'Giả lập quét QR (Demo)',
+                      icon: Icons.auto_awesome,
+                      color: AppColors.paper,
+                      onPressed: busy ? null : _simulate,
+                    ),
                 ],
               ),
             ),

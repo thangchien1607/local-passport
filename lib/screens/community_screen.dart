@@ -1,6 +1,5 @@
 import 'package:flutter/material.dart';
 
-import '../data/community.dart';
 import '../data/routes.dart';
 import '../services/text_search.dart';
 import '../state/passport_store.dart';
@@ -28,12 +27,7 @@ class _CommunityScreenState extends State<CommunityScreen> {
   @override
   Widget build(BuildContext context) {
     final store = PassportScope.of(context);
-    final all = [
-      ...store.reflections,
-      ...store.communityReflections,
-      ...seedReflections,
-    ]..sort((a, b) => b.createdAt.compareTo(a.createdAt));
-    final list = all
+    final list = store.feed
         .where(
           (r) =>
               (_filter == 'all' ||
