@@ -6,6 +6,12 @@ Bản đồ Khám phá mặc định dùng **OpenStreetMap** qua `flutter_map`, 
 
 ---
 
+## Tính năng
+
+- Khám phá các tuyến văn hóa Đà Nẵng trên bản đồ. Tại mỗi điểm, người dùng quét mã QR, hoàn thành nhiệm vụ và nhận dấu vào hộ chiếu.
+- Chụp ảnh nhiệm vụ, viết cảm nhận, theo dõi bảng tin cộng đồng và xem thứ hạng theo XP.
+- So sánh hình ảnh di tích xưa và nay trong TimeLens.
+
 ## Kiến trúc hiện tại (Thuần Firebase Spark)
 
 ### 1. Xác thực (`firebase_auth`)
@@ -74,7 +80,7 @@ npm test
 cd ..
 
 # 2. Khởi động Emulator (chỉ Auth + Firestore + UI)
-npx firebase emulators:start --only auth,firestore --project demo-local-passport
+npx firebase-tools emulators:start --only auth,firestore --project demo-local-passport
 
 # 3. Kiểm tra format, phân tích tĩnh & unit/widget test Flutter
 dart format --output=none --set-exit-if-changed lib test
@@ -116,7 +122,7 @@ flutter build apk --dart-define=MAPS_API_KEY=<key>
 firebase deploy --only firestore:rules,firestore:indexes
 
 # 2. Build và triển khai bản Web lên Firebase Hosting
-flutter build web --release --dart-define=MAPS_API_KEY=<key>
+flutter build web --release
 firebase deploy --only hosting
 ```
 
@@ -211,3 +217,12 @@ npm run generate
 - **Android** (`AndroidManifest.xml`): `INTERNET`, `CAMERA`, `ACCESS_FINE_LOCATION`, `ACCESS_COARSE_LOCATION`.
 - **iOS** (`Info.plist`): `NSCameraUsageDescription`, `NSLocationWhenInUseUsageDescription`, `NSPhotoLibraryUsageDescription`.
 - **Web**: trình duyệt hỏi quyền camera/vị trí; yêu cầu HTTPS hoặc `localhost`.
+
+## Bảo mật và đánh đổi trên gói Spark
+
+Firestore Rules kiểm tra chủ sở hữu và giới hạn giá trị ghi. Điểm cảm nhận và XP do client gửi nên người dùng vẫn có thể sửa điểm của mình trong phạm vi Rules cho phép. Ảnh Base64 làm tăng kích thước document và lượng dữ liệu tải về. Khi xóa tài khoản, ứng dụng xóa dữ liệu theo lô trước khi xóa tài khoản Auth. Nếu mất kết nối giữa các lô, người dùng cần mở lại ứng dụng và thử lại. Bộ chấm điểm mặc định chạy cục bộ. Nếu dùng endpoint ngoài, dịch vụ đó cần tự xác thực và giới hạn tần suất yêu cầu.
+
+## Thành viên và giấy phép
+
+- Thành viên: `<điền tên thành viên>`
+- Giấy phép mã nguồn: `<điền giấy phép>`. Giấy phép từng ảnh được ghi trong mục Nguồn ảnh TimeLens.
