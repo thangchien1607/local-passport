@@ -41,7 +41,8 @@ Future<List<T>> fetchInChunks<T>({
 }) async {
   final uniqueIds = ids.toSet().toList();
   final chunks = chunkIds(uniqueIds, chunkSize: chunkSize);
-  if (chunks.isEmpty) return const [];
+  // Trả về list sửa được: nơi gọi còn sort() kết quả.
+  if (chunks.isEmpty) return <T>[];
   final groups = await Future.wait([
     for (final chunk in chunks) queryChunk(chunk),
   ]);
