@@ -208,6 +208,10 @@ class PassportStore extends ChangeNotifier {
 
   bool get hasPasswordProvider => auth?.hasPasswordProvider ?? false;
 
+  bool get hasGoogleProvider => auth?.hasGoogleProvider ?? false;
+
+  bool get hasAppleProvider => auth?.hasAppleProvider ?? false;
+
   UserProfile _newProfile(String name) => UserProfile(
     name: name.trim().isEmpty ? 'Lữ khách' : name.trim(),
     passportNo: 'DN${100000 + Random().nextInt(899999)}',
@@ -313,14 +317,27 @@ class PassportStore extends ChangeNotifier {
     newPassword: newPassword,
   );
 
-  /// Xóa vĩnh viễn tài khoản và toàn bộ dữ liệu liên quan.
-  Future<void> deleteAccount() async {
-    _cancelLeaderboardSync();
-    stopWatchingCommunity();
+  /// Xóa vĩnh viễn tài khoản và toàn bộ dữ liệu liên quan theo thứ tự an toàn:
+  /// (1) Re-authenticate; (2) Xóa toàn bộ dữ liệu Firestore của `uid` theo lô <= 450;
+  /// (3) Xóa tài khoản Auth; (4) Dọn trạng thái cục bộ. Nếu bước (1) hoặc (2) lỗi,
+  /// giữ nguyên phiên để người dùng có thể thử lại.
+  Future<void> deleteAccount({String? password}) async {
+    // Tạm dừng đồng bộ bảng xếp hạng để tránh ghi lại document trong lúc đang xóa.
+    _leaderboardTimer?.cancel();
+    _leaderboardTimer = null;
     final a = auth;
     if (a != null) {
-      await a.deleteAccount();
+      await a.deleteAccount(
+        password: password,
+        beforeDeleteUser: (uid) async {
+          await remote?.deleteAllUserData(uid);
+        },
+      );
+    } else if (remote?.uid != null) {
+      await remote!.deleteAllUserData(remote!.uid!);
     }
+    _cancelLeaderboardSync();
+    stopWatchingCommunity();
     remote?.forget();
     _clearState();
     _ownerUid = null;

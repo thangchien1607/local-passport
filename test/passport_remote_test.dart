@@ -53,6 +53,11 @@ class _FakeRemote implements PassportRemote {
   }
 
   @override
+  Future<void> deleteAllUserData(String uid) async {
+    server = null;
+  }
+
+  @override
   void forget() {}
 }
 

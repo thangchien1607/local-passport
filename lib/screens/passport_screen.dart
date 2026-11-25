@@ -218,36 +218,109 @@ class PassportScreen extends StatelessWidget {
 
   Future<void> _confirmDeleteAccount(BuildContext context) async {
     final store = PassportScope.read(context);
-    final messenger = ScaffoldMessenger.of(context);
-    final ok = await showDialog<bool>(
+    final needPassword = store.hasPasswordProvider;
+    final providerLabel = store.hasGoogleProvider
+        ? 'Google'
+        : store.hasAppleProvider
+        ? 'Apple'
+        : null;
+    final passwordCtrl = TextEditingController();
+    final formKey = GlobalKey<FormState>();
+
+    await showDialog<bool>(
       context: context,
-      builder: (context) => AlertDialog(
-        title: Text('Xóa vĩnh viễn tài khoản?', style: displayStyle(22)),
-        content: Text(
-          'Hành động này sẽ xóa hoàn toàn tài khoản, hộ chiếu, toàn bộ bài cảm nhận và ảnh đã tải lên. Không thể khôi phục.',
-          style: bodyStyle(14),
-        ),
-        actions: [
-          TextButton(
-            onPressed: () => Navigator.pop(context, false),
-            child: const Text('Hủy'),
-          ),
-          FilledButton(
-            style: FilledButton.styleFrom(
-              backgroundColor: const Color(0xFFB91C1C),
+      barrierDismissible: false,
+      builder: (dialogContext) {
+        var busy = false;
+        String? error;
+        return StatefulBuilder(
+          builder: (ctx, setDialogState) => AlertDialog(
+            title: Text('Xóa vĩnh viễn tài khoản?', style: displayStyle(22)),
+            content: Form(
+              key: formKey,
+              child: SingleChildScrollView(
+                child: Column(
+                  mainAxisSize: MainAxisSize.min,
+                  crossAxisAlignment: CrossAxisAlignment.start,
+                  children: [
+                    Text(
+                      'Hành động này sẽ xóa hoàn toàn tài khoản, hộ chiếu, toàn bộ chuyến thăm, thông báo, bài cảm nhận và vị trí trên bảng xếp hạng. Không thể khôi phục.',
+                      style: bodyStyle(14),
+                    ),
+                    if (needPassword) ...[
+                      const SizedBox(height: 14),
+                      TextFormField(
+                        controller: passwordCtrl,
+                        obscureText: true,
+                        enabled: !busy,
+                        decoration: const InputDecoration(
+                          labelText: 'Mật khẩu hiện tại để xác nhận',
+                        ),
+                        validator: (v) => (v ?? '').isEmpty
+                            ? 'Nhập mật khẩu hiện tại để tiếp tục'
+                            : null,
+                      ),
+                    ] else if (providerLabel != null) ...[
+                      const SizedBox(height: 12),
+                      Text(
+                        'Bạn sẽ được yêu cầu xác thực lại bằng $providerLabel trước khi dữ liệu và tài khoản bị xóa.',
+                        style: bodyStyle(13, color: AppColors.inkSoft),
+                      ),
+                    ],
+                    if (error != null) ...[
+                      const SizedBox(height: 12),
+                      Text(
+                        error!,
+                        style: bodyStyle(13, color: const Color(0xFFB91C1C)),
+                      ),
+                    ],
+                  ],
+                ),
+              ),
             ),
-            onPressed: () => Navigator.pop(context, true),
-            child: const Text('Xóa vĩnh viễn'),
+            actions: [
+              TextButton(
+                onPressed: busy
+                    ? null
+                    : () => Navigator.pop(dialogContext, false),
+                child: const Text('Hủy'),
+              ),
+              FilledButton(
+                style: FilledButton.styleFrom(
+                  backgroundColor: const Color(0xFFB91C1C),
+                ),
+                onPressed: busy
+                    ? null
+                    : () async {
+                        if (needPassword && !formKey.currentState!.validate()) {
+                          return;
+                        }
+                        setDialogState(() {
+                          busy = true;
+                          error = null;
+                        });
+                        try {
+                          await store.deleteAccount(
+                            password: needPassword ? passwordCtrl.text : null,
+                          );
+                          if (dialogContext.mounted) {
+                            Navigator.pop(dialogContext, true);
+                          }
+                        } on AuthFailure catch (e) {
+                          setDialogState(() {
+                            busy = false;
+                            error = e.message;
+                          });
+                        }
+                      },
+                child: Text(busy ? 'Đang xóa…' : 'Xóa vĩnh viễn'),
+              ),
+            ],
           ),
-        ],
-      ),
+        );
+      },
     );
-    if (ok != true) return;
-    try {
-      await store.deleteAccount();
-    } on AuthFailure catch (e) {
-      messenger.showSnackBar(SnackBar(content: Text(e.message)));
-    }
+    passwordCtrl.dispose();
   }
 
   void _openSaveAccount(BuildContext context) {

@@ -26,6 +26,12 @@ abstract class AuthGateway {
   /// Có đăng nhập bằng Email/Mật khẩu hay không (để hiển thị đổi mật khẩu / xác minh email).
   bool get hasPasswordProvider;
 
+  /// Có liên kết đăng nhập bằng Google hay không.
+  bool get hasGoogleProvider;
+
+  /// Có liên kết đăng nhập bằng Apple hay không.
+  bool get hasAppleProvider;
+
   /// Tạo tài khoản email. Nếu đang là khách thì nâng tài khoản khách lên,
   /// giữ nguyên uid và hộ chiếu đang có.
   Future<void> register(String email, String password);
@@ -41,8 +47,14 @@ abstract class AuthGateway {
     required String newPassword,
   });
 
-  /// Xóa tài khoản người dùng.
-  Future<void> deleteAccount();
+  /// Xóa vĩnh viễn tài khoản theo đúng thứ tự:
+  /// (1) Xác thực lại (re-authenticate) tùy theo nhà cung cấp đăng nhập;
+  /// (2) Gọi [beforeDeleteUser] để xóa toàn bộ dữ liệu Firestore của `uid`;
+  /// (3) Chỉ gọi `user.delete()` khi bước (1) và (2) đều thành công.
+  Future<void> deleteAccount({
+    String? password,
+    Future<void> Function(String uid)? beforeDeleteUser,
+  });
   Future<void> signOut();
 }
 
@@ -78,6 +90,20 @@ class FirebaseAuthGateway implements AuthGateway {
     final user = _auth.currentUser;
     if (user == null || user.isAnonymous) return false;
     return user.providerData.any((p) => p.providerId == 'password');
+  }
+
+  @override
+  bool get hasGoogleProvider {
+    final user = _auth.currentUser;
+    if (user == null || user.isAnonymous) return false;
+    return user.providerData.any((p) => p.providerId == 'google.com');
+  }
+
+  @override
+  bool get hasAppleProvider {
+    final user = _auth.currentUser;
+    if (user == null || user.isAnonymous) return false;
+    return user.providerData.any((p) => p.providerId == 'apple.com');
   }
 
   @override
@@ -186,10 +212,72 @@ class FirebaseAuthGateway implements AuthGateway {
     return null;
   });
 
+  Future<void> _reauthenticateForDelete(User user, {String? password}) async {
+    if (user.isAnonymous) return;
+    if (hasPasswordProvider) {
+      final userEmail = user.email;
+      if (userEmail == null || userEmail.isEmpty) {
+        throw const AuthFailure('Không xác định được email của tài khoản.');
+      }
+      if (password == null || password.isEmpty) {
+        throw const AuthFailure(
+          'Nhập mật khẩu hiện tại để xác nhận xóa tài khoản.',
+        );
+      }
+      final cred = EmailAuthProvider.credential(
+        email: userEmail,
+        password: password,
+      );
+      await user.reauthenticateWithCredential(cred);
+      return;
+    }
+    if (hasGoogleProvider) {
+      final provider = GoogleAuthProvider()..addScope('email');
+      if (kIsWeb) {
+        await user.reauthenticateWithPopup(provider);
+      } else {
+        await user.reauthenticateWithProvider(provider);
+      }
+      return;
+    }
+    if (hasAppleProvider) {
+      final provider = AppleAuthProvider()
+        ..addScope('email')
+        ..addScope('name');
+      if (kIsWeb) {
+        await user.reauthenticateWithPopup(provider);
+      } else {
+        await user.reauthenticateWithProvider(provider);
+      }
+    }
+  }
+
   @override
-  Future<void> deleteAccount() => _guard(() async {
+  Future<void> deleteAccount({
+    String? password,
+    Future<void> Function(String uid)? beforeDeleteUser,
+  }) => _guard(() async {
     final user = _auth.currentUser;
     if (user == null) return null;
+
+    // (1) Xác thực lại trước khi đụng vào dữ liệu trên máy chủ.
+    await _reauthenticateForDelete(user, password: password);
+
+    // (2) Xóa toàn bộ dữ liệu Firestore của người dùng. Nếu lỗi giữa chừng,
+    // KHÔNG gọi user.delete() để người dùng còn phiên đăng nhập mà thử lại.
+    if (beforeDeleteUser != null) {
+      try {
+        await beforeDeleteUser(user.uid);
+      } on AuthFailure {
+        rethrow;
+      } catch (_) {
+        throw const AuthFailure(
+          'Không xóa được toàn bộ dữ liệu trên máy chủ. Tài khoản chưa bị xóa, vui lòng kiểm tra mạng rồi thử lại.',
+        );
+      }
+    }
+
+    // (3) Xóa tài khoản trên Firebase Auth.
     await user.delete();
     return null;
   });
@@ -229,7 +317,7 @@ String authErrorMessage(String code) => switch (code) {
   'cancelled-popup-request' ||
   'web-context-cancelled' => 'Bạn đã hủy bước đăng nhập.',
   'requires-recent-login' =>
-    'Vui lòng đăng xuất và đăng nhập lại trước khi thực hiện thao tác bảo mật này.',
+    'Phiên đăng nhập đã quá hạn. Vui lòng xác thực lại (hoặc đăng xuất rồi đăng nhập lại) trước khi thực hiện thao tác bảo mật này.',
   'weak-password' => 'Mật khẩu quá yếu, hãy chọn mật khẩu dài hơn.',
   'missing-password' => 'Nhập mật khẩu.',
   'network-request-failed' =>

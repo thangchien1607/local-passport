@@ -1,10 +1,11 @@
 rules_version = '2';
 
-// Quy tắc bảo mật Cloud Firestore cho Local Passport:
-// - Mỗi người chỉ đọc/ghi hộ chiếu của mình (`user_passports/{uid}`) theo schema nghiêm ngặt.
-// - Không chấp nhận lưu ảnh base64 mới (`photoBase64`, `taskPhotos`); chỉ lưu URL Storage.
-// - Trường `aiScore` chỉ do Cloud Function (Admin SDK) ghi; client bị chặn tạo/sửa `aiScore`.
-// - `reflection_owners/{id}` bất biến sau khi tạo (`allow update: if false`).
+// Quy tắc bảo mật Cloud Firestore cho Local Passport (thuần gói Spark):
+// - Mỗi người chỉ đọc/ghi/xóa hộ chiếu của mình (`user_passports/{uid}`) theo schema chặt chẽ.
+// - Ảnh lưu dạng Base64 nén nhỏ (`photoBase64` <= 120000 ký tự; `taskPhotos` list <= 3 phần tử)
+//   và giữ tương thích ngược với `photoUrl` / `taskPhotoUrls` cũ.
+// - `aiScore` là số nguyên 0..100; `reflection_owners/{id}` bất biến (`allow update: if false`).
+// - `leaderboard_public/{uid}`: công khai đọc, chỉ chủ tài khoản tự ghi/xóa đúng schema.
 service cloud.firestore {
   match /databases/{database}/documents {
     function signedIn() {

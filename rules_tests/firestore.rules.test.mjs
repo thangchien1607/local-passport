@@ -9,6 +9,7 @@ import {
 } from '@firebase/rules-unit-testing';
 import {
   Timestamp,
+  deleteDoc,
   doc,
   getDoc,
   setDoc,
@@ -393,4 +394,86 @@ test('2.4 Tác giả sửa được content và photoUrl nhưng vẫn bị chặ
       content: 'Người khác sửa trộm',
     }),
   );
+});
+
+// ---- S5: Chủ tài khoản xóa sạch toàn bộ dữ liệu của mình, người khác bị chặn ----
+
+test('S5 Chủ tài khoản xóa sạch toàn bộ dữ liệu Firestore của mình và người khác bị chặn', async () => {
+  const aliceDb = testEnv.authenticatedContext('alice').firestore();
+  const bobDb = testEnv.authenticatedContext('bob').firestore();
+
+  // Tạo đủ dữ liệu cho alice trên tất cả collection/subcollection.
+  await assertSucceeds(
+    setDoc(doc(aliceDb, 'user_passports', 'alice'), validPassportDoc()),
+  );
+  await assertSucceeds(
+    setDoc(
+      doc(aliceDb, 'user_passports', 'alice', 'visits', 'dien-hai'),
+      validVisitDoc(),
+    ),
+  );
+  await assertSucceeds(
+    setDoc(
+      doc(aliceDb, 'user_passports', 'alice', 'notifications', 'n-del'),
+      {
+        type: 'welcome',
+        title: 'Chào mừng',
+        body: 'Nội dung thử xóa tài khoản.',
+        locationId: null,
+        read: false,
+        createdAt: Timestamp.now(),
+      },
+    ),
+  );
+  await assertSucceeds(
+    setDoc(doc(aliceDb, 'leaderboard_public', 'alice'), {
+      displayName: 'Minh Anh',
+      xp: 250,
+      stampCount: 2,
+      avatarUrl: null,
+      updatedAt: Timestamp.now(),
+    }),
+  );
+  const createRefl = writeBatch(aliceDb);
+  createRefl.set(doc(aliceDb, 'reflection_owners', 'r-del'), { uid: 'alice' });
+  createRefl.set(doc(aliceDb, 'reflections', 'r-del'), validReflectionDoc());
+  await assertSucceeds(createRefl.commit());
+
+  // Bob KHÔNG thể xóa bất kỳ document nào của alice.
+  await assertFails(deleteDoc(doc(bobDb, 'user_passports', 'alice')));
+  await assertFails(
+    deleteDoc(doc(bobDb, 'user_passports', 'alice', 'visits', 'dien-hai')),
+  );
+  await assertFails(
+    deleteDoc(doc(bobDb, 'user_passports', 'alice', 'notifications', 'n-del')),
+  );
+  await assertFails(deleteDoc(doc(bobDb, 'reflections', 'r-del')));
+  await assertFails(deleteDoc(doc(bobDb, 'reflection_owners', 'r-del')));
+  await assertFails(deleteDoc(doc(bobDb, 'leaderboard_public', 'alice')));
+
+  // Alice xóa toàn bộ dữ liệu trong cùng WriteBatch (cặp reflection + reflection_owners đi cùng nhau).
+  const delBatch = writeBatch(aliceDb);
+  delBatch.delete(doc(aliceDb, 'user_passports', 'alice', 'visits', 'dien-hai'));
+  delBatch.delete(
+    doc(aliceDb, 'user_passports', 'alice', 'notifications', 'n-del'),
+  );
+  delBatch.delete(doc(aliceDb, 'reflections', 'r-del'));
+  delBatch.delete(doc(aliceDb, 'reflection_owners', 'r-del'));
+  delBatch.delete(doc(aliceDb, 'leaderboard_public', 'alice'));
+  delBatch.delete(doc(aliceDb, 'user_passports', 'alice'));
+  await assertSucceeds(delBatch.commit());
+
+  // Xác nhận không còn document nào tồn tại.
+  assert.equal((await getDoc(doc(aliceDb, 'user_passports', 'alice'))).exists(), false);
+  assert.equal((await getDoc(doc(aliceDb, 'reflections', 'r-del'))).exists(), false);
+  assert.equal(
+    (await getDoc(doc(aliceDb, 'leaderboard_public', 'alice'))).exists(),
+    false,
+  );
+
+  // Chạy xóa lại trên document không tồn tại (idempotent khi retry): vẫn hợp lệ.
+  const retryBatch = writeBatch(aliceDb);
+  retryBatch.delete(doc(aliceDb, 'leaderboard_public', 'alice'));
+  retryBatch.delete(doc(aliceDb, 'user_passports', 'alice'));
+  await assertSucceeds(retryBatch.commit());
 });

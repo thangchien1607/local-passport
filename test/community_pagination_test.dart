@@ -60,6 +60,8 @@ class _PagedCommunityRemote implements PassportRemote {
   @override
   Future<void> sync(Map<String, dynamic> data) async {}
   @override
+  Future<void> deleteAllUserData(String uid) async {}
+  @override
   void forget() {}
 }
 

@@ -339,6 +339,38 @@ Future<int> runIdempotentChunkedSync({
   return chunks.length;
 }
 
+/// Xóa toàn bộ dữ liệu Firestore của [uid] theo lô <= [maxBatchOperations].
+/// Luôn xóa cặp `reflections/{id}` + `reflection_owners/{id}` trong cùng nhóm
+/// nguyên tử để thỏa mãn rule `ownerOf(id) == request.auth.uid`, đồng thời
+/// idempotent khi người dùng thử lại sau lỗi mạng giữa chừng.
+Future<int> runChunkedUserDataDeletion({
+  required String uid,
+  required SyncStorageAdapter adapter,
+  int maxOpsPerBatch = maxBatchOperations,
+}) async {
+  final (visitIds, noteIds, ownedReflectionIds) = await (
+    adapter.listVisitIds(uid),
+    adapter.listNotificationIds(uid),
+    adapter.listOwnedReflectionIds(uid),
+  ).wait;
+
+  final groups = <List<SyncWriteOp>>[
+    for (final id in visitIds) [SyncDeleteOp('user_passports/$uid/visits/$id')],
+    for (final id in noteIds)
+      [SyncDeleteOp('user_passports/$uid/notifications/$id')],
+    for (final id in ownedReflectionIds)
+      [SyncDeleteOp('reflections/$id'), SyncDeleteOp('reflection_owners/$id')],
+    [SyncDeleteOp('leaderboard_public/$uid')],
+    [SyncDeleteOp('user_passports/$uid')],
+  ];
+
+  final chunks = chunkAtomicOps(groups, maxOps: maxOpsPerBatch);
+  for (final chunk in chunks) {
+    await adapter.commitBatch(chunk);
+  }
+  return chunks.length;
+}
+
 Timestamp? _toTimestamp(Object? iso) =>
     iso == null ? null : Timestamp.fromDate(DateTime.parse(iso as String));
 
@@ -396,16 +428,20 @@ abstract class PassportRemote {
   /// Ghi trạng thái hiện tại lên server (chia lô <= 450 thao tác, idempotent).
   Future<void> sync(Map<String, dynamic> data);
 
+  /// Xóa toàn bộ dữ liệu Firestore của [uid] theo lô <= 450 thao tác (dùng khi xóa tài khoản).
+  Future<void> deleteAllUserData(String uid);
+
   /// Đặt lại trạng thái khi đăng xuất hoặc đổi tài khoản.
   void forget();
 }
 
-/// Cấu trúc Cloud Firestore:
+/// Cấu trúc Cloud Firestore (thuần gói Spark):
 /// - `user_passports/{uid}`: hồ sơ, XP, số dấu mộc
-/// - `user_passports/{uid}/visits/{locationId}`: mở khóa, nhiệm vụ, URL ảnh, thời điểm nhận dấu
+/// - `user_passports/{uid}/visits/{locationId}`: mở khóa, nhiệm vụ, ảnh nén Base64 (`taskPhotos` <= 3), thời điểm nhận dấu
 /// - `user_passports/{uid}/notifications/{id}`: thông báo trong app
-/// - `reflections/{reflectionId}`: bài cảm nhận công khai (không chứa uid; `aiScore` chỉ do Cloud Function ghi)
-/// - `reflection_owners/{reflectionId}`: uid chủ bài, chỉ chủ bài đọc được (`allow update: if false`)
+/// - `reflections/{reflectionId}`: bài cảm nhận công khai (không chứa uid; ảnh `photoBase64` <= 120 KB; `aiScore` 0–100)
+/// - `reflection_owners/{reflectionId}`: uid chủ bài, chỉ chủ bài đọc/xóa (`allow update: if false`)
+/// - `leaderboard_public/{uid}`: tóm tắt công khai do chủ tài khoản tự cập nhật có debounce
 class FirestorePassportRemote implements PassportRemote {
   FirestorePassportRemote({FirebaseFirestore? db, FirebaseAuth? auth})
     : _db = db ?? FirebaseFirestore.instance,
@@ -621,6 +657,16 @@ class FirestorePassportRemote implements PassportRemote {
       adapter: _FirestoreSyncAdapter(_db),
     );
     _state.value = SyncState.synced;
+  }
+
+  @override
+  Future<void> deleteAllUserData(String uid) async {
+    // Chờ các lệnh sync đang chạy dở kết thúc để tránh ghi đè lại sau khi xóa.
+    await _queue.catchError((_) {});
+    await runChunkedUserDataDeletion(
+      uid: uid,
+      adapter: _FirestoreSyncAdapter(_db),
+    );
   }
 
   /// Dữ liệu bài cảm nhận ghi từ client (lưu `photoBase64` đã nén <= 120 KB

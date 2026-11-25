@@ -1,13 +1,15 @@
 import 'package:flutter_test/flutter_test.dart';
 import 'package:local_passport/services/passport_remote.dart';
 
-/// Mô phỏng Firestore với đúng ràng buộc:
+/// Mô phỏng Firestore với đúng ràng buộc Spark:
 /// - Mỗi batch tối đa 500 thao tác (vượt quá ném lỗi).
 /// - `reflection_owners/{id}` có `allow update: if false` (ghi đè document đã tồn tại ném permission-denied).
-/// - `reflections/{id}` không cho phép client ghi `aiScore` hay `photoBase64`.
+/// - `reflections/{id}` ràng buộc `aiScore` 0..100, `photoBase64` <= 120000 ký tự, và khi xóa phải có `reflection_owners/{id}` tồn tại trước batch.
 class _RuleEnforcingMemoryAdapter implements SyncStorageAdapter {
   final docs = <String, Map<String, dynamic>>{};
   final committedBatchSizes = <int>[];
+  int? failAtCommitNumber;
+  int _commitAttempts = 0;
 
   @override
   Future<Set<String>> listVisitIds(String uid) async {
@@ -47,8 +49,23 @@ class _RuleEnforcingMemoryAdapter implements SyncStorageAdapter {
 
   @override
   Future<void> commitBatch(List<SyncWriteOp> ops) async {
+    _commitAttempts++;
+    if (failAtCommitNumber != null && _commitAttempts == failAtCommitNumber) {
+      throw StateError('network-error: mô phỏng lỗi giữa chừng');
+    }
     if (ops.length > 500) {
       throw StateError('Firestore batch vượt 500 thao tác: ${ops.length}');
+    }
+    // Kiểm tra rule xóa reflections/{id} dựa trên trạng thái TRƯỚC batch (giống Firestore Rules).
+    for (final op in ops) {
+      if (op is SyncDeleteOp && op.path.startsWith('reflections/')) {
+        final id = op.path.substring('reflections/'.length);
+        if (!docs.containsKey('reflection_owners/$id')) {
+          throw StateError(
+            'permission-denied: thiếu reflection_owners/$id khi xóa ${op.path}',
+          );
+        }
+      }
     }
     committedBatchSizes.add(ops.length);
     for (final op in ops) {
@@ -195,6 +212,67 @@ void main() {
       );
       expect(adapter.docs.containsKey('reflections/r-0'), isFalse);
       expect(adapter.docs.containsKey('reflection_owners/r-0'), isFalse);
+    },
+  );
+
+  test(
+    'runChunkedUserDataDeletion xóa > 500 document theo lô <= 450 và idempotent khi thử lại sau lỗi giữa chừng',
+    () async {
+      final adapter = _RuleEnforcingMemoryAdapter();
+      final payload = _largePassportPayload(
+        visitCount: 400,
+        reflectionCount: 100,
+        noteCount: 60,
+      );
+      await runIdempotentChunkedSync(
+        uid: 'u-del',
+        data: payload,
+        adapter: adapter,
+      );
+      adapter.docs['leaderboard_public/u-del'] = {
+        'displayName': 'Người dùng kiểm thử',
+        'xp': 1250,
+      };
+      // Dữ liệu của người dùng khác tuyệt đối không được bị xóa nhầm.
+      adapter.docs['user_passports/other'] = {'name': 'Người khác'};
+      adapter.docs['leaderboard_public/other'] = {'displayName': 'Người khác'};
+      adapter.docs['reflection_owners/r-other'] = {'uid': 'other'};
+      adapter.docs['reflections/r-other'] = {'content': 'Bài của người khác'};
+
+      // Giả lập lỗi mạng ở lô xóa thứ 2 (đã ghi 2 lô sync trước đó -> lỗi ở commit thứ 4).
+      adapter.committedBatchSizes.clear();
+      adapter.failAtCommitNumber = 4;
+      await expectLater(
+        runChunkedUserDataDeletion(uid: 'u-del', adapter: adapter),
+        throwsA(isA<StateError>()),
+      );
+      // Lô đầu đã xóa một phần, vẫn còn dữ liệu chưa xóa hết.
+      expect(adapter.docs.containsKey('user_passports/u-del'), isTrue);
+
+      // Thử lại sau khi mạng ổn định: phải xóa sạch toàn bộ dữ liệu còn lại của u-del.
+      adapter.failAtCommitNumber = null;
+      final retryBatches = await runChunkedUserDataDeletion(
+        uid: 'u-del',
+        adapter: adapter,
+      );
+      expect(retryBatches, greaterThanOrEqualTo(1));
+      for (final size in adapter.committedBatchSizes) {
+        expect(size, lessThanOrEqualTo(maxBatchOperations));
+      }
+
+      // Không còn bất kỳ document nào của u-del; dữ liệu của `other` vẫn nguyên vẹn.
+      expect(
+        adapter.docs.keys.where(
+          (k) => k.contains('u-del') || k.startsWith('reflections/r-'),
+        ),
+        ['reflections/r-other'],
+      );
+      expect(adapter.docs.keys.toSet(), {
+        'user_passports/other',
+        'leaderboard_public/other',
+        'reflection_owners/r-other',
+        'reflections/r-other',
+      });
     },
   );
 }
