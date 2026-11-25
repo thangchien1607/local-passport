@@ -49,6 +49,7 @@ function validReflectionDoc(overrides = {}) {
     displayAuthor: 'Minh Anh',
     isAnonymous: false,
     content: 'Đứng trên tường thành Điện Hải nhìn ra sông Hàn rất xúc động.',
+    aiScore: 82,
     createdAt: Timestamp.fromDate(new Date('2026-11-01T03:00:00Z')),
     photoBase64: 'YWJjZA==',
     ...overrides,
@@ -155,48 +156,58 @@ test('S2 Ràng buộc taskPhotos là list <= 3 chuỗi, mỗi chuỗi <= 120000 
   );
 });
 
-// ---- 1.2: Chặn client tạo/sửa aiScore và khóa _rate_limits ----
+// ---- S3: Ràng buộc aiScore là số nguyên 0..100 trên reflections ----
 
-test('1.2 Chặn client tự tạo trường aiScore trên reflections', async () => {
+test('S3 Chấp nhận aiScore 0..100 và từ chối aiScore âm, > 100 hoặc sai kiểu', async () => {
   const db = testEnv.authenticatedContext('alice').firestore();
-  const batch = writeBatch(db);
-  batch.set(doc(db, 'reflection_owners', 'r-score'), { uid: 'alice' });
-  batch.set(
-    doc(db, 'reflections', 'r-score'),
-    validReflectionDoc({ aiScore: 99 }),
+
+  const okBatch = writeBatch(db);
+  okBatch.set(doc(db, 'reflection_owners', 'r-score-ok'), { uid: 'alice' });
+  okBatch.set(
+    doc(db, 'reflections', 'r-score-ok'),
+    validReflectionDoc({ aiScore: 100 }),
   );
-  await assertFails(batch.commit());
+  await assertSucceeds(okBatch.commit());
+
+  for (const [id, badScore] of [
+    ['r-score-neg', -1],
+    ['r-score-over', 101],
+    ['r-score-str', '80'],
+    ['r-score-float', 85.5],
+  ]) {
+    const batch = writeBatch(db);
+    batch.set(doc(db, 'reflection_owners', id), { uid: 'alice' });
+    batch.set(
+      doc(db, 'reflections', id),
+      validReflectionDoc({ aiScore: badScore }),
+    );
+    await assertFails(batch.commit());
+  }
 });
 
-test('1.2 Chặn chủ bài viết tự sửa aiScore sau khi Cloud Function đã chấm', async () => {
-  await testEnv.withSecurityRulesDisabled(async (ctx) => {
-    const adminDb = ctx.firestore();
-    await setDoc(doc(adminDb, 'reflection_owners', 'r-scored'), { uid: 'alice' });
-    await setDoc(
-      doc(adminDb, 'reflections', 'r-scored'),
-      validReflectionDoc({ aiScore: 72 }),
-    );
-  });
-
+test('S3 Tác giả chấm lại aiScore 0..100 khi sửa bài, nhưng bị chặn điểm ngoài 0..100', async () => {
   const aliceDb = testEnv.authenticatedContext('alice').firestore();
-  await assertFails(
-    updateDoc(doc(aliceDb, 'reflections', 'r-scored'), { aiScore: 100 }),
+  const batch = writeBatch(aliceDb);
+  batch.set(doc(aliceDb, 'reflection_owners', 'r-rescore'), { uid: 'alice' });
+  batch.set(
+    doc(aliceDb, 'reflections', 'r-rescore'),
+    validReflectionDoc({ aiScore: 72 }),
   );
-  // Nhưng đổi ẩn danh không đụng aiScore vẫn được phép.
+  await assertSucceeds(batch.commit());
+
   await assertSucceeds(
-    updateDoc(doc(aliceDb, 'reflections', 'r-scored'), {
-      isAnonymous: true,
-      displayAuthor: 'Một Lữ khách Ẩn danh',
+    updateDoc(doc(aliceDb, 'reflections', 'r-rescore'), {
+      content: 'Nội dung mới sau khi sửa và tự chấm lại ở client.',
+      aiScore: 91,
     }),
   );
-});
 
-test('1.2 Chặn client đọc/ghi _rate_limits', async () => {
-  const aliceDb = testEnv.authenticatedContext('alice').firestore();
   await assertFails(
-    setDoc(doc(aliceDb, '_rate_limits', 'ai_verify_alice'), { timestamps: [] }),
+    updateDoc(doc(aliceDb, 'reflections', 'r-rescore'), { aiScore: 150 }),
   );
-  await assertFails(getDoc(doc(aliceDb, '_rate_limits', 'ai_verify_alice')));
+  await assertFails(
+    updateDoc(doc(aliceDb, 'reflections', 'r-rescore'), { aiScore: -5 }),
+  );
 });
 
 // ---- 1.3: reflection_owners bất biến (allow update: if false) ----
@@ -352,8 +363,8 @@ test('2.4 Tác giả sửa được content và photoUrl nhưng vẫn bị chặ
 
   await assertFails(
     updateDoc(ref, {
-      content: 'Thử gian lận điểm AI',
-      aiScore: 100,
+      content: 'Thử gian lận điểm AI vượt ngưỡng',
+      aiScore: 101,
     }),
   );
 

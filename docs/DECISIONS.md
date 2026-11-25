@@ -67,3 +67,16 @@ Tài liệu này ghi lại các lựa chọn kiến trúc khi thực hiện sử
 
 ## 3.3 Rà soát `Permissions-Policy` trong `firebase.timelens.json`
 - Đổi `camera=(), geolocation=(), microphone=()` thành `camera=(self), geolocation=(self), microphone=()` để nhất quán với `firebase.json` và không chặn quyền camera/GPS trên chính origin khi chia sẻ hoặc nhúng tính năng check-in.
+
+---
+
+# Quyết định kiến trúc — Chuyển sang thuần Firebase Spark (`refactor/spark-only`)
+
+## S1–S2. Gỡ Functions & Storage, nén ảnh Base64 lưu Firestore
+- Gỡ hoàn toàn `functions/`, `storage.rules` và `firebase_storage` để dự án vận hành 100% trên gói **Firebase Spark miễn phí** (chỉ dùng Firebase Auth + Cloud Firestore).
+- `photo_service.dart` nén ảnh theo vòng lặp giảm kích thước/chất lượng từ `720px`, JPEG `70` xuống mục tiêu **<= 80 KB**; nếu nén tối đa vẫn `> 120 KB` hoặc Base64 `> 120000` ký tự thì từ chối với `PhotoTooLargeException`.
+- Mỗi `visit` lưu tối đa 3 ảnh trong danh sách `taskPhotos` (`List<String>` dạng `"<taskId>:<base64>"`, mỗi phần tử `<= 120000` ký tự) và kiểm tra ước lượng document `<= 800 KB` trước khi ghi. Vẫn đọc tương thích ngược `photoUrl` và `taskPhotoUrls` cũ.
+
+## S3. Chấm điểm AI heuristic offline + tùy chọn endpoint ngoài
+- Mặc định dùng `scoreReflectionHeuristic` hoàn toàn ở client. Nếu cấu hình `--dart-define=REFLECTION_VERIFIER_URL=https://...`, client gửi request kèm `Authorization: Bearer <Firebase ID Token>` và tự fallback về heuristic khi lỗi mạng/HTTP/timeout.
+- **Đánh đổi của kiến trúc Spark**: Trường `aiScore` được client gửi trực tiếp lên Firestore (rules chỉ kiểm tra `aiScore is int && 0..100`) nên **KHÔNG chống gian lận hoàn toàn** nếu người dùng gọi API Firestore trực tiếp. Không còn rate limit phía máy chủ. Chấp nhận được cho đồ án/MVP trên gói Spark.

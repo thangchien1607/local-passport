@@ -60,8 +60,9 @@ class _RuleEnforcingMemoryAdapter implements SyncStorageAdapter {
             );
           }
           if (path.startsWith('reflections/')) {
-            if (data.containsKey('aiScore')) {
-              throw StateError('permission-denied: client cấm ghi aiScore');
+            final score = data['aiScore'];
+            if (score != null && (score is! int || score < 0 || score > 100)) {
+              throw StateError('permission-denied: aiScore ngoài 0..100');
             }
             final b64 = data['photoBase64'];
             if (b64 is String && b64.length > 120000) {
@@ -170,11 +171,8 @@ void main() {
       }
       expect(adapter.docs.length, 1 + 400 + 60 + 200);
 
-      // Giả lập Cloud Function đã ghi aiScore vào một bài viết.
-      adapter.docs['reflections/r-0']!['aiScore'] = 95;
-
       // Chạy sync lại lần 2 & lần 3 không cần cache `_written`: phải thành công,
-      // không ghi đè `reflection_owners` (permission-denied) và giữ nguyên `aiScore`.
+      // không ghi đè `reflection_owners` (permission-denied).
       await runIdempotentChunkedSync(
         uid: 'u-big',
         data: payload,
@@ -185,7 +183,7 @@ void main() {
         data: payload,
         adapter: adapter,
       );
-      expect(adapter.docs['reflections/r-0']!['aiScore'], 95);
+      expect(adapter.docs['reflections/r-0']!['aiScore'], 80);
 
       // Xóa một bài cảm nhận ở client rồi sync lại -> xóa cả reflection và owner.
       final reduced = Map<String, dynamic>.from(payload);

@@ -272,6 +272,7 @@ Future<int> runIdempotentChunkedSync({
           'displayAuthor': r.displayAuthor,
           'isAnonymous': r.isAnonymous,
           'content': r.content,
+          'aiScore': r.aiScore.clamp(0, 100),
           'photoBase64': r.photoBase64,
           'photoUrl': ?r.photoUrl,
         };
@@ -582,12 +583,14 @@ class FirestorePassportRemote implements PassportRemote {
     _state.value = SyncState.synced;
   }
 
-  /// Dữ liệu bài cảm nhận ghi từ client (lưu `photoBase64` đã nén <= 120 KB).
+  /// Dữ liệu bài cảm nhận ghi từ client (lưu `photoBase64` đã nén <= 120 KB
+  /// và `aiScore` 0–100 do heuristic offline hoặc endpoint ngoài tính).
   static Map<String, dynamic> reflectionToCreateDoc(Reflection r) => {
     'locationId': r.locationId,
     'displayAuthor': r.displayAuthor,
     'isAnonymous': r.isAnonymous,
     'content': r.content,
+    'aiScore': r.aiScore.clamp(0, 100),
     'createdAt': Timestamp.fromDate(r.createdAt),
     'photoBase64': r.photoBase64,
     'photoUrl': ?r.photoUrl,

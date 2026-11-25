@@ -3,32 +3,17 @@ import 'dart:math';
 
 import 'package:firebase_auth/firebase_auth.dart';
 import 'package:firebase_core/firebase_core.dart';
+import 'package:flutter/foundation.dart';
 import 'package:http/http.dart' as http;
 
 import '../data/routes.dart';
 
-/// Base URL của Cloud Functions (vd `https://asia-southeast1-local-passport-danang.cloudfunctions.net`
-/// hoặc `http://127.0.0.1:5001/local-passport-danang/asia-southeast1` khi chạy emulator).
-const cloudFunctionsBaseUrl = String.fromEnvironment(
-  'CLOUD_FUNCTIONS_BASE_URL',
-);
+/// Endpoint thẩm định ngoài (tùy chọn), truyền lúc build qua
+/// `--dart-define=REFLECTION_VERIFIER_URL=https://...`.
+/// Mặc định để trống → chạy hoàn toàn bằng bộ chấm heuristic offline trên Spark.
+const reflectionVerifierUrl = String.fromEnvironment('REFLECTION_VERIFIER_URL');
 
-/// Đường dẫn đầy đủ tới Cloud Function `verifyReflection` (tùy chọn ghi đè).
-const _verifyFunctionOverride = String.fromEnvironment(
-  'AI_VERIFY_FUNCTION_URL',
-);
-
-/// Endpoint Cloud Function đang cấu hình (rỗng = dùng bộ chấm offline cho demo/test).
-String get verifyReflectionFunctionUrl {
-  if (_verifyFunctionOverride.isNotEmpty) return _verifyFunctionOverride;
-  if (cloudFunctionsBaseUrl.isNotEmpty) {
-    final trimmed = cloudFunctionsBaseUrl.replaceAll(RegExp(r'/+$'), '');
-    return '$trimmed/verifyReflection';
-  }
-  return '';
-}
-
-bool get hasRemoteReflectionVerifier => verifyReflectionFunctionUrl.isNotEmpty;
+bool get hasRemoteReflectionVerifier => reflectionVerifierUrl.isNotEmpty;
 
 typedef IdTokenProvider = Future<String?> Function();
 
@@ -39,7 +24,6 @@ Future<String?> _defaultIdTokenProvider() async {
 
 bool _isAllowedEndpoint(Uri uri) {
   if (uri.scheme == 'https') return true;
-  // Chỉ cho phép HTTP trên localhost/127.0.0.1 khi chạy Firebase Emulator.
   if (uri.scheme == 'http' &&
       (uri.host == 'localhost' ||
           uri.host == '127.0.0.1' ||
@@ -69,88 +53,14 @@ class VerifyResult {
 
 final _splitter = RegExp(r'[^\p{L}\d]+', unicode: true);
 
-/// Gọi Cloud Function `verifyReflection` kèm `Authorization: Bearer <ID Token>`
-/// để server chấm điểm và tự ghi `aiScore` vào Firestore bằng Admin SDK.
-/// Khi chưa cấu hình Cloud Function URL (demo cục bộ/test), dùng bộ chấm offline.
-Future<VerifyResult> verifyReflection({
+/// Bộ chấm điểm heuristic offline dựa trên độ dài, từ khóa liên hệ câu chuyện
+/// của di tích và việc có ảnh đính kèm. Dùng mặc định cho kiến trúc Spark và
+/// làm fallback khi endpoint ngoài lỗi hoặc hết thời gian chờ.
+VerifyResult scoreReflectionHeuristic({
   required String content,
   required bool hasPhoto,
   required Location location,
-  String? reflectionId,
-  String? displayAuthor,
-  bool isAnonymous = false,
-  String? photoUrl,
-  String? endpointOverride,
-  IdTokenProvider? idTokenProvider,
-  http.Client? httpClient,
-}) async {
-  final rawEndpoint = endpointOverride ?? verifyReflectionFunctionUrl;
-  if (rawEndpoint.isNotEmpty) {
-    final endpoint = Uri.parse(rawEndpoint);
-    if (!_isAllowedEndpoint(endpoint)) {
-      throw Exception('Endpoint Cloud Function phải dùng HTTPS.');
-    }
-
-    final token = await (idTokenProvider ?? _defaultIdTokenProvider)();
-    if (token == null || token.isEmpty) {
-      throw Exception('Vui lòng đăng nhập để sử dụng tính năng chấm điểm AI.');
-    }
-
-    final client = httpClient ?? http.Client();
-    try {
-      final response = await client
-          .post(
-            endpoint,
-            headers: {
-              'Content-Type': 'application/json',
-              'Authorization': 'Bearer $token',
-            },
-            body: jsonEncode({
-              'content': content.trim(),
-              'hasPhoto': hasPhoto || photoUrl != null,
-              'locationId': location.id,
-              'locationName': location.name,
-              'stories': location.stories
-                  .map((s) => {'title': s.title, 'body': s.body})
-                  .toList(),
-              'reflectionId': ?reflectionId,
-              'displayAuthor': ?displayAuthor,
-              'isAnonymous': isAnonymous,
-              'photoUrl': photoUrl,
-            }),
-          )
-          .timeout(const Duration(seconds: 20));
-
-      if (response.statusCode == 401) {
-        throw Exception('Phiên đăng nhập hết hạn. Hãy đăng nhập lại.');
-      }
-      if (response.statusCode == 429) {
-        throw Exception('Bạn gửi quá nhanh. Vui lòng thử lại sau ít phút.');
-      }
-      if (response.statusCode == 403) {
-        throw Exception('Bạn không có quyền chấm điểm bài cảm nhận này.');
-      }
-      if (response.statusCode != 200) {
-        throw Exception('Dịch vụ thẩm định đang bận (${response.statusCode}).');
-      }
-
-      final data =
-          jsonDecode(utf8.decode(response.bodyBytes)) as Map<String, dynamic>;
-      return VerifyResult(
-        score: (data['score'] as num).round().clamp(0, 100).toInt(),
-        approved: data['approved'] as bool,
-        soulmate: data['soulmate'] as bool? ?? false,
-        bonusXp: (data['bonusXp'] as num?)?.round().clamp(0, 500).toInt() ?? 0,
-        comment: data['comment'] as String,
-        isAi: data['isAi'] as bool? ?? true,
-      );
-    } finally {
-      if (httpClient == null) client.close();
-    }
-  }
-
-  // Bộ chấm offline chỉ dùng khi chưa kết nối Cloud Function (chế độ demo/test).
-  await Future<void>.delayed(const Duration(seconds: 2));
+}) {
   final text = content.trim().toLowerCase();
   final words = text.split(RegExp(r'\s+')).where((w) => w.isNotEmpty).length;
 
@@ -175,5 +85,98 @@ Future<VerifyResult> verifyReflection({
         : s >= 30
         ? 'Cảm ơn bạn đã chia sẻ! Thêm chi tiết về điều bạn học được để nhận huy hiệu Tri kỷ.'
         : 'Cảm nhận hơi ngắn, hãy kể thêm một chút nhé.',
+  );
+}
+
+/// Thẩm định cảm nhận:
+/// - Mặc định chạy bộ chấm heuristic offline (không cần backend/Blaze).
+/// - Nếu truyền `REFLECTION_VERIFIER_URL` (hoặc [endpointOverride]): gửi yêu cầu
+///   kèm `Authorization: Bearer <Firebase ID Token>`. Nếu lỗi mạng, HTTP lỗi,
+///   thiếu token hoặc timeout thì tự động fallback về heuristic offline.
+Future<VerifyResult> verifyReflection({
+  required String content,
+  required bool hasPhoto,
+  required Location location,
+  String? reflectionId,
+  String? displayAuthor,
+  bool isAnonymous = false,
+  String? photoUrl,
+  String? endpointOverride,
+  IdTokenProvider? idTokenProvider,
+  http.Client? httpClient,
+  Duration timeout = const Duration(seconds: 12),
+  Duration offlineDelay = const Duration(milliseconds: 600),
+}) async {
+  final rawEndpoint = endpointOverride ?? reflectionVerifierUrl;
+  if (rawEndpoint.isNotEmpty) {
+    try {
+      final endpoint = Uri.parse(rawEndpoint);
+      if (!_isAllowedEndpoint(endpoint)) {
+        throw const FormatException('Endpoint thẩm định phải dùng HTTPS.');
+      }
+
+      final token = await (idTokenProvider ?? _defaultIdTokenProvider)();
+      final headers = <String, String>{
+        'Content-Type': 'application/json',
+        if (token != null && token.isNotEmpty) 'Authorization': 'Bearer $token',
+      };
+
+      final client = httpClient ?? http.Client();
+      try {
+        final response = await client
+            .post(
+              endpoint,
+              headers: headers,
+              body: jsonEncode({
+                'content': content.trim(),
+                'hasPhoto': hasPhoto || photoUrl != null,
+                'locationId': location.id,
+                'locationName': location.name,
+                'stories': location.stories
+                    .map((s) => {'title': s.title, 'body': s.body})
+                    .toList(),
+                'reflectionId': ?reflectionId,
+                'displayAuthor': ?displayAuthor,
+                'isAnonymous': isAnonymous,
+              }),
+            )
+            .timeout(timeout);
+
+        if (response.statusCode != 200) {
+          throw Exception('HTTP ${response.statusCode}');
+        }
+
+        final data =
+            jsonDecode(utf8.decode(response.bodyBytes)) as Map<String, dynamic>;
+        return VerifyResult(
+          score: (data['score'] as num).round().clamp(0, 100).toInt(),
+          approved: data['approved'] as bool,
+          soulmate: data['soulmate'] as bool? ?? false,
+          bonusXp:
+              (data['bonusXp'] as num?)?.round().clamp(0, 500).toInt() ?? 0,
+          comment: data['comment'] as String,
+          isAi: data['isAi'] as bool? ?? true,
+        );
+      } finally {
+        if (httpClient == null) client.close();
+      }
+    } catch (e) {
+      // Endpoint ngoài gặp lỗi/timeout → tự động fallback về bộ chấm heuristic offline.
+      debugPrint('Endpoint thẩm định ngoài lỗi ($e), chuyển sang heuristic.');
+      return scoreReflectionHeuristic(
+        content: content,
+        hasPhoto: hasPhoto || photoUrl != null,
+        location: location,
+      );
+    }
+  }
+
+  if (offlineDelay > Duration.zero) {
+    await Future<void>.delayed(offlineDelay);
+  }
+  return scoreReflectionHeuristic(
+    content: content,
+    hasPhoto: hasPhoto || photoUrl != null,
+    location: location,
   );
 }
