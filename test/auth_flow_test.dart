@@ -355,6 +355,38 @@ void main() {
     },
   );
 
+  test('Đổi tên cập nhật hồ sơ, bài không ẩn danh và máy chủ', () async {
+    final (store, auth, remote) = await _setup();
+    await store.register(
+      name: 'Gia Huy',
+      email: 'huy@gmail.com',
+      password: 'danang2026',
+    );
+    store.addReflection(
+      locationId: 'dien-hai',
+      content: 'Đứng trên tường thành nhìn ra cửa sông Hàn.',
+      isAnonymous: false,
+      aiScore: 90,
+      bonusXp: 0,
+    );
+    store.addReflection(
+      locationId: 'dien-hai',
+      content: 'Bài ẩn danh không được lộ tên thật của tác giả.',
+      isAnonymous: true,
+      aiScore: 80,
+      bonusXp: 0,
+    );
+
+    expect(store.rename('   '), isNotNull);
+    expect(store.rename('Huy Đà Nẵng'), isNull);
+    expect(store.user?.name, 'Huy Đà Nẵng');
+    expect(
+      store.reflections.map((r) => r.displayAuthor),
+      containsAll(['Huy Đà Nẵng', anonymousAuthor]),
+    );
+    expect(remote.servers[auth.uid]!['user']['name'], 'Huy Đà Nẵng');
+  });
+
   test('Email đã dùng thì báo lỗi dễ hiểu', () async {
     final (store, _, _) = await _setup();
     await store.register(name: 'A', email: 'a@gmail.com', password: 'abc12345');

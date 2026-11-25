@@ -12,6 +12,7 @@ import '../data/routes.dart';
 import '../services/auth_service.dart';
 import '../services/passport_remote.dart';
 import '../services/photo_service.dart';
+import '../services/validators.dart';
 
 // Trạng thái này tương ứng document `user_passports/{uid}` và collection `reflections`.
 // Luôn lưu một bản cục bộ bằng shared_preferences (localStorage trên web) để mở app
@@ -327,6 +328,28 @@ class PassportStore extends ChangeNotifier {
   }
 
   Future<void> sendEmailVerification() => auth!.sendEmailVerification();
+
+  /// Đổi tên hiển thị trên hộ chiếu, bảng xếp hạng và các bài cảm nhận
+  /// không ẩn danh. Trả về câu báo lỗi nếu tên không hợp lệ.
+  String? rename(String name) {
+    final error = validateName(name);
+    if (error != null) return error;
+    final u = user;
+    if (u == null) return 'Chưa có hộ chiếu để đổi tên.';
+    final newName = name.trim();
+    if (newName == u.name) return null;
+    user = UserProfile(
+      name: newName,
+      passportNo: u.passportNo,
+      joinedAt: u.joinedAt,
+    );
+    reflections = [
+      for (final r in reflections)
+        r.isAnonymous ? r : r.copyWith(displayAuthor: newName),
+    ];
+    _commit();
+    return null;
+  }
 
   Future<bool> refreshEmailVerification() async {
     final verified = await auth!.reloadUser();

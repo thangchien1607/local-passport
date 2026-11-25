@@ -109,6 +109,68 @@ class PassportScreen extends StatelessWidget {
     }
   }
 
+  Future<void> _openRename(BuildContext context) async {
+    final store = PassportScope.read(context);
+    final messenger = ScaffoldMessenger.of(context);
+    final ctrl = TextEditingController(text: store.user?.name ?? '');
+    final formKey = GlobalKey<FormState>();
+    final saved = await showDialog<bool>(
+      context: context,
+      builder: (dialogContext) => AlertDialog(
+        title: Text('Đổi tên hiển thị', style: displayStyle(22)),
+        content: Form(
+          key: formKey,
+          child: Column(
+            mainAxisSize: MainAxisSize.min,
+            crossAxisAlignment: CrossAxisAlignment.start,
+            children: [
+              Text(
+                'Tên mới hiện trên hộ chiếu, bảng xếp hạng và các bài cảm nhận '
+                'không ẩn danh.',
+                style: bodyStyle(13, color: AppColors.inkSoft, height: 1.4),
+              ),
+              const SizedBox(height: 12),
+              TextFormField(
+                controller: ctrl,
+                autofocus: true,
+                maxLength: nameMaxLength,
+                textCapitalization: TextCapitalization.words,
+                decoration: const InputDecoration(labelText: 'Tên hiển thị'),
+                validator: validateName,
+                onFieldSubmitted: (_) {
+                  if (formKey.currentState!.validate()) {
+                    Navigator.pop(dialogContext, true);
+                  }
+                },
+              ),
+            ],
+          ),
+        ),
+        actions: [
+          TextButton(
+            onPressed: () => Navigator.pop(dialogContext, false),
+            child: const Text('Hủy'),
+          ),
+          FilledButton(
+            onPressed: () {
+              if (formKey.currentState!.validate()) {
+                Navigator.pop(dialogContext, true);
+              }
+            },
+            child: const Text('Lưu'),
+          ),
+        ],
+      ),
+    );
+    final name = ctrl.text;
+    ctrl.dispose();
+    if (saved != true) return;
+    final error = store.rename(name);
+    messenger.showSnackBar(
+      SnackBar(content: Text(error ?? 'Đã đổi tên thành “${name.trim()}”.')),
+    );
+  }
+
   Future<void> _openChangePassword(BuildContext context) async {
     final store = PassportScope.read(context);
     final messenger = ScaffoldMessenger.of(context);
@@ -654,13 +716,18 @@ class PassportScreen extends StatelessWidget {
                       ),
                   ],
                 ),
-                if (!store.isGuest) ...[
+                ...[
                   const SizedBox(height: 10),
                   const Divider(height: 1, color: AppColors.line),
                   const SizedBox(height: 6),
                   Wrap(
                     spacing: 4,
                     children: [
+                      TextButton.icon(
+                        onPressed: () => _openRename(context),
+                        icon: const Icon(Icons.edit_outlined, size: 16),
+                        label: const Text('Đổi tên'),
+                      ),
                       if (store.hasPasswordProvider &&
                           !store.emailVerified) ...[
                         TextButton.icon(
@@ -680,17 +747,18 @@ class PassportScreen extends StatelessWidget {
                           icon: const Icon(Icons.lock_reset_rounded, size: 16),
                           label: const Text('Đổi mật khẩu'),
                         ),
-                      TextButton.icon(
-                        onPressed: () => _confirmDeleteAccount(context),
-                        style: TextButton.styleFrom(
-                          foregroundColor: const Color(0xFFB91C1C),
+                      if (!store.isGuest)
+                        TextButton.icon(
+                          onPressed: () => _confirmDeleteAccount(context),
+                          style: TextButton.styleFrom(
+                            foregroundColor: const Color(0xFFB91C1C),
+                          ),
+                          icon: const Icon(
+                            Icons.delete_forever_outlined,
+                            size: 16,
+                          ),
+                          label: const Text('Xóa tài khoản'),
                         ),
-                        icon: const Icon(
-                          Icons.delete_forever_outlined,
-                          size: 16,
-                        ),
-                        label: const Text('Xóa tài khoản'),
-                      ),
                     ],
                   ),
                 ],
