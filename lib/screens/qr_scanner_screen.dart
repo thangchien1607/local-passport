@@ -342,11 +342,13 @@ class _QrScannerScreenState extends State<QrScannerScreen>
                             color: AppColors.paper.withValues(alpha: 0.6),
                           ),
                           const SizedBox(width: 6),
-                          Text(
-                            'Cần ở trong bán kính ${checkinRadiusM.round()} m quanh di tích',
-                            style: bodyStyle(
-                              12,
-                              color: AppColors.paper.withValues(alpha: 0.6),
+                          Flexible(
+                            child: Text(
+                              'Cần ở trong bán kính ${checkinRadiusM.round()} m quanh di tích',
+                              style: bodyStyle(
+                                12,
+                                color: AppColors.paper.withValues(alpha: 0.6),
+                              ),
                             ),
                           ),
                         ],
