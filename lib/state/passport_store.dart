@@ -16,6 +16,9 @@ import '../services/passport_remote.dart';
 // thì mỗi lần _commit() cũng ghi lên server.
 const _storageKey = 'local-passport/v1';
 
+/// Cài đặt riêng của máy, không đổi theo tài khoản.
+const _demoKey = 'local-passport/demo-qr';
+
 class UserProfile {
   const UserProfile({
     required this.name,
@@ -100,6 +103,24 @@ class PassportStore extends ChangeNotifier {
 
   /// Bài cảm nhận của người khác tải từ Firestore.
   List<Reflection> communityReflections = [];
+
+  /// Cho phép nút "Giả lập quét QR" (dùng khi trình diễn không có mã QR thật).
+  /// Chạy không có Firebase thì luôn bật.
+  bool get demoQrEnabled =>
+      remote == null || (_prefs.getBool(_demoKey) ?? false);
+
+  void setDemoQr(bool enabled) {
+    _prefs.setBool(_demoKey, enabled);
+    notifyListeners();
+  }
+
+  /// Bảng tin: bài của mình và của mọi người, mới nhất trước. Bài mẫu chỉ hiện
+  /// khi chạy không có Firebase.
+  List<Reflection> get feed => [
+    ...reflections,
+    ...communityReflections,
+    if (remote == null) ...seedReflections,
+  ]..sort((a, b) => b.createdAt.compareTo(a.createdAt));
 
   /// Bảng xếp hạng tải từ Firestore (null: chưa tải được lần nào).
   List<LeaderEntry>? leaders;

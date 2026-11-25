@@ -4,7 +4,6 @@ import 'dart:ui';
 import 'package:flutter/material.dart';
 import 'package:image_picker/image_picker.dart';
 
-import '../data/community.dart';
 import '../data/routes.dart';
 import '../state/passport_store.dart';
 import '../theme.dart';
@@ -99,11 +98,7 @@ class LocationScreen extends StatelessWidget {
     final hasMyReflection = store.reflections.any(
       (r) => r.locationId == locationId,
     );
-    final feed = [
-      ...store.reflections,
-      ...store.communityReflections,
-      ...seedReflections,
-    ].where((r) => r.locationId == locationId).toList();
+    final feed = store.feed.where((r) => r.locationId == locationId).toList();
 
     final code = autoCheckinCode;
     return _OnFirstFrame(

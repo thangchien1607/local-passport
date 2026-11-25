@@ -114,4 +114,27 @@ void main() {
     expect(rows[1].xp, 40);
     expect(remote.server!['stampCount'], 0);
   });
+
+  test(
+    'Có Firebase: bảng tin không lẫn bài mẫu, nút giả lập QR tắt sẵn',
+    () async {
+      SharedPreferences.setMockInitialValues({});
+      final store = await PassportStore.load(remote: _FakeRemote());
+      await Future<void>.delayed(Duration.zero);
+      await store.refreshCommunity();
+
+      // Chỉ có bài thật từ server (bản giả trả về đúng 1 bài).
+      expect(store.feed, hasLength(1));
+      expect(store.demoQrEnabled, isFalse);
+      store.setDemoQr(true);
+      expect(store.demoQrEnabled, isTrue);
+    },
+  );
+
+  test('Không có Firebase: dùng bài mẫu và luôn cho giả lập QR', () async {
+    SharedPreferences.setMockInitialValues({});
+    final store = await PassportStore.load();
+    expect(store.feed, hasLength(seedReflections.length));
+    expect(store.demoQrEnabled, isTrue);
+  });
 }
