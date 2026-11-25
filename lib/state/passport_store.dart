@@ -90,7 +90,7 @@ class LocationProgress {
 typedef RouteProgress = ({int stamped, int total, int percent});
 
 class PassportStore extends ChangeNotifier {
-  PassportStore._(this._prefs, this.remote, this.auth, this.photos) {
+  PassportStore._(this._prefs, this.remote, this.auth) {
     remote?.state.addListener(_onSyncState);
   }
 
@@ -101,13 +101,6 @@ class PassportStore extends ChangeNotifier {
 
   /// Tài khoản (Firebase Auth). null: chỉ có hồ sơ cục bộ, không đăng nhập.
   final AuthGateway? auth;
-
-  /// Lưu ảnh lên Firebase Storage. null: lưu nén cục bộ (chế độ offline/test).
-  final PhotoStorageGateway? photos;
-
-  /// Có dịch vụ lưu ảnh lên cloud không.
-  bool get hasPhotoStorage =>
-      photos != null && (_ownerUid ?? auth?.uid) != null;
 
   /// Thông báo trong app, mới nhất trước.
   List<AppNotification> notifications = [];
@@ -143,13 +136,11 @@ class PassportStore extends ChangeNotifier {
   static Future<PassportStore> load({
     PassportRemote? remote,
     AuthGateway? auth,
-    PhotoStorageGateway? photos,
   }) async {
     final store = PassportStore._(
       await SharedPreferences.getInstance(),
       remote,
       auth,
-      photos,
     );
     store._load();
     if (auth != null) {
@@ -729,9 +720,8 @@ class PassportStore extends ChangeNotifier {
     return stamped;
   }
 
-  /// Nén ảnh (cạnh dài ~1280px, chất lượng ~80%) rồi tải lên Firebase Storage
-  /// (nếu có) và chỉ lưu URL vào Firestore; ở chế độ cục bộ không có Firebase
-  /// thì lưu bản nén cục bộ. Trả về true nếu vừa nhận dấu mộc mới.
+  /// Nén ảnh phía client rồi lưu vào trạng thái nhiệm vụ.
+  /// Trả về true nếu vừa nhận dấu mộc mới.
   Future<bool> saveTaskPhotoBytes(
     String id,
     String taskId,
@@ -742,42 +732,8 @@ class PassportStore extends ChangeNotifier {
     final task = location?.tasks.where((t) => t.id == taskId).firstOrNull;
     if (p == null || !p.unlocked || task?.type != TaskType.photo) return false;
 
-    final uid = _ownerUid ?? auth?.uid;
-    final storage = photos;
-    if (storage != null && uid != null) {
-      final url = await storage.uploadTaskPhoto(
-        uid: uid,
-        locationId: id,
-        taskId: taskId,
-        bytes: bytes,
-      );
-      return setTaskPhoto(id, taskId, url);
-    }
-
     final compressed = await compressImageBytes(bytes);
     return setTaskPhoto(id, taskId, base64Encode(compressed));
-  }
-
-  /// Nén và tải ảnh bài cảm nhận lên Firebase Storage, trả về URL công khai.
-  /// Trả về null nếu app đang chạy ở chế độ cục bộ không có Storage.
-  Future<String?> uploadReflectionPhoto(
-    String reflectionId,
-    Uint8List bytes,
-  ) async {
-    final uid = _ownerUid ?? auth?.uid;
-    final storage = photos;
-    if (storage == null || uid == null) return null;
-    return storage.uploadReflectionPhoto(
-      uid: uid,
-      reflectionId: reflectionId,
-      bytes: bytes,
-    );
-  }
-
-  /// Xóa ảnh tạm trên Storage nếu bài cảm nhận không được duyệt hoặc bị thay ảnh.
-  Future<void> deletePhotoByUrl(String? url) async {
-    if (url == null || url.isEmpty) return;
-    await photos?.deleteByUrl(url);
   }
 
   bool setTaskPhoto(String id, String taskId, String? photoValue) {
@@ -785,23 +741,17 @@ class PassportStore extends ChangeNotifier {
     final location = locationById[id];
     final task = location?.tasks.where((t) => t.id == taskId).firstOrNull;
     if (p == null || !p.unlocked || task?.type != TaskType.photo) return false;
-    final oldUrl = p.taskPhotoUrls[taskId];
     if (photoValue == null) {
       p.taskPhotoUrls.remove(taskId);
       p.taskPhotos.remove(taskId);
       p.tasks.remove(taskId);
-      if (oldUrl != null) {
-        unawaited(photos?.deleteByUrl(oldUrl));
-      }
     } else if (isNetworkImageUrl(photoValue)) {
       p.taskPhotoUrls[taskId] = photoValue;
       p.taskPhotos.remove(taskId);
       p.tasks.add(taskId);
-      if (oldUrl != null && oldUrl != photoValue) {
-        unawaited(photos?.deleteByUrl(oldUrl));
-      }
     } else {
       p.taskPhotos[taskId] = photoValue;
+      p.taskPhotoUrls.remove(taskId);
       p.tasks.add(taskId);
     }
     final stamped = _checkStamp(id);
@@ -878,15 +828,10 @@ class PassportStore extends ChangeNotifier {
     final trimmed = content.trim();
     if (trimmed.isEmpty) return false;
 
-    final oldUrl = current.photoUrl;
     final nextPhotoUrl = clearPhoto ? null : (photoUrl ?? current.photoUrl);
     final nextPhotoBase64 = clearPhoto
         ? null
-        : (nextPhotoUrl != null ? null : (photoBase64 ?? current.photoBase64));
-
-    if (oldUrl != null && oldUrl != nextPhotoUrl) {
-      unawaited(photos?.deleteByUrl(oldUrl));
-    }
+        : (photoBase64 ?? (photoUrl != null ? null : current.photoBase64));
 
     reflections[i] = Reflection(
       id: current.id,

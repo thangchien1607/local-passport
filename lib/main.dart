@@ -15,7 +15,6 @@ import 'services/geo.dart';
 import 'services/auth_service.dart';
 import 'services/maps_config.dart';
 import 'services/passport_remote.dart';
-import 'services/photo_service.dart';
 import 'data/routes.dart';
 import 'state/passport_store.dart';
 import 'theme.dart';
@@ -28,29 +27,24 @@ Future<void> main() async {
   WidgetsFlutterBinding.ensureInitialized();
   final link = Uri.base.toString();
   if (parseQr(link) != null) _pendingCheckinLink = link;
-  final (remote, auth, photos) = await _initFirebase();
-  final store = await PassportStore.load(
-    remote: remote,
-    auth: auth,
-    photos: photos,
-  );
+  final (remote, auth) = await _initFirebase();
+  final store = await PassportStore.load(remote: remote, auth: auth);
   await initGoogleMaps();
   runApp(LocalPassportApp(store: store));
 }
 
-/// Bật Firebase (Firestore + Storage + tài khoản) nếu nền tảng đã cấu hình;
+/// Bật Firebase (Auth + Cloud Firestore trên gói Spark) nếu nền tảng đã cấu hình;
 /// lỗi thì chỉ lưu cục bộ với hồ sơ không cần đăng nhập.
-Future<(PassportRemote?, AuthGateway?, PhotoStorageGateway?)>
-_initFirebase() async {
+Future<(PassportRemote?, AuthGateway?)> _initFirebase() async {
   final options = currentFirebaseOptions;
-  if (options == null) return (null, null, null);
+  if (options == null) return (null, null);
   try {
     await Firebase.initializeApp(options: options);
     final auth = await FirebaseAuthGateway.create();
-    return (FirestorePassportRemote(), auth, FirebasePhotoStorageGateway());
+    return (FirestorePassportRemote(), auth);
   } catch (e) {
     debugPrint('Không khởi tạo được Firebase: $e');
-    return (null, null, null);
+    return (null, null);
   }
 }
 

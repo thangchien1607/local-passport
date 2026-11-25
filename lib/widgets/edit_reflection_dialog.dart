@@ -92,30 +92,20 @@ class _EditReflectionDialogState extends State<_EditReflectionDialog> {
       _error = null;
     });
 
-    String? uploadedNewUrl;
-    String? localNewBase64;
-    String? effectivePhotoUrl = _removedExistingPhoto
+    String? compressedBase64;
+    final effectivePhotoUrl = _removedExistingPhoto || _newPhotoBytes != null
         ? null
         : widget.reflection.photoUrl;
 
     if (_newPhotoBytes != null) {
       try {
-        if (store.hasPhotoStorage) {
-          uploadedNewUrl = await store.uploadReflectionPhoto(
-            widget.reflection.id,
-            _newPhotoBytes!,
-          );
-          effectivePhotoUrl = uploadedNewUrl;
-        } else {
-          final compressed = await compressImageBytes(_newPhotoBytes!);
-          localNewBase64 = base64Encode(compressed);
-          effectivePhotoUrl = null;
-        }
+        final compressed = await compressImageBytes(_newPhotoBytes!);
+        compressedBase64 = base64Encode(compressed);
       } catch (e) {
         if (!mounted) return;
         setState(() {
           _saving = false;
-          _error = 'Không tải được ảnh mới: $e';
+          _error = e.toString().replaceFirst('Exception: ', '');
         });
         return;
       }
@@ -133,8 +123,6 @@ class _EditReflectionDialogState extends State<_EditReflectionDialog> {
       );
       if (!mounted) return;
       if (!result.approved) {
-        await store.deletePhotoByUrl(uploadedNewUrl);
-        if (!mounted) return;
         setState(() {
           _saving = false;
           _error = result.comment;
@@ -146,7 +134,7 @@ class _EditReflectionDialogState extends State<_EditReflectionDialog> {
         id: widget.reflection.id,
         content: _controller.text.trim(),
         photoUrl: effectivePhotoUrl,
-        photoBase64: localNewBase64,
+        photoBase64: compressedBase64,
         clearPhoto: _removedExistingPhoto && _newPhotoBytes == null,
         aiScore: result.score,
       );
@@ -156,12 +144,11 @@ class _EditReflectionDialogState extends State<_EditReflectionDialog> {
       ScaffoldMessenger.maybeOf(context)?.showSnackBar(
         SnackBar(
           content: Text(
-            'Đã cập nhật bài cảm nhận · Điểm AI mới: ${result.score}/100.',
+            'Đã cập nhật bài cảm nhận · Điểm mới: ${result.score}/100.',
           ),
         ),
       );
     } catch (e) {
-      await store.deletePhotoByUrl(uploadedNewUrl);
       if (!mounted) return;
       setState(() {
         _saving = false;

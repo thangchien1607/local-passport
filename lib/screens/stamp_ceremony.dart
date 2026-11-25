@@ -93,27 +93,6 @@ class _CeremonyState extends State<_Ceremony> {
         ? anonymousAuthor
         : (store.user?.name ?? 'Lữ khách');
 
-    String? uploadedPhotoUrl;
-    if (_photo != null && store.hasPhotoStorage) {
-      try {
-        uploadedPhotoUrl = await store.uploadReflectionPhoto(
-          reflectionId,
-          _photo!,
-        );
-      } catch (e) {
-        if (!mounted) return;
-        setState(() => _step = _Step.form);
-        ScaffoldMessenger.maybeOf(context)?.showSnackBar(
-          SnackBar(
-            content: Text(
-              'Không tải được ảnh lên máy chủ: ${e.toString().replaceFirst('Exception: ', '')}',
-            ),
-          ),
-        );
-        return;
-      }
-    }
-
     late final VerifyResult r;
     try {
       r = await verifyReflection(
@@ -123,10 +102,8 @@ class _CeremonyState extends State<_Ceremony> {
         reflectionId: reflectionId,
         displayAuthor: displayAuthor,
         isAnonymous: _anonymous,
-        photoUrl: uploadedPhotoUrl,
       );
     } catch (e) {
-      await store.deletePhotoByUrl(uploadedPhotoUrl);
       if (!mounted) return;
       setState(() => _step = _Step.form);
       ScaffoldMessenger.maybeOf(context)?.showSnackBar(
@@ -136,12 +113,21 @@ class _CeremonyState extends State<_Ceremony> {
     }
     if (!mounted) return;
     if (r.approved) {
-      String? localPhotoBase64;
-      if (_photo != null && uploadedPhotoUrl == null) {
+      String? photoBase64;
+      if (_photo != null) {
         try {
           final compressed = await compressImageBytes(_photo!);
-          localPhotoBase64 = base64Encode(compressed);
-        } catch (_) {}
+          photoBase64 = base64Encode(compressed);
+        } catch (e) {
+          if (!mounted) return;
+          setState(() => _step = _Step.form);
+          ScaffoldMessenger.maybeOf(context)?.showSnackBar(
+            SnackBar(
+              content: Text(e.toString().replaceFirst('Exception: ', '')),
+            ),
+          );
+          return;
+        }
       }
       if (!mounted) return;
       store.addReflection(
@@ -151,11 +137,8 @@ class _CeremonyState extends State<_Ceremony> {
         isAnonymous: _anonymous,
         aiScore: r.score,
         bonusXp: r.bonusXp,
-        photoUrl: uploadedPhotoUrl,
-        photoBase64: localPhotoBase64,
+        photoBase64: photoBase64,
       );
-    } else {
-      await store.deletePhotoByUrl(uploadedPhotoUrl);
     }
     setState(() {
       _result = r;

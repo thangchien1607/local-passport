@@ -1,8 +1,5 @@
 import 'package:firebase_auth/firebase_auth.dart';
 import 'package:flutter/foundation.dart';
-import 'package:http/http.dart' as http;
-
-import 'ai_verifier.dart';
 
 /// Lỗi xác thực đã dịch sang câu dễ hiểu để hiện cho người dùng.
 class AuthFailure implements Exception {
@@ -44,23 +41,15 @@ abstract class AuthGateway {
     required String newPassword,
   });
 
-  /// Xóa tài khoản và kích hoạt Cloud Function dọn sạch Firestore + Storage.
+  /// Xóa tài khoản người dùng.
   Future<void> deleteAccount();
   Future<void> signOut();
 }
 
-String get _deleteAccountFunctionUrl {
-  if (cloudFunctionsBaseUrl.isEmpty) return '';
-  final trimmed = cloudFunctionsBaseUrl.replaceAll(RegExp(r'/+$'), '');
-  return '$trimmed/deleteUserAccountData';
-}
-
 class FirebaseAuthGateway implements AuthGateway {
-  FirebaseAuthGateway._(this._auth, {http.Client? httpClient})
-    : _httpClient = httpClient;
+  FirebaseAuthGateway._(this._auth);
 
   final FirebaseAuth _auth;
-  final http.Client? _httpClient;
 
   /// Chờ Firebase khôi phục phiên đăng nhập đã lưu rồi mới trả về.
   static Future<FirebaseAuthGateway> create([FirebaseAuth? auth]) async {
@@ -201,38 +190,6 @@ class FirebaseAuthGateway implements AuthGateway {
   Future<void> deleteAccount() => _guard(() async {
     final user = _auth.currentUser;
     if (user == null) return null;
-
-    final url = _deleteAccountFunctionUrl;
-    if (url.isNotEmpty) {
-      final token = await user.getIdToken(true);
-      if (token == null || token.isEmpty) {
-        throw const AuthFailure(
-          'Không lấy được phiên xác thực để xóa tài khoản.',
-        );
-      }
-      final client = _httpClient ?? http.Client();
-      try {
-        final response = await client
-            .post(
-              Uri.parse(url),
-              headers: {
-                'Content-Type': 'application/json',
-                'Authorization': 'Bearer $token',
-              },
-            )
-            .timeout(const Duration(seconds: 30));
-        if (response.statusCode != 200) {
-          throw AuthFailure(
-            'Không xóa được dữ liệu trên máy chủ (${response.statusCode}).',
-          );
-        }
-      } finally {
-        if (_httpClient == null) client.close();
-      }
-      await _auth.signOut();
-      return null;
-    }
-
     await user.delete();
     return null;
   });
