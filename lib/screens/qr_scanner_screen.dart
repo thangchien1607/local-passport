@@ -52,10 +52,10 @@ class _QrScannerScreenState extends State<QrScannerScreen>
   }
 
   void _startCamera() {
+    if (_handling) return;
     _controller?.dispose();
     setState(() {
       _error = '';
-      _handling = false;
       _controller = MobileScannerController(
         formats: const [BarcodeFormat.qrCode],
       );
@@ -72,6 +72,7 @@ class _QrScannerScreenState extends State<QrScannerScreen>
   void _fail(String message) {
     if (!mounted) return;
     setState(() {
+      _handling = false;
       _status = _Status.error;
       _error = message;
     });
@@ -82,11 +83,12 @@ class _QrScannerScreenState extends State<QrScannerScreen>
         .map((b) => b.rawValue)
         .whereType<String>()
         .firstOrNull;
-    if (raw == null || _handling) return;
+    if (raw == null) return;
     await _handleCode(raw);
   }
 
   Future<void> _handleCode(String raw) async {
+    if (_handling) return;
     _handling = true;
     await _stopCamera();
 
@@ -119,6 +121,8 @@ class _QrScannerScreenState extends State<QrScannerScreen>
   }
 
   Future<void> _simulate() async {
+    if (_handling) return;
+    _handling = true;
     await _stopCamera();
     setState(() {
       _error = '';
