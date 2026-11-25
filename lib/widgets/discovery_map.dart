@@ -94,7 +94,7 @@ class DiscoveryMap extends StatelessWidget {
     return Positioned(
       left: p.dx * scale - 22,
       top: p.dy * scale - 22,
-      child: _Hotspot(
+      child: MapHotspot(
         color: route.color,
         dimmed: dimmed,
         selected: selected,
@@ -256,8 +256,11 @@ class _MyLocationLayerState extends State<_MyLocationLayer> {
   }
 }
 
-class _Hotspot extends StatefulWidget {
-  const _Hotspot({
+/// Chấm địa điểm trên bản đồ (màu theo tuyến, nhấp nháy khi chưa đóng mộc).
+/// Dùng chung cho bản đồ minh họa và bản đồ OpenStreetMap.
+class MapHotspot extends StatefulWidget {
+  const MapHotspot({
+    super.key,
     required this.color,
     required this.dimmed,
     required this.selected,
@@ -276,10 +279,10 @@ class _Hotspot extends StatefulWidget {
   final VoidCallback onTap;
 
   @override
-  State<_Hotspot> createState() => _HotspotState();
+  State<MapHotspot> createState() => _MapHotspotState();
 }
 
-class _HotspotState extends State<_Hotspot>
+class _MapHotspotState extends State<MapHotspot>
     with SingleTickerProviderStateMixin {
   late final AnimationController _pulse = AnimationController(
     vsync: this,
