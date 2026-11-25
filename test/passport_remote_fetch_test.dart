@@ -45,4 +45,21 @@ void main() {
       expect(results.last, 'doc:r-74');
     },
   );
+
+  test('fetchInChunks không có ID trả về list sửa được (để sort)', () async {
+    var called = false;
+    final results = await fetchInChunks<int>(
+      ids: const [],
+      queryChunk: (_) async {
+        called = true;
+        return [1];
+      },
+    );
+    expect(called, isFalse);
+    expect(results, isEmpty);
+    // Tài khoản chưa có bài cảm nhận: fetch() gọi sort() trên kết quả này.
+    expect(() => results.sort(), returnsNormally);
+    results.add(1);
+    expect(results, [1]);
+  });
 }
