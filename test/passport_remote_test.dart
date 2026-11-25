@@ -25,6 +25,29 @@ class _FakeRemote implements PassportRemote {
   Future<List<Reflection>> fetchCommunity() async => [seedReflections.first];
 
   @override
+  Future<CommunityPage> fetchCommunityPage({
+    int limit = 20,
+    Object? startAfter,
+  }) async => CommunityPage(items: [seedReflections.first], hasMore: false);
+
+  @override
+  Stream<List<Reflection>> watchLatestCommunity({int limit = 20}) =>
+      const Stream.empty();
+
+  @override
+  Future<List<LeaderEntry>> fetchLeaderboard({int limit = 50}) async => [
+    ...leaders,
+  ];
+
+  @override
+  Future<void> syncLeaderboardEntry({
+    required String displayName,
+    required int xp,
+    required int stampCount,
+    String? avatarUrl,
+  }) async {}
+
+  @override
   Future<void> sync(Map<String, dynamic> data) async {
     synced.add(data);
     server = data;
@@ -33,7 +56,9 @@ class _FakeRemote implements PassportRemote {
   final leaders = <LeaderEntry>[];
 
   @override
-  Future<List<LeaderEntry>> fetchLeaderboard() async => [...leaders];
+  Future<void> deleteAllUserData(String uid) async {
+    server = null;
+  }
 
   @override
   void forget() {}

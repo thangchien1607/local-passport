@@ -23,7 +23,7 @@
       },
       {
         "source": "**",
-        "headers": [{ "key": "Permissions-Policy", "value": "camera=(), geolocation=(), microphone=()" }]
+        "headers": [{ "key": "Permissions-Policy", "value": "camera=(self), geolocation=(self), microphone=()" }]
       }
     ]
   }

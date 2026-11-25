@@ -1,12 +1,13 @@
-import 'dart:convert';
 import 'dart:math';
 import 'dart:typed_data';
 
 import 'package:flutter/material.dart';
 import 'package:image_picker/image_picker.dart';
 
+import '../data/community.dart';
 import '../data/routes.dart';
 import '../services/ai_verifier.dart';
+import '../services/photo_service.dart';
 import '../services/validators.dart';
 import '../state/passport_store.dart';
 import '../theme.dart';
@@ -67,9 +68,9 @@ class _CeremonyState extends State<_Ceremony> {
     try {
       final file = await ImagePicker().pickImage(
         source: ImageSource.gallery,
-        maxWidth: 720,
-        maxHeight: 720,
-        imageQuality: 72,
+        maxWidth: 1920,
+        maxHeight: 1920,
+        imageQuality: 90,
       );
       if (file == null) return;
       final bytes = await file.readAsBytes();
@@ -86,12 +87,20 @@ class _CeremonyState extends State<_Ceremony> {
   Future<void> _submit() async {
     final store = PassportScope.read(context);
     setState(() => _step = _Step.verifying);
+    final reflectionId = 'r${DateTime.now().millisecondsSinceEpoch}';
+    final displayAuthor = _anonymous
+        ? anonymousAuthor
+        : (store.user?.name ?? 'Lữ khách');
+
     late final VerifyResult r;
     try {
       r = await verifyReflection(
         content: _text.text,
         hasPhoto: _photo != null,
         location: _location,
+        reflectionId: reflectionId,
+        displayAuthor: displayAuthor,
+        isAnonymous: _anonymous,
       );
     } catch (e) {
       if (!mounted) return;
@@ -103,13 +112,30 @@ class _CeremonyState extends State<_Ceremony> {
     }
     if (!mounted) return;
     if (r.approved) {
+      String? photoBase64;
+      if (_photo != null) {
+        try {
+          photoBase64 = await compressImageToBase64(_photo!);
+        } catch (e) {
+          if (!mounted) return;
+          setState(() => _step = _Step.form);
+          ScaffoldMessenger.maybeOf(context)?.showSnackBar(
+            SnackBar(
+              content: Text(e.toString().replaceFirst('Exception: ', '')),
+            ),
+          );
+          return;
+        }
+      }
+      if (!mounted) return;
       store.addReflection(
+        id: reflectionId,
         locationId: widget.locationId,
         content: _text.text.trim(),
         isAnonymous: _anonymous,
         aiScore: r.score,
         bonusXp: r.bonusXp,
-        photoBase64: _photo == null ? null : base64Encode(_photo!),
+        photoBase64: photoBase64,
       );
     }
     setState(() {
@@ -198,9 +224,9 @@ class _CeremonyState extends State<_Ceremony> {
               Text.rich(
                 TextSpan(
                   children: [
-                    const TextSpan(
+                    TextSpan(
                       text: hasRemoteReflectionVerifier
-                          ? 'Không bắt buộc. Cảm nhận được Gemini thẩm định để nhận thêm XP và huy hiệu '
+                          ? 'Không bắt buộc. Cảm nhận được AI thẩm định trên máy chủ để nhận thêm XP và huy hiệu '
                           : 'Không bắt buộc. Bộ chấm demo sẽ đánh giá cảm nhận để nhận thêm XP và huy hiệu ',
                     ),
                     TextSpan(

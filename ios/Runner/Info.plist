@@ -8,6 +8,8 @@
 	<string>Xác nhận bạn đang có mặt tại di tích khi check-in.</string>
 	<key>NSPhotoLibraryUsageDescription</key>
 	<string>Đính kèm ảnh thực tế vào cảm nhận của bạn.</string>
+	<key>GMSApiKey</key>
+	<string>$(MAPS_API_KEY)</string>
 	<key>CADisableMinimumFrameDurationOnPhone</key>
 	<true/>
 	<key>CFBundleDevelopmentRegion</key>

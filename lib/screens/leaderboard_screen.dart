@@ -2,6 +2,7 @@ import 'package:flutter/material.dart';
 
 import '../data/community.dart';
 import '../data/routes.dart';
+import '../services/photo_service.dart';
 import '../state/passport_store.dart';
 import '../theme.dart';
 
@@ -237,6 +238,7 @@ class _Podium extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
+    if (top.isEmpty) return const SizedBox.shrink();
     const heights = [134.0, 114.0, 104.0];
     Widget step(int i) => Expanded(
       // Ít hơn 3 người thì để trống bậc còn thiếu.
@@ -249,6 +251,17 @@ class _Podium extends StatelessWidget {
               minHeight: heights[i],
             ),
     );
+    if (top.length < 3) {
+      return Row(
+        crossAxisAlignment: CrossAxisAlignment.end,
+        children: [
+          for (var i = 0; i < top.length; i++) ...[
+            if (i > 0) const SizedBox(width: 14),
+            step(i),
+          ],
+        ],
+      );
+    }
     return Row(
       crossAxisAlignment: CrossAxisAlignment.end,
       children: [
@@ -355,19 +368,35 @@ class _RankRow extends StatelessWidget {
           Container(
             width: 32,
             height: 32,
+            clipBehavior: Clip.antiAlias,
             alignment: Alignment.center,
             decoration: const BoxDecoration(
               shape: BoxShape.circle,
               color: AppColors.paper2,
             ),
-            child: Text(
-              _initials(entry.name),
-              style: bodyStyle(
-                11,
-                weight: FontWeight.w700,
-                color: AppColors.primary,
-              ),
-            ),
+            child: isNetworkImageUrl(entry.avatarUrl)
+                ? Image.network(
+                    entry.avatarUrl!,
+                    width: 32,
+                    height: 32,
+                    fit: BoxFit.cover,
+                    errorBuilder: (_, _, _) => Text(
+                      _initials(entry.name),
+                      style: bodyStyle(
+                        11,
+                        weight: FontWeight.w700,
+                        color: AppColors.primary,
+                      ),
+                    ),
+                  )
+                : Text(
+                    _initials(entry.name),
+                    style: bodyStyle(
+                      11,
+                      weight: FontWeight.w700,
+                      color: AppColors.primary,
+                    ),
+                  ),
           ),
           const SizedBox(width: 12),
           Expanded(

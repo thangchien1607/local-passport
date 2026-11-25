@@ -139,6 +139,21 @@ class _AuthFormState extends State<AuthForm> {
     }
   }
 
+  Future<void> _signInProvider(Future<void> Function() action) async {
+    setState(() {
+      _busy = true;
+      _error = null;
+    });
+    try {
+      await action();
+      widget.onSuccess?.call();
+    } on AuthFailure catch (e) {
+      if (mounted) setState(() => _error = e.message);
+    } finally {
+      if (mounted) setState(() => _busy = false);
+    }
+  }
+
   void _switch(AuthMode mode) => setState(() {
     _mode = mode;
     _error = null;
@@ -333,6 +348,64 @@ class _AuthFormState extends State<AuthForm> {
                   ),
                 ),
               ),
+            const SizedBox(height: 10),
+            Row(
+              children: [
+                Expanded(child: Divider(color: _fg.withValues(alpha: 0.25))),
+                Padding(
+                  padding: const EdgeInsets.symmetric(horizontal: 10),
+                  child: Text(
+                    'hoặc tiếp tục với',
+                    style: bodyStyle(12, color: _fg.withValues(alpha: 0.7)),
+                  ),
+                ),
+                Expanded(child: Divider(color: _fg.withValues(alpha: 0.25))),
+              ],
+            ),
+            const SizedBox(height: 10),
+            Row(
+              children: [
+                Expanded(
+                  child: OutlinedButton.icon(
+                    onPressed: _busy
+                        ? null
+                        : () => _signInProvider(
+                            PassportScope.read(context).signInWithGoogle,
+                          ),
+                    style: OutlinedButton.styleFrom(
+                      minimumSize: const Size(0, 46),
+                      foregroundColor: _fg,
+                      side: BorderSide(color: _fg.withValues(alpha: 0.35)),
+                      shape: RoundedRectangleBorder(
+                        borderRadius: BorderRadius.circular(14),
+                      ),
+                    ),
+                    icon: const Icon(Icons.g_mobiledata_rounded, size: 22),
+                    label: const Text('Google'),
+                  ),
+                ),
+                const SizedBox(width: 10),
+                Expanded(
+                  child: OutlinedButton.icon(
+                    onPressed: _busy
+                        ? null
+                        : () => _signInProvider(
+                            PassportScope.read(context).signInWithApple,
+                          ),
+                    style: OutlinedButton.styleFrom(
+                      minimumSize: const Size(0, 46),
+                      foregroundColor: _fg,
+                      side: BorderSide(color: _fg.withValues(alpha: 0.35)),
+                      shape: RoundedRectangleBorder(
+                        borderRadius: BorderRadius.circular(14),
+                      ),
+                    ),
+                    icon: const Icon(Icons.apple_rounded, size: 20),
+                    label: const Text('Apple'),
+                  ),
+                ),
+              ],
+            ),
           ],
         ),
       ),

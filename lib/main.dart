@@ -33,8 +33,8 @@ Future<void> main() async {
   runApp(LocalPassportApp(store: store));
 }
 
-/// Bật Firebase (Firestore + tài khoản) nếu nền tảng đã cấu hình; lỗi thì
-/// chỉ lưu cục bộ với hồ sơ không cần đăng nhập.
+/// Bật Firebase (Auth + Cloud Firestore trên gói Spark) nếu nền tảng đã cấu hình;
+/// lỗi thì chỉ lưu cục bộ với hồ sơ không cần đăng nhập.
 Future<(PassportRemote?, AuthGateway?)> _initFirebase() async {
   final options = currentFirebaseOptions;
   if (options == null) return (null, null);

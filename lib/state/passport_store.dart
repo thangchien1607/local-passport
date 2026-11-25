@@ -1,6 +1,8 @@
+import 'dart:async';
 import 'dart:convert';
 import 'dart:math';
 
+import 'package:flutter/foundation.dart';
 import 'package:flutter/widgets.dart';
 import 'package:shared_preferences/shared_preferences.dart';
 
@@ -9,6 +11,7 @@ import '../data/notifications.dart';
 import '../data/routes.dart';
 import '../services/auth_service.dart';
 import '../services/passport_remote.dart';
+import '../services/photo_service.dart';
 
 // Trạng thái này tương ứng document `user_passports/{uid}` và collection `reflections`.
 // Luôn lưu một bản cục bộ bằng shared_preferences (localStorage trên web) để mở app
@@ -48,20 +51,28 @@ class LocationProgress {
     this.unlocked = false,
     this.unlockedAt,
     Set<String>? tasks,
+    Map<String, String>? taskPhotoUrls,
     Map<String, String>? taskPhotos,
   }) : tasks = tasks ?? {},
+       taskPhotoUrls = taskPhotoUrls ?? {},
        taskPhotos = taskPhotos ?? {};
 
   bool unlocked;
   DateTime? unlockedAt;
   final Set<String> tasks;
+
+  /// Ảnh nhiệm vụ dạng Base64 đã nén nhỏ (tối đa [maxTaskPhotosPerVisit] ảnh/visit).
   final Map<String, String> taskPhotos;
+
+  /// URL ảnh nhiệm vụ cũ — giữ để đọc tương thích ngược nếu từng lưu Storage URL.
+  final Map<String, String> taskPhotoUrls;
 
   Map<String, dynamic> toJson() => {
     'unlocked': unlocked,
     'unlockedAt': unlockedAt?.toIso8601String(),
     'tasks': tasks.toList(),
     'taskPhotos': taskPhotos,
+    if (taskPhotoUrls.isNotEmpty) 'taskPhotoUrls': taskPhotoUrls,
   };
 
   factory LocationProgress.fromJson(Map<String, dynamic> j) => LocationProgress(
@@ -70,6 +81,9 @@ class LocationProgress {
         ? null
         : DateTime.parse(j['unlockedAt'] as String),
     tasks: {...(j['tasks'] as List? ?? const []).cast<String>()},
+    taskPhotoUrls: (j['taskPhotoUrls'] as Map<String, dynamic>? ?? {}).map(
+      (k, v) => MapEntry(k, v as String),
+    ),
     taskPhotos: (j['taskPhotos'] as Map<String, dynamic>? ?? {}).map(
       (k, v) => MapEntry(k, v as String),
     ),
@@ -79,7 +93,12 @@ class LocationProgress {
 typedef RouteProgress = ({int stamped, int total, int percent});
 
 class PassportStore extends ChangeNotifier {
-  PassportStore._(this._prefs, this.remote, this.auth) {
+  PassportStore._(
+    this._prefs,
+    this.remote,
+    this.auth, {
+    Duration leaderboardDebounce = const Duration(seconds: 5),
+  }) : _leaderboardDebounce = leaderboardDebounce {
     remote?.state.addListener(_onSyncState);
   }
 
@@ -91,6 +110,10 @@ class PassportStore extends ChangeNotifier {
   /// Tài khoản (Firebase Auth). null: chỉ có hồ sơ cục bộ, không đăng nhập.
   final AuthGateway? auth;
 
+  final Duration _leaderboardDebounce;
+  Timer? _leaderboardTimer;
+  String? _lastLeaderboardDigest;
+
   /// Thông báo trong app, mới nhất trước.
   List<AppNotification> notifications = [];
 
@@ -101,8 +124,17 @@ class PassportStore extends ChangeNotifier {
   String? _ownerUid;
   int _noteSeq = 0;
 
-  /// Bài cảm nhận của người khác tải từ Firestore.
+  /// Bài cảm nhận của người khác tải từ Firestore (phân trang + realtime).
   List<Reflection> communityReflections = [];
+  Object? _communityCursor;
+  bool hasMoreCommunity = false;
+  bool isLoadingMoreCommunity = false;
+  StreamSubscription<List<Reflection>>? _communitySub;
+  final Map<String, Reflection> _pagedCommunity = {};
+  final Map<String, Reflection> _realtimeCommunity = {};
+
+  /// Bảng xếp hạng công khai tải từ collection `leaderboard_public`.
+  List<LeaderEntry> get remoteLeaderboard => leaders ?? const [];
 
   /// Cho phép nút "Giả lập quét QR" (dùng khi trình diễn không có mã QR thật).
   /// Chạy không có Firebase thì luôn bật.
@@ -137,11 +169,13 @@ class PassportStore extends ChangeNotifier {
   static Future<PassportStore> load({
     PassportRemote? remote,
     AuthGateway? auth,
+    Duration leaderboardDebounce = const Duration(seconds: 5),
   }) async {
     final store = PassportStore._(
       await SharedPreferences.getInstance(),
       remote,
       auth,
+      leaderboardDebounce: leaderboardDebounce,
     );
     store._load();
     if (auth != null) {
@@ -182,6 +216,7 @@ class PassportStore extends ChangeNotifier {
     reflections = [];
     notifications = [];
     _changedBeforePull = false;
+    leaders = null;
   }
 
   // ---- Tài khoản ----
@@ -193,6 +228,14 @@ class PassportStore extends ChangeNotifier {
   bool get isGuest => auth?.isGuest ?? false;
 
   String? get accountEmail => auth?.email;
+
+  bool get emailVerified => auth?.emailVerified ?? false;
+
+  bool get hasPasswordProvider => auth?.hasPasswordProvider ?? false;
+
+  bool get hasGoogleProvider => auth?.hasGoogleProvider ?? false;
+
+  bool get hasAppleProvider => auth?.hasAppleProvider ?? false;
 
   UserProfile _newProfile(String name) => UserProfile(
     name: name.trim().isEmpty ? 'Lữ khách' : name.trim(),
@@ -229,6 +272,103 @@ class PassportStore extends ChangeNotifier {
     }
     _ownerUid = a.uid;
     _commit();
+    // Gửi email xác minh tự động (không chặn luồng đăng ký nếu mạng yếu).
+    try {
+      await a.sendEmailVerification();
+    } catch (_) {}
+  }
+
+  /// Đăng nhập hoặc liên kết bằng Google.
+  Future<void> signInWithGoogle() =>
+      _signInWithProvider(() => auth!.signInWithGoogle(), 'Google');
+
+  /// Đăng nhập hoặc liên kết bằng Apple.
+  Future<void> signInWithApple() =>
+      _signInWithProvider(() => auth!.signInWithApple(), 'Apple');
+
+  Future<void> _signInWithProvider(
+    Future<void> Function() action,
+    String providerLabel,
+  ) async {
+    final a = auth!;
+    final current = user;
+    final keepGuestData = a.isGuest && current != null;
+    await action();
+    if (keepGuestData) {
+      _ownerUid = a.uid;
+      _notify(
+        NotificationType.account,
+        'Đã liên kết tài khoản $providerLabel',
+        'Hộ chiếu của bạn đã được bảo lưu bằng tài khoản $providerLabel.',
+      );
+      _commit();
+      return;
+    }
+    remote?.forget();
+    _clearState();
+    _ownerUid = a.uid;
+    try {
+      await _pullRemote(rethrowErrors: true);
+    } catch (_) {
+      await a.signOut();
+      _ownerUid = null;
+      throw const AuthFailure(
+        'Không tải được hộ chiếu từ máy chủ. Kiểm tra mạng rồi thử lại.',
+      );
+    }
+    if (user == null) {
+      final fallbackName = (a.displayName?.trim().isNotEmpty == true)
+          ? a.displayName!.trim()
+          : (a.email?.split('@').first ?? 'Lữ khách');
+      user = _newProfile(fallbackName);
+      _welcome();
+      _commit();
+    }
+  }
+
+  Future<void> sendEmailVerification() => auth!.sendEmailVerification();
+
+  Future<bool> refreshEmailVerification() async {
+    final verified = await auth!.reloadUser();
+    notifyListeners();
+    return verified;
+  }
+
+  Future<void> changePassword({
+    required String currentPassword,
+    required String newPassword,
+  }) => auth!.changePassword(
+    currentPassword: currentPassword,
+    newPassword: newPassword,
+  );
+
+  /// Xóa vĩnh viễn tài khoản và toàn bộ dữ liệu liên quan theo thứ tự an toàn:
+  /// (1) Re-authenticate; (2) Xóa toàn bộ dữ liệu Firestore của `uid` theo lô <= 450;
+  /// (3) Xóa tài khoản Auth; (4) Dọn trạng thái cục bộ. Nếu bước (1) hoặc (2) lỗi,
+  /// giữ nguyên phiên để người dùng có thể thử lại.
+  Future<void> deleteAccount({String? password}) async {
+    // Tạm dừng đồng bộ bảng xếp hạng để tránh ghi lại document trong lúc đang xóa.
+    _leaderboardTimer?.cancel();
+    _leaderboardTimer = null;
+    final a = auth;
+    if (a != null) {
+      await a.deleteAccount(
+        password: password,
+        beforeDeleteUser: (uid) async {
+          await remote?.deleteAllUserData(uid);
+        },
+      );
+    } else if (remote?.uid != null) {
+      await remote!.deleteAllUserData(remote!.uid!);
+    }
+    _cancelLeaderboardSync();
+    stopWatchingCommunity();
+    remote?.forget();
+    _clearState();
+    _ownerUid = null;
+    saveProblem.value = null;
+    _saveLocal();
+    notifyListeners();
   }
 
   /// Đăng nhập email rồi tải hộ chiếu của tài khoản đó từ Firestore.
@@ -272,6 +412,8 @@ class PassportStore extends ChangeNotifier {
 
   /// Đăng xuất: chỉ xóa dữ liệu trên máy, dữ liệu trên server vẫn giữ.
   Future<void> logout() async {
+    _cancelLeaderboardSync();
+    stopWatchingCommunity();
     await auth?.signOut();
     remote?.forget();
     _clearState();
@@ -279,6 +421,14 @@ class PassportStore extends ChangeNotifier {
     saveProblem.value = null;
     _saveLocal();
     notifyListeners();
+  }
+
+  @override
+  void dispose() {
+    _cancelLeaderboardSync();
+    stopWatchingCommunity();
+    remote?.state.removeListener(_onSyncState);
+    super.dispose();
   }
 
   // ---- Thông báo ----
@@ -375,8 +525,8 @@ class PassportStore extends ChangeNotifier {
       if (rethrowErrors) rethrow;
       return;
     }
-    await refreshCommunity();
-    await refreshLeaderboard();
+    _scheduleLeaderboardSync();
+    await Future.wait([refreshCommunity(), refreshLeaderboard()]);
   }
 
   /// Tải lại bảng xếp hạng từ Firestore. Trả về false nếu không tải được.
@@ -412,17 +562,101 @@ class PassportStore extends ChangeNotifier {
     );
   }
 
-  /// Tải lại bài cảm nhận của mọi người từ Firestore.
-  Future<void> refreshCommunity() async {
+  void _rebuildCommunityList() {
+    final merged = <String, Reflection>{
+      ..._pagedCommunity,
+      ..._realtimeCommunity,
+    };
+    final myIds = {for (final r in reflections) r.id};
+    communityReflections =
+        merged.values.where((x) => !myIds.contains(x.id)).toList()
+          ..sort((a, b) => b.createdAt.compareTo(a.createdAt));
+    notifyListeners();
+  }
+
+  /// Bắt đầu lắng nghe realtime các bài cảm nhận mới nhất (`snapshots()`).
+  void startWatchingCommunity({int limit = 20}) {
+    final r = remote;
+    if (r == null || _communitySub != null) return;
+    _communitySub = r
+        .watchLatestCommunity(limit: limit)
+        .listen(
+          (latest) {
+            _realtimeCommunity
+              ..clear()
+              ..addEntries(latest.map((item) => MapEntry(item.id, item)));
+            // Đồng bộ aiScore mới nhất từ server cho bài viết của chính người dùng nếu có.
+            var mineUpdated = false;
+            for (var i = 0; i < reflections.length; i++) {
+              final fromServer = _realtimeCommunity[reflections[i].id];
+              if (fromServer != null &&
+                  fromServer.aiScore > 0 &&
+                  fromServer.aiScore != reflections[i].aiScore) {
+                reflections[i] = reflections[i].copyWith(
+                  aiScore: fromServer.aiScore,
+                );
+                mineUpdated = true;
+              }
+            }
+            if (mineUpdated) _saveLocal();
+            _rebuildCommunityList();
+          },
+          onError: (_) {
+            // Giữ danh sách hiện có khi mất kết nối realtime.
+          },
+        );
+  }
+
+  /// Dừng lắng nghe stream realtime cộng đồng.
+  void stopWatchingCommunity() {
+    _communitySub?.cancel();
+    _communitySub = null;
+    _realtimeCommunity.clear();
+  }
+
+  /// Tải lại trang đầu bảng tin cộng đồng từ Firestore và bật stream realtime.
+  Future<void> refreshCommunity({int pageSize = 20}) async {
     final r = remote;
     if (r == null) return;
+    startWatchingCommunity(limit: pageSize);
     try {
-      final all = await r.fetchCommunity();
-      communityReflections = all
-          .where((x) => !reflections.any((m) => m.id == x.id))
-          .toList();
-      notifyListeners();
+      final page = await r.fetchCommunityPage(limit: pageSize);
+      _pagedCommunity
+        ..clear()
+        ..addEntries(page.items.map((item) => MapEntry(item.id, item)));
+      _communityCursor = page.cursor;
+      hasMoreCommunity = page.hasMore;
+      _rebuildCommunityList();
     } catch (_) {}
+  }
+
+  /// Tải trang tiếp theo cho infinite scroll bằng `startAfterDocument`.
+  Future<void> loadMoreCommunity({int pageSize = 20}) async {
+    final r = remote;
+    if (r == null ||
+        isLoadingMoreCommunity ||
+        !hasMoreCommunity ||
+        _communityCursor == null) {
+      return;
+    }
+    isLoadingMoreCommunity = true;
+    notifyListeners();
+    try {
+      final page = await r.fetchCommunityPage(
+        limit: pageSize,
+        startAfter: _communityCursor,
+      );
+      for (final item in page.items) {
+        _pagedCommunity[item.id] = item;
+      }
+      _communityCursor = page.cursor;
+      hasMoreCommunity = page.hasMore;
+    } catch (_) {
+      // Giữ trạng thái trang cũ để người dùng có thể cuộn thử lại.
+    } finally {
+      isLoadingMoreCommunity = false;
+      _rebuildCommunityList();
+    }
   }
 
   void _apply(Map<String, dynamic> j) {
@@ -484,6 +718,49 @@ class PassportStore extends ChangeNotifier {
     _saveLocal();
     _changedBeforePull = true;
     remote?.sync(_toJson());
+    _scheduleLeaderboardSync();
+  }
+
+  void _cancelLeaderboardSync() {
+    _leaderboardTimer?.cancel();
+    _leaderboardTimer = null;
+    _lastLeaderboardDigest = null;
+  }
+
+  /// Đẩy tóm tắt `{displayName, xp, stampCount, avatarUrl}` lên `leaderboard_public/{uid}`
+  /// có debounce (mặc định 5 giây) để tránh ghi liên tục khi người dùng tích nhiều nhiệm vụ.
+  void _scheduleLeaderboardSync() {
+    final r = remote;
+    final u = user;
+    if (r == null || u == null) return;
+    final digest = '${u.name}|$xp|$totalStamps';
+    if (digest == _lastLeaderboardDigest) return;
+    _leaderboardTimer?.cancel();
+    _leaderboardTimer = Timer(_leaderboardDebounce, () {
+      unawaited(flushLeaderboardNow());
+    });
+  }
+
+  /// Ghi ngay tóm tắt bảng xếp hạng hiện tại nếu có thay đổi.
+  Future<void> flushLeaderboardNow() async {
+    _leaderboardTimer?.cancel();
+    _leaderboardTimer = null;
+    final r = remote;
+    final u = user;
+    if (r == null || u == null) return;
+    final digest = '${u.name}|$xp|$totalStamps';
+    if (digest == _lastLeaderboardDigest) return;
+    _lastLeaderboardDigest = digest;
+    try {
+      await r.syncLeaderboardEntry(
+        displayName: u.name,
+        xp: xp,
+        stampCount: totalStamps,
+      );
+    } catch (_) {
+      // Cho phép thử lại ở lần đồng bộ tiếp theo.
+      _lastLeaderboardDigest = null;
+    }
   }
 
   int get totalStamps => stamps.keys
@@ -496,7 +773,7 @@ class PassportStore extends ChangeNotifier {
       progress[id]?.tasks.contains(taskId) ?? false;
 
   String? taskPhoto(String id, String taskId) =>
-      progress[id]?.taskPhotos[taskId];
+      progress[id]?.taskPhotos[taskId] ?? progress[id]?.taskPhotoUrls[taskId];
 
   /// Progress_location = (QR + số mục checklist xong) / (1 + tổng số mục checklist) × 100%
   int locationProgress(String id) {
@@ -567,16 +844,79 @@ class PassportStore extends ChangeNotifier {
     return stamped;
   }
 
-  bool setTaskPhoto(String id, String taskId, String? photoBase64) {
+  /// Nén ảnh nhỏ (<= 80 KB, cạnh dài ~720px, lặp giảm chất lượng) rồi lưu Base64
+  /// vào trạng thái nhiệm vụ. Giới hạn tối đa [maxTaskPhotosPerVisit] ảnh/visit
+  /// và kiểm tra ước lượng dung lượng document không vượt [maxFirestoreDocBytes].
+  /// Trả về true nếu vừa nhận dấu mộc mới.
+  Future<bool> saveTaskPhotoBytes(
+    String id,
+    String taskId,
+    Uint8List bytes,
+  ) async {
     final p = progress[id];
     final location = locationById[id];
     final task = location?.tasks.where((t) => t.id == taskId).firstOrNull;
     if (p == null || !p.unlocked || task?.type != TaskType.photo) return false;
-    if (photoBase64 == null) {
+
+    final alreadyHasSlot = p.taskPhotos.containsKey(taskId);
+    if (!alreadyHasSlot && p.taskPhotos.length >= maxTaskPhotosPerVisit) {
+      throw const PhotoLimitException(
+        'Mỗi địa điểm chỉ lưu tối đa $maxTaskPhotosPerVisit ảnh nhiệm vụ.',
+      );
+    }
+
+    // Trừ dung lượng prefix "<taskId>:" để phần tử list luôn <= 120000 ký tự.
+    final maxB64 = photoMaxBase64Length - taskId.length - 1;
+    var encoded = await compressImageToBase64(bytes, maxBase64Length: maxB64);
+
+    // Ước lượng dung lượng document visit trước khi ghi; nếu > 800 KB thì nén thêm.
+    Map<String, dynamic> buildCandidateDoc(String value) => {
+      'unlocked': p.unlocked,
+      'unlockedAt': p.unlockedAt?.toIso8601String(),
+      'tasks': {...p.tasks, taskId}.toList(),
+      'taskPhotos': encodeTaskPhotosList({...p.taskPhotos, taskId: value}),
+      'taskPhotoUrls': p.taskPhotoUrls,
+    };
+    if (estimateFirestoreDocBytes(buildCandidateDoc(encoded)) >
+        maxFirestoreDocBytes) {
+      encoded = await compressImageToBase64(
+        bytes,
+        targetBytes: 40 * 1024,
+        maxBase64Length: maxB64,
+      );
+      if (estimateFirestoreDocBytes(buildCandidateDoc(encoded)) >
+          maxFirestoreDocBytes) {
+        throw const PhotoLimitException(
+          'Dung lượng dữ liệu địa điểm vượt giới hạn an toàn 800 KB. Hãy xóa bớt ảnh cũ trước khi thêm.',
+        );
+      }
+    }
+
+    return setTaskPhoto(id, taskId, encoded);
+  }
+
+  bool setTaskPhoto(String id, String taskId, String? photoValue) {
+    final p = progress[id];
+    final location = locationById[id];
+    final task = location?.tasks.where((t) => t.id == taskId).firstOrNull;
+    if (p == null || !p.unlocked || task?.type != TaskType.photo) return false;
+    if (photoValue == null) {
+      p.taskPhotoUrls.remove(taskId);
       p.taskPhotos.remove(taskId);
       p.tasks.remove(taskId);
+    } else if (isNetworkImageUrl(photoValue)) {
+      p.taskPhotoUrls[taskId] = photoValue;
+      p.taskPhotos.remove(taskId);
+      p.tasks.add(taskId);
     } else {
-      p.taskPhotos[taskId] = photoBase64;
+      if (!p.taskPhotos.containsKey(taskId) &&
+          p.taskPhotos.length >= maxTaskPhotosPerVisit) {
+        throw const PhotoLimitException(
+          'Mỗi địa điểm chỉ lưu tối đa $maxTaskPhotosPerVisit ảnh nhiệm vụ.',
+        );
+      }
+      p.taskPhotos[taskId] = photoValue;
+      p.taskPhotoUrls.remove(taskId);
       p.tasks.add(taskId);
     }
     final stamped = _checkStamp(id);
@@ -585,24 +925,27 @@ class PassportStore extends ChangeNotifier {
   }
 
   void addReflection({
+    String? id,
     required String locationId,
     required String content,
     required bool isAnonymous,
     required int aiScore,
     required int bonusXp,
+    String? photoUrl,
     String? photoBase64,
   }) {
     reflections.insert(
       0,
       Reflection(
-        id: 'r${DateTime.now().millisecondsSinceEpoch}',
+        id: id ?? 'r${DateTime.now().millisecondsSinceEpoch}',
         locationId: locationId,
         displayAuthor: _authorName(isAnonymous),
         isAnonymous: isAnonymous,
         content: content,
         aiScore: aiScore,
         createdAt: DateTime.now(),
-        photoBase64: photoBase64,
+        photoUrl: photoUrl,
+        photoBase64: photoUrl != null ? null : photoBase64,
       ),
     );
     _notify(
@@ -629,6 +972,42 @@ class PassportStore extends ChangeNotifier {
     reflections[i] = reflections[i].copyWith(
       isAnonymous: isAnonymous,
       displayAuthor: _authorName(isAnonymous),
+    );
+    _commit();
+    return true;
+  }
+
+  /// Sửa nội dung và/hoặc ảnh bài cảm nhận của chính tác giả; cập nhật `aiScore`
+  /// từ kết quả chấm lại (heuristic offline hoặc endpoint ngoài), không cộng trùng XP.
+  bool updateReflection({
+    required String id,
+    required String content,
+    String? photoUrl,
+    String? photoBase64,
+    bool clearPhoto = false,
+    int? aiScore,
+  }) {
+    final i = reflections.indexWhere((r) => r.id == id);
+    if (i < 0) return false;
+    final current = reflections[i];
+    final trimmed = content.trim();
+    if (trimmed.isEmpty) return false;
+
+    final nextPhotoUrl = clearPhoto ? null : (photoUrl ?? current.photoUrl);
+    final nextPhotoBase64 = clearPhoto
+        ? null
+        : (photoBase64 ?? (photoUrl != null ? null : current.photoBase64));
+
+    reflections[i] = Reflection(
+      id: current.id,
+      locationId: current.locationId,
+      displayAuthor: current.displayAuthor,
+      isAnonymous: current.isAnonymous,
+      content: trimmed,
+      aiScore: aiScore ?? current.aiScore,
+      createdAt: current.createdAt,
+      photoUrl: nextPhotoUrl,
+      photoBase64: nextPhotoBase64,
     );
     _commit();
     return true;

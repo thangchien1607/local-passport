@@ -15,7 +15,16 @@ class FakeAuth implements AuthGateway {
   final accounts = <String, ({String password, String uid})>{};
   String? _uid;
   String? _email;
+  String? _displayName;
   bool _guest = false;
+  bool _verified = false;
+  bool _hasPassword = false;
+  bool _hasGoogle = false;
+  bool _hasApple = false;
+  bool failNextReauthWithRecentLogin = false;
+  final deleteEvents = <String>[];
+  int verificationEmailsSent = 0;
+  int accountsDeleted = 0;
   int _next = 1;
 
   @override
@@ -23,7 +32,17 @@ class FakeAuth implements AuthGateway {
   @override
   String? get email => _email;
   @override
+  String? get displayName => _displayName;
+  @override
   bool get isGuest => _guest;
+  @override
+  bool get emailVerified => _verified;
+  @override
+  bool get hasPasswordProvider => _hasPassword;
+  @override
+  bool get hasGoogleProvider => _hasGoogle;
+  @override
+  bool get hasAppleProvider => _hasApple;
 
   @override
   Future<void> register(String email, String password) async {
@@ -36,6 +55,10 @@ class FakeAuth implements AuthGateway {
     _uid = uid;
     _email = email;
     _guest = false;
+    _verified = false;
+    _hasPassword = true;
+    _hasGoogle = false;
+    _hasApple = false;
   }
 
   @override
@@ -47,23 +70,138 @@ class FakeAuth implements AuthGateway {
     _uid = a.uid;
     _email = email;
     _guest = false;
+    _hasPassword = true;
+    _hasGoogle = false;
+    _hasApple = false;
+  }
+
+  @override
+  Future<void> signInWithGoogle() async {
+    _uid = _guest ? _uid! : 'google-${_next++}';
+    _email = 'traveler@gmail.com';
+    _displayName = 'Lữ khách Google';
+    _guest = false;
+    _verified = true;
+    _hasPassword = false;
+    _hasGoogle = true;
+    _hasApple = false;
+  }
+
+  @override
+  Future<void> signInWithApple() async {
+    _uid = _guest ? _uid! : 'apple-${_next++}';
+    _email = 'traveler@icloud.com';
+    _displayName = 'Lữ khách Apple';
+    _guest = false;
+    _verified = true;
+    _hasPassword = false;
+    _hasGoogle = false;
+    _hasApple = true;
   }
 
   @override
   Future<void> signInGuest() async {
     _uid = 'g${_next++}';
     _email = null;
+    _displayName = null;
     _guest = true;
+    _verified = false;
+    _hasPassword = false;
+    _hasGoogle = false;
+    _hasApple = false;
   }
 
   @override
   Future<void> sendPasswordReset(String email) async {}
 
   @override
+  Future<void> sendEmailVerification() async {
+    verificationEmailsSent++;
+  }
+
+  @override
+  Future<bool> reloadUser() async {
+    _verified = true;
+    return _verified;
+  }
+
+  @override
+  Future<void> changePassword({
+    required String currentPassword,
+    required String newPassword,
+  }) async {
+    final e = _email;
+    if (e == null || !accounts.containsKey(e)) {
+      throw const AuthFailure('Tài khoản hiện tại không dùng mật khẩu.');
+    }
+    final a = accounts[e]!;
+    if (a.password != currentPassword) {
+      throw AuthFailure(authErrorMessage('wrong-password'));
+    }
+    accounts[e] = (password: newPassword, uid: a.uid);
+  }
+
+  @override
+  Future<void> deleteAccount({
+    String? password,
+    Future<void> Function(String uid)? beforeDeleteUser,
+  }) async {
+    final currentUid = _uid;
+    if (currentUid == null) return;
+    if (failNextReauthWithRecentLogin) {
+      failNextReauthWithRecentLogin = false;
+      throw AuthFailure(authErrorMessage('requires-recent-login'));
+    }
+    // (1) Re-auth theo nhà cung cấp.
+    if (!_guest) {
+      if (_hasPassword) {
+        final e = _email;
+        final a = e == null ? null : accounts[e];
+        if (password == null || password.isEmpty) {
+          throw const AuthFailure(
+            'Nhập mật khẩu hiện tại để xác nhận xóa tài khoản.',
+          );
+        }
+        if (a == null || a.password != password) {
+          throw AuthFailure(authErrorMessage('wrong-password'));
+        }
+        deleteEvents.add('reauth:password');
+      } else if (_hasGoogle) {
+        deleteEvents.add('reauth:google');
+      } else if (_hasApple) {
+        deleteEvents.add('reauth:apple');
+      }
+    }
+    // (2) Xóa dữ liệu Firestore; lỗi giữa chừng -> không xóa Auth user.
+    if (beforeDeleteUser != null) {
+      try {
+        await beforeDeleteUser(currentUid);
+        deleteEvents.add('firestore:deleted:$currentUid');
+      } on AuthFailure {
+        rethrow;
+      } catch (_) {
+        throw const AuthFailure(
+          'Không xóa được toàn bộ dữ liệu trên máy chủ. Tài khoản chưa bị xóa, vui lòng kiểm tra mạng rồi thử lại.',
+        );
+      }
+    }
+    // (3) Xóa Auth user.
+    if (_email != null) accounts.remove(_email);
+    accountsDeleted++;
+    deleteEvents.add('auth:deleted:$currentUid');
+    await signOut();
+  }
+
+  @override
   Future<void> signOut() async {
     _uid = null;
     _email = null;
+    _displayName = null;
     _guest = false;
+    _verified = false;
+    _hasPassword = false;
+    _hasGoogle = false;
+    _hasApple = false;
   }
 }
 
@@ -74,6 +212,8 @@ class FakeRemote implements PassportRemote {
   final FakeAuth auth;
   final servers = <String, Map<String, dynamic>>{};
   bool failFetch = false;
+  bool failDeleteData = false;
+  int deleteDataCalls = 0;
 
   @override
   final state = ValueNotifier(SyncState.synced);
@@ -92,6 +232,29 @@ class FakeRemote implements PassportRemote {
   Future<List<Reflection>> fetchCommunity() async => [];
 
   @override
+  Future<CommunityPage> fetchCommunityPage({
+    int limit = 20,
+    Object? startAfter,
+  }) async => const CommunityPage(items: [], hasMore: false);
+
+  @override
+  Stream<List<Reflection>> watchLatestCommunity({int limit = 20}) =>
+      const Stream.empty();
+
+  @override
+  Future<List<LeaderEntry>> fetchLeaderboard({int limit = 50}) async => [
+    ...leaders,
+  ];
+
+  @override
+  Future<void> syncLeaderboardEntry({
+    required String displayName,
+    required int xp,
+    required int stampCount,
+    String? avatarUrl,
+  }) async {}
+
+  @override
   Future<void> sync(Map<String, dynamic> data) async {
     final u = uid;
     if (u != null) servers[u] = data;
@@ -100,7 +263,13 @@ class FakeRemote implements PassportRemote {
   final leaders = <LeaderEntry>[];
 
   @override
-  Future<List<LeaderEntry>> fetchLeaderboard() async => [...leaders];
+  Future<void> deleteAllUserData(String uid) async {
+    deleteDataCalls++;
+    if (failDeleteData) {
+      throw Exception('mất mạng giữa chừng khi xóa Firestore');
+    }
+    servers.remove(uid);
+  }
 
   @override
   void forget() {}
@@ -323,6 +492,142 @@ void main() {
       findsOneWidget,
     );
     expect(store.user, isNull);
+    expect(find.text('Google'), findsOneWidget);
+    expect(find.text('Apple'), findsOneWidget);
     expect(tester.takeException(), isNull);
   });
+
+  test(
+    'Google/Apple Sign-In, xác minh email, đổi mật khẩu và xóa tài khoản hoạt động đúng',
+    () async {
+      final (store, auth, _) = await _setup();
+
+      // Đăng ký email -> tự động gửi email xác minh.
+      await store.register(
+        name: 'Lan Anh',
+        email: 'lan@gmail.com',
+        password: 'danang2026',
+      );
+      expect(auth.verificationEmailsSent, 1);
+      expect(store.emailVerified, isFalse);
+
+      await store.refreshEmailVerification();
+      expect(store.emailVerified, isTrue);
+
+      // Đổi mật khẩu: sai mật khẩu cũ bị từ chối, đúng thì đổi được.
+      await expectLater(
+        store.changePassword(
+          currentPassword: 'sai-password1',
+          newPassword: 'danang2027',
+        ),
+        throwsA(isA<AuthFailure>()),
+      );
+      await store.changePassword(
+        currentPassword: 'danang2026',
+        newPassword: 'danang2027',
+      );
+      await store.logout();
+      await store.signIn(email: 'lan@gmail.com', password: 'danang2027');
+      expect(store.user?.name, 'Lan Anh');
+
+      // Xóa tài khoản -> xác thực lại mật khẩu, xóa dữ liệu Firestore rồi xóa tài khoản Auth.
+      await store.deleteAccount(password: 'danang2027');
+      expect(auth.accountsDeleted, 1);
+      expect(store.user, isNull);
+      expect(auth.uid, isNull);
+
+      // Đăng nhập Google tạo hộ chiếu mới; nâng khách lên Apple giữ nguyên tiến độ.
+      await store.signInWithGoogle();
+      expect(store.user?.name, 'Lữ khách Google');
+      await store.logout();
+
+      await store.enterAsGuest('Khách tạm');
+      store.unlock('dien-hai');
+      await store.signInWithApple();
+      expect(store.isGuest, isFalse);
+      expect(store.isUnlocked('dien-hai'), isTrue);
+    },
+  );
+
+  test(
+    'S5 Xóa tài khoản theo thứ tự re-auth -> xóa Firestore -> xóa Auth; lỗi giữa chừng giữ phiên để thử lại',
+    () async {
+      final (store, auth, remote) = await _setup();
+      await store.register(
+        name: 'Minh Thư',
+        email: 'thu@gmail.com',
+        password: 'danang2026',
+      );
+      final uid = auth.uid!;
+      expect(remote.servers.containsKey(uid), isTrue);
+
+      // 1. Sai mật khẩu: dừng ngay ở bước re-auth, không xóa Firestore và không xóa Auth.
+      await expectLater(
+        store.deleteAccount(password: 'sai-mat-khau'),
+        throwsA(isA<AuthFailure>()),
+      );
+      expect(remote.deleteDataCalls, 0);
+      expect(remote.servers.containsKey(uid), isTrue);
+      expect(auth.uid, uid);
+      expect(store.user?.name, 'Minh Thư');
+
+      // 2. Lỗi requires-recent-login: thông báo rõ ràng, không xóa dữ liệu/tài khoản.
+      auth.failNextReauthWithRecentLogin = true;
+      await expectLater(
+        store.deleteAccount(password: 'danang2026'),
+        throwsA(
+          isA<AuthFailure>().having(
+            (e) => e.message,
+            'message',
+            contains('xác thực lại'),
+          ),
+        ),
+      );
+      expect(remote.deleteDataCalls, 0);
+      expect(auth.accountsDeleted, 0);
+
+      // 3. Lỗi xóa Firestore giữa chừng: KHÔNG xóa Auth user để người dùng thử lại.
+      remote.failDeleteData = true;
+      await expectLater(
+        store.deleteAccount(password: 'danang2026'),
+        throwsA(
+          isA<AuthFailure>().having(
+            (e) => e.message,
+            'message',
+            contains('Tài khoản chưa bị xóa'),
+          ),
+        ),
+      );
+      expect(remote.deleteDataCalls, 1);
+      expect(auth.accountsDeleted, 0);
+      expect(auth.uid, uid);
+      expect(store.user?.name, 'Minh Thư');
+
+      // 4. Thử lại khi mạng ổn: chạy đúng thứ tự re-auth -> xóa Firestore -> xóa Auth -> dọn cục bộ.
+      auth.deleteEvents.clear();
+      remote.failDeleteData = false;
+      await store.deleteAccount(password: 'danang2026');
+      expect(auth.deleteEvents, [
+        'reauth:password',
+        'firestore:deleted:$uid',
+        'auth:deleted:$uid',
+      ]);
+      expect(remote.servers.containsKey(uid), isFalse);
+      expect(auth.accountsDeleted, 1);
+      expect(auth.uid, isNull);
+      expect(store.user, isNull);
+
+      // 5. Tài khoản Google tự re-auth qua Google provider mà không cần mật khẩu.
+      auth.deleteEvents.clear();
+      await store.signInWithGoogle();
+      final googleUid = auth.uid!;
+      await store.deleteAccount();
+      expect(auth.deleteEvents, [
+        'reauth:google',
+        'firestore:deleted:$googleUid',
+        'auth:deleted:$googleUid',
+      ]);
+      expect(store.user, isNull);
+    },
+  );
 }
