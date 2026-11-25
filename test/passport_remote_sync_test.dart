@@ -152,6 +152,35 @@ Map<String, dynamic> _largePassportPayload({
 }
 
 void main() {
+  test('Đồng bộ xóa ảnh URL cũ khi người dùng bỏ ảnh cảm nhận', () async {
+    final adapter = _RuleEnforcingMemoryAdapter();
+    final payload = _largePassportPayload(
+      visitCount: 0,
+      reflectionCount: 1,
+      noteCount: 0,
+    );
+    final reflection =
+        (payload['reflections'] as List).single as Map<String, dynamic>;
+    const oldPhoto = 'https://example.test/anh-cu.jpg';
+    reflection['photoUrl'] = oldPhoto;
+
+    await runIdempotentChunkedSync(
+      uid: 'u-photo',
+      data: payload,
+      adapter: adapter,
+    );
+    expect(adapter.docs['reflections/r-0']!['photoUrl'], oldPhoto);
+
+    reflection['photoUrl'] = null;
+    await runIdempotentChunkedSync(
+      uid: 'u-photo',
+      data: payload,
+      adapter: adapter,
+    );
+    expect(adapter.docs['reflections/r-0']!['photoUrl'], isNull);
+    expect(adapter.docs['reflections/r-0']!['photoBase64'], isNull);
+  });
+
   test('chunkAtomicOps giữ nguyên nhóm nguyên tử và mỗi lô <= 450', () {
     final groups = [
       for (var i = 0; i < 300; i++) ['owner-$i', 'reflection-$i'],
