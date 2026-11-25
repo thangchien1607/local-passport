@@ -6,8 +6,8 @@ import '../services/text_search.dart';
 import '../state/passport_store.dart';
 import '../theme.dart';
 import '../widgets/common.dart';
-import '../widgets/discovery_map.dart';
 import '../widgets/google_discovery_map.dart';
+import '../widgets/osm_discovery_map.dart';
 import '../widgets/scene_art.dart';
 import 'notifications_screen.dart';
 import 'timelens_screen.dart';
@@ -163,7 +163,7 @@ class _MapScreenState extends State<MapScreen> {
               isStamped: store.stamps.containsKey,
             )
           else
-            DiscoveryMap(
+            OsmDiscoveryMap(
               filter: _filter,
               selectedId: _selectedId,
               onSelect: (id) => setState(() => _selectedId = id),

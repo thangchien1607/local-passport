@@ -25,39 +25,35 @@ class LeaderboardScreen extends StatefulWidget {
 }
 
 class _LeaderboardScreenState extends State<LeaderboardScreen> {
+  bool _failed = false;
+
   @override
   void initState() {
     super.initState();
-    PassportScope.read(context).refreshLeaderboard();
+    // Mỗi lần mở tab thì lấy điểm mới nhất của mọi người.
+    WidgetsBinding.instance.addPostFrameCallback((_) => _refresh());
+  }
+
+  Future<void> _refresh() async {
+    final store = PassportScope.read(context);
+    if (store.remote == null) return;
+    final ok = await store.refreshLeaderboard();
+    if (mounted) setState(() => _failed = !ok);
   }
 
   @override
   Widget build(BuildContext context) {
     final store = PassportScope.of(context);
-    final myUid = store.remote?.uid ?? 'me';
-    final me = LeaderEntry(
-      myUid,
-      store.user!.name,
-      store.xp,
-      store.totalStamps,
-      isMe: true,
-    );
-    final base = store.remoteLeaderboard.isNotEmpty
-        ? store.remoteLeaderboard
-              .where((e) => !e.isMe && e.id != myUid)
-              .toList()
-        : leaderboard;
-    final rows = [...base, me]
-      ..sort(
-        (a, b) =>
-            b.xp != a.xp ? b.xp.compareTo(a.xp) : b.stamps.compareTo(a.stamps),
-      );
-    final myRank = rows.indexWhere((r) => r.isMe) + 1;
+    final rows = store.rankedEntries();
+    final me = rows.firstWhere((r) => r.isMe);
+    final myRank = rows.indexOf(me) + 1;
     final current = rankForXp(store.xp).current;
+    final loading = store.remote != null && store.leaders == null && !_failed;
 
     return RefreshIndicator(
-      onRefresh: store.refreshLeaderboard,
+      onRefresh: _refresh,
       child: ListView(
+        physics: const AlwaysScrollableScrollPhysics(),
         padding: const EdgeInsets.fromLTRB(16, 24, 16, 32),
         children: [
           Semantics(
@@ -66,9 +62,38 @@ class _LeaderboardScreenState extends State<LeaderboardScreen> {
           ),
           const SizedBox(height: 4),
           Text(
-            'Nhà khám phá Đà Nẵng · theo XP và dấu mộc',
+            store.remote == null
+                ? 'Dữ liệu mẫu (chưa kết nối máy chủ) · theo XP và dấu mộc'
+                : '${rows.length} nhà khám phá Đà Nẵng · theo XP và dấu mộc',
             style: bodyStyle(13, color: AppColors.inkSoft),
           ),
+          if (loading || _failed) ...[
+            const SizedBox(height: 10),
+            Row(
+              children: [
+                if (loading)
+                  const SizedBox.square(
+                    dimension: 14,
+                    child: CircularProgressIndicator(strokeWidth: 2),
+                  )
+                else
+                  const Icon(
+                    Icons.cloud_off_outlined,
+                    size: 16,
+                    color: AppColors.inkSoft,
+                  ),
+                const SizedBox(width: 8),
+                Expanded(
+                  child: Text(
+                    loading
+                        ? 'Đang tải bảng xếp hạng…'
+                        : 'Chưa tải được bảng xếp hạng. Kéo xuống để thử lại.',
+                    style: bodyStyle(12.5, color: AppColors.inkSoft),
+                  ),
+                ),
+              ],
+            ),
+          ],
           const SizedBox(height: 16),
           _MyRankCard(
             rank: myRank,
@@ -77,8 +102,8 @@ class _LeaderboardScreenState extends State<LeaderboardScreen> {
           ),
           const SizedBox(height: 18),
           _Podium(top: rows.take(3).toList()),
-          if (rows.length > 3) ...[
-            const SizedBox(height: 22),
+          const SizedBox(height: 22),
+          if (rows.length > 3)
             Container(
               decoration: cardDecoration(),
               clipBehavior: Clip.antiAlias,
@@ -97,7 +122,6 @@ class _LeaderboardScreenState extends State<LeaderboardScreen> {
                 ],
               ),
             ),
-          ],
           const SizedBox(height: 20),
           Semantics(
             header: true,
@@ -217,12 +241,15 @@ class _Podium extends StatelessWidget {
     if (top.isEmpty) return const SizedBox.shrink();
     const heights = [134.0, 114.0, 104.0];
     Widget step(int i) => Expanded(
-      child: _PodiumStep(
-        rank: i + 1,
-        entry: top[i],
-        color: _podium[i],
-        minHeight: heights[i],
-      ),
+      // Ít hơn 3 người thì để trống bậc còn thiếu.
+      child: i >= top.length
+          ? const SizedBox.shrink()
+          : _PodiumStep(
+              rank: i + 1,
+              entry: top[i],
+              color: _podium[i],
+              minHeight: heights[i],
+            ),
     );
     if (top.length < 3) {
       return Row(

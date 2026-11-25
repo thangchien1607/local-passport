@@ -242,7 +242,9 @@ class FakeRemote implements PassportRemote {
       const Stream.empty();
 
   @override
-  Future<List<LeaderEntry>> fetchLeaderboard({int limit = 50}) async => [];
+  Future<List<LeaderEntry>> fetchLeaderboard({int limit = 50}) async => [
+    ...leaders,
+  ];
 
   @override
   Future<void> syncLeaderboardEntry({
@@ -257,6 +259,8 @@ class FakeRemote implements PassportRemote {
     final u = uid;
     if (u != null) servers[u] = data;
   }
+
+  final leaders = <LeaderEntry>[];
 
   @override
   Future<void> deleteAllUserData(String uid) async {

@@ -19,6 +19,9 @@ import '../services/photo_service.dart';
 // thì mỗi lần _commit() cũng ghi lên server.
 const _storageKey = 'local-passport/v1';
 
+/// Cài đặt riêng của máy, không đổi theo tài khoản.
+const _demoKey = 'local-passport/demo-qr';
+
 class UserProfile {
   const UserProfile({
     required this.name,
@@ -131,7 +134,28 @@ class PassportStore extends ChangeNotifier {
   final Map<String, Reflection> _realtimeCommunity = {};
 
   /// Bảng xếp hạng công khai tải từ collection `leaderboard_public`.
-  List<LeaderEntry> remoteLeaderboard = [];
+  List<LeaderEntry> get remoteLeaderboard => leaders ?? const [];
+
+  /// Cho phép nút "Giả lập quét QR" (dùng khi trình diễn không có mã QR thật).
+  /// Chạy không có Firebase thì luôn bật.
+  bool get demoQrEnabled =>
+      remote == null || (_prefs.getBool(_demoKey) ?? false);
+
+  void setDemoQr(bool enabled) {
+    _prefs.setBool(_demoKey, enabled);
+    notifyListeners();
+  }
+
+  /// Bảng tin: bài của mình và của mọi người, mới nhất trước. Bài mẫu chỉ hiện
+  /// khi chạy không có Firebase.
+  List<Reflection> get feed => [
+    ...reflections,
+    ...communityReflections,
+    if (remote == null) ...seedReflections,
+  ]..sort((a, b) => b.createdAt.compareTo(a.createdAt));
+
+  /// Bảng xếp hạng tải từ Firestore (null: chưa tải được lần nào).
+  List<LeaderEntry>? leaders;
 
   /// Đã có thay đổi trước khi tải xong dữ liệu từ server: không ghi đè bằng bản server.
   bool _changedBeforePull = false;
@@ -192,6 +216,7 @@ class PassportStore extends ChangeNotifier {
     reflections = [];
     notifications = [];
     _changedBeforePull = false;
+    leaders = null;
   }
 
   // ---- Tài khoản ----
@@ -500,17 +525,41 @@ class PassportStore extends ChangeNotifier {
       if (rethrowErrors) rethrow;
       return;
     }
+    _scheduleLeaderboardSync();
     await Future.wait([refreshCommunity(), refreshLeaderboard()]);
   }
 
-  /// Tải bảng xếp hạng công khai từ `leaderboard_public` (không đọc `user_passports`).
-  Future<void> refreshLeaderboard() async {
+  /// Tải lại bảng xếp hạng từ Firestore. Trả về false nếu không tải được.
+  Future<bool> refreshLeaderboard() async {
     final r = remote;
-    if (r == null) return;
+    if (r == null) return false;
     try {
-      remoteLeaderboard = await r.fetchLeaderboard();
+      leaders = await r.fetchLeaderboard();
       notifyListeners();
-    } catch (_) {}
+      return true;
+    } catch (_) {
+      return false;
+    }
+  }
+
+  /// Danh sách xếp hạng để hiện: người khác lấy từ server, bản thân lấy từ
+  /// máy (luôn mới nhất). Không có Firebase thì dùng danh sách mẫu.
+  List<LeaderEntry> rankedEntries() {
+    final myId = remote?.uid ?? _ownerUid;
+    final me = LeaderEntry(
+      myId ?? 'me',
+      user?.name ?? 'Bạn',
+      xp,
+      totalStamps,
+      isMe: true,
+    );
+    final others = remote == null
+        ? sampleLeaderboard
+        : (leaders ?? const <LeaderEntry>[]).where((e) => e.id != myId);
+    return [...others, me]..sort(
+      (a, b) =>
+          b.xp != a.xp ? b.xp.compareTo(a.xp) : b.stamps.compareTo(a.stamps),
+    );
   }
 
   void _rebuildCommunityList() {
@@ -642,6 +691,7 @@ class PassportStore extends ChangeNotifier {
     'progress': progress.map((k, v) => MapEntry(k, v.toJson())),
     'stamps': stamps.map((k, v) => MapEntry(k, v.toIso8601String())),
     'xp': xp,
+    'stampCount': totalStamps,
     'reflections': reflections.map((r) => r.toJson()).toList(),
   };
 

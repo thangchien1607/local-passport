@@ -35,8 +35,9 @@ class _FakeRemote implements PassportRemote {
       const Stream.empty();
 
   @override
-  Future<List<LeaderEntry>> fetchLeaderboard({int limit = 50}) async =>
-      const [];
+  Future<List<LeaderEntry>> fetchLeaderboard({int limit = 50}) async => [
+    ...leaders,
+  ];
 
   @override
   Future<void> syncLeaderboardEntry({
@@ -51,6 +52,8 @@ class _FakeRemote implements PassportRemote {
     synced.add(data);
     server = data;
   }
+
+  final leaders = <LeaderEntry>[];
 
   @override
   Future<void> deleteAllUserData(String uid) async {
@@ -108,5 +111,55 @@ void main() {
     expect(store.user?.name, 'Từ server');
     expect(store.xp, 42);
     expect(store.communityReflections, hasLength(1));
+  });
+
+  test('Bảng xếp hạng: người khác từ server, bản thân từ máy', () async {
+    SharedPreferences.setMockInitialValues({});
+    final remote = _FakeRemote()
+      ..leaders.addAll(const [
+        LeaderEntry('a', 'An', 500, 3),
+        LeaderEntry('u-test', 'Bản cũ trên server', 1, 0),
+        LeaderEntry('b', 'Bình', 5, 1),
+      ]);
+    final store = await PassportStore.load(remote: remote);
+    await Future<void>.delayed(Duration.zero);
+    store.login('Gia Huy');
+    store.addReflection(
+      locationId: 'dien-hai',
+      content: 'Đẹp',
+      isAnonymous: false,
+      aiScore: 70,
+      bonusXp: 40,
+    );
+    expect(await store.refreshLeaderboard(), isTrue);
+
+    final rows = store.rankedEntries();
+    expect(rows.map((r) => r.name), ['An', 'Gia Huy', 'Bình']);
+    expect(rows[1].isMe, isTrue);
+    expect(rows[1].xp, 40);
+    expect(remote.server!['stampCount'], 0);
+  });
+
+  test(
+    'Có Firebase: bảng tin không lẫn bài mẫu, nút giả lập QR tắt sẵn',
+    () async {
+      SharedPreferences.setMockInitialValues({});
+      final store = await PassportStore.load(remote: _FakeRemote());
+      await Future<void>.delayed(Duration.zero);
+      await store.refreshCommunity();
+
+      // Chỉ có bài thật từ server (bản giả trả về đúng 1 bài).
+      expect(store.feed, hasLength(1));
+      expect(store.demoQrEnabled, isFalse);
+      store.setDemoQr(true);
+      expect(store.demoQrEnabled, isTrue);
+    },
+  );
+
+  test('Không có Firebase: dùng bài mẫu và luôn cho giả lập QR', () async {
+    SharedPreferences.setMockInitialValues({});
+    final store = await PassportStore.load();
+    expect(store.feed, hasLength(seedReflections.length));
+    expect(store.demoQrEnabled, isTrue);
   });
 }

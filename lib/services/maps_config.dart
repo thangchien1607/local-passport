@@ -3,7 +3,7 @@ import 'package:flutter/foundation.dart';
 import 'maps_loader.dart';
 
 /// Google Maps API key, truyền lúc build: `--dart-define=MAPS_API_KEY=...`.
-/// Để trống thì app dùng bản đồ minh họa (DiscoveryMap) như cũ.
+/// Để trống thì app dùng bản đồ OpenStreetMap (OsmDiscoveryMap).
 const mapsApiKey = String.fromEnvironment('MAPS_API_KEY');
 
 var _ready = false;
@@ -21,6 +21,6 @@ Future<void> initGoogleMaps() async {
     await loadMapsSdk(mapsApiKey);
     _ready = true;
   } catch (e) {
-    debugPrint('Google Maps: $e — dùng bản đồ minh họa');
+    debugPrint('Google Maps: $e — dùng bản đồ OpenStreetMap');
   }
 }
