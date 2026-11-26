@@ -7,7 +7,16 @@ import '../state/passport_store.dart';
 import '../theme.dart';
 import '../widgets/location_prompt.dart';
 
-enum ScanResult { real, demo }
+enum ScanResult {
+  /// Mã QR đúng và đang ở gần di tích.
+  real,
+
+  /// Mã QR đúng, bỏ qua đo vị trí (bật trong tab Hộ chiếu).
+  skippedLocation,
+
+  /// Không quét gì cả (nút giả lập).
+  demo,
+}
 
 enum _Status { idle, camera, verifying, demo, error }
 
@@ -104,6 +113,10 @@ class _QrScannerScreenState extends State<QrScannerScreen>
     }
 
     if (!mounted) return;
+    if (PassportScope.read(context).skipLocationCheck) {
+      Navigator.of(context).pop(ScanResult.skippedLocation);
+      return;
+    }
     setState(() => _status = _Status.verifying);
     try {
       final here = await requestLocation(context);
@@ -136,6 +149,7 @@ class _QrScannerScreenState extends State<QrScannerScreen>
   @override
   Widget build(BuildContext context) {
     final busy = _status == _Status.verifying || _status == _Status.demo;
+    final skipLocation = PassportScope.of(context).skipLocationCheck;
     final controller = _controller;
 
     return Scaffold(
@@ -342,16 +356,27 @@ class _QrScannerScreenState extends State<QrScannerScreen>
                         mainAxisSize: MainAxisSize.min,
                         children: [
                           Icon(
-                            Icons.place_outlined,
+                            skipLocation
+                                ? Icons.location_off_outlined
+                                : Icons.place_outlined,
                             size: 14,
-                            color: AppColors.paper.withValues(alpha: 0.6),
+                            color: skipLocation
+                                ? AppColors.goldLight
+                                : AppColors.paper.withValues(alpha: 0.6),
                           ),
                           const SizedBox(width: 6),
-                          Text(
-                            'Cần ở trong bán kính ${checkinRadiusM.round()} m quanh di tích',
-                            style: bodyStyle(
-                              12,
-                              color: AppColors.paper.withValues(alpha: 0.6),
+                          Flexible(
+                            child: Text(
+                              skipLocation
+                                  ? 'Đang bỏ qua kiểm tra vị trí (tắt ở tab Hộ chiếu)'
+                                  : 'Cần ở trong bán kính ${checkinRadiusM.round()} m quanh di tích',
+                              textAlign: TextAlign.center,
+                              style: bodyStyle(
+                                12,
+                                color: skipLocation
+                                    ? AppColors.goldLight
+                                    : AppColors.paper.withValues(alpha: 0.6),
+                              ),
                             ),
                           ),
                         ],

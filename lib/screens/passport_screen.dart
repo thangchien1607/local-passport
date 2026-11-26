@@ -767,6 +767,28 @@ class PassportScreen extends StatelessWidget {
           ),
           const SizedBox(height: 12),
         ],
+        Container(
+          decoration: cardDecoration(),
+          child: SwitchListTile(
+            value: store.skipLocationCheck,
+            onChanged: store.setSkipLocationCheck,
+            title: Text(
+              'Bỏ qua kiểm tra vị trí',
+              style: bodyStyle(14, weight: FontWeight.w600),
+            ),
+            subtitle: Text(
+              'Vẫn phải quét mã QR thật của di tích, nhưng không cần đứng '
+              'gần di tích. Dùng khi thử hoặc báo cáo ở lớp. Chỉ áp dụng trên '
+              'máy này.',
+              style: bodyStyle(12, color: AppColors.inkSoft),
+            ),
+            secondary: const Icon(
+              Icons.location_off_outlined,
+              color: AppColors.gold,
+            ),
+          ),
+        ),
+        const SizedBox(height: 12),
         if (store.remote != null) ...[
           Container(
             decoration: cardDecoration(),
