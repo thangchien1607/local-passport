@@ -11,6 +11,7 @@
 - **IOS** · IOS-SIM trên máy macOS có Xcode hoặc IOS-REAL khi TC cần iPhone thật.
 - **THỰC** · AND-REAL hoặc IOS-REAL theo TC. Ghi rõ thiết bị và quyền camera/GPS đã cấp.
 - **HAI** · Hai phiên đăng nhập độc lập của môi trường Firebase thử. Dùng hai thiết bị hoặc hai hồ sơ trình duyệt độc lập khi TC cho phép. Ghi mã môi trường cho từng phiên.
+- **RULES-EMU** · Firestore Emulator cục bộ. Dùng danh tính và dữ liệu dựng sẵn của `rules_tests/`.
 
 Chi tiết chuẩn bị, nơi ghi kết quả và cột minh chứng có trong [hướng dẫn chạy thủ công](05-huong-dan-chay-thu-cong.md).
 
@@ -93,7 +94,7 @@ Chi tiết chuẩn bị, nơi ghi kết quả và cột minh chứng có trong [
 | TC-REF-10 | Ảnh nhiệm vụ và ảnh cảm nhận | Nhập sai | JPEG thử bị hỏng. Ảnh cho kết quả sau nén vượt ngưỡng nếu có | Chọn tệp JPEG thử bị hỏng vào cảm nhận. Dùng bộ dữ liệu thử để xác nhận ngưỡng sau nén, không suy từ kích thước trước nén. | Báo lỗi đọc/nén phù hợp, giữ ảnh đã lưu và không ghi ảnh vượt giới hạn. | — | Chưa chạy | WEB, THỰC | — |
 | TC-REF-11 | Ảnh nhiệm vụ và ảnh cảm nhận | Để trống | Hủy camera/hộp chọn ảnh, không chọn tệp | Mở rồi hủy ảnh ở nhiệm vụ và ở cảm nhận. Thử đăng cảm nhận hợp lệ không có ảnh. | Hủy không thêm phần tử ảnh rỗng hoặc tự hoàn tất nhiệm vụ ảnh. Cảm nhận có thể không kèm ảnh. | — | Chưa chạy | THỰC, WEB | — |
 | TC-REF-12 | Ảnh nhiệm vụ và ảnh cảm nhận | Dữ liệu biên | Bài có ảnh cũ, ảnh mới khác ảnh cũ. Bộ dữ liệu thử cho lượt có 3 ảnh và thử ảnh thứ 4. | Chọn ảnh mới → Bỏ ảnh mới → Lưu và tải lại. Lượt riêng chọn Xóa ảnh cũ. Kiểm tra giới hạn số ảnh bằng dữ liệu thử. Nếu giao diện không có nhiệm vụ ảnh thứ tư, ghi kết quả đối chiếu Rules riêng. | Bỏ ảnh mới giữ ảnh cũ. Xóa ảnh cũ chỉ khi chọn Xóa ảnh. Lượt giới hạn 3 ảnh, từ chối mục ảnh mới vượt biên. | — | Chưa chạy | WEB, THỰC | — |
-| TC-REF-13 | Xóa ảnh cảm nhận URL cũ | Dữ liệu biên | Bài thử do tài khoản sở hữu, chỉ có trường ảnh `photoUrl` kiểu cũ | Mở Sửa, chọn Xóa ảnh rồi Lưu. Chờ đồng bộ, tải bài từ Firestore qua phiên thứ hai và kiểm tra lại sau khi khởi động lại. | Ảnh URL cũ biến mất sau khi lưu và không xuất hiện lại trên phiên nhận dữ liệu từ xa. Nội dung còn nguyên. | — | Chưa chạy | WEB, HAI | — |
+| TC-REF-13 | Ảnh nhiệm vụ và ảnh cảm nhận | Dữ liệu biên | Bài thử do tài khoản sở hữu, chỉ có trường ảnh `photoUrl` kiểu cũ | Mở Sửa, chọn Xóa ảnh rồi Lưu. Chờ đồng bộ, tải bài từ Firestore qua phiên thứ hai và kiểm tra lại sau khi khởi động lại. | Ảnh URL cũ biến mất sau khi lưu và không xuất hiện lại trên phiên nhận dữ liệu từ xa. Nội dung còn nguyên. | — | Chưa chạy | WEB, HAI | — |
 
 ## Cộng đồng, bảng xếp hạng và thông báo
 
@@ -143,9 +144,22 @@ Chi tiết chuẩn bị, nơi ghi kết quả và cột minh chứng có trong [
 | TC-UI-03 | Hiển thị và điều hướng | Để trống | Form rỗng, màn hình không có bài/thông báo và màn quét QR chưa có mã ở viewport 360×640 | Mở màn hình trống, bật lỗi kiểm tra form. Mở quét QR và đọc chú thích bán kính. | Nội dung trạng thái trống, lỗi trường và chú thích bán kính hiển thị trọn. Không có vùng che nút phải dùng. | — | Chưa chạy | WEB, AND | — |
 | TC-UI-04 | Hiển thị và điều hướng | Dữ liệu biên | 360×640, 390×844, 768×1024, 1440×900. Cỡ chữ 130%. Xoay ngang/dọc | Chạy ma trận kích thước, mở các màn hình lõi, phóng chữ và xoay thiết bị thật. Lưu ảnh mỗi tổ hợp cần nghiệm thu. | Không có tràn khung, nội dung cuộn được. Khung rộng tuân giới hạn layout và thẻ tiến độ vẫn truy cập được. | — | Chưa chạy | WEB, AND, IOS, THỰC | — |
 
+## Firestore Rules
+
+[TỪ CODE] `isOwnerUid`, `validPassport`, `validVisit` và `validTaskPhotos` xác định quyền, trường bắt buộc và giới hạn ảnh. Nguồn [firestore.rules](../../firestore.rules#L15), [kiểm tra hộ chiếu](../../firestore.rules#L44) và [giới hạn ảnh tác vụ](../../firestore.rules#L36).
+
+[ĐÃ CHẠY] Các ca trong bảng trích assertion đã đạt từ log `rules-test.log` của `TC-AUTO-04` ngày 25/11/2026. Cột thực tế mô tả assertion được chọn trong mỗi bài kiểm thử của runner. Pass ở ca dữ liệu sai hoặc thiếu nghĩa là Rules đã từ chối đúng mong đợi.
+
+| Mã TC | Chức năng | Loại case | Dữ liệu vào | Các bước | Kết quả mong đợi | Kết quả thực tế | Trạng thái | Môi trường | Ngày chạy |
+| --- | --- | --- | --- | --- | --- | --- | --- | --- | --- |
+| TC-RULE-01 | Quyền và schema Firestore | Nhập đúng | Chủ hộ chiếu, dữ liệu `validPassportDoc()` | Dùng danh tính chủ trong fixture để ghi hộ chiếu trên emulator. | Cho phép ghi hộ chiếu đúng schema của chủ sở hữu. | [ĐÃ CHẠY] `assertSucceeds` đạt trong bài `1.4 Cho phép ghi user_passports/{uid} hợp lệ và chặn người dùng khác`. [Bằng chứng mã](../../rules_tests/firestore.rules.test.mjs#L237). | Pass | RULES-EMU | 25/11/2026 |
+| TC-RULE-02 | Quyền và schema Firestore | Nhập sai | Phiên thử của tài khoản khác, hộ chiếu thuộc chủ fixture | Dùng fixture để yêu cầu đọc và ghi hộ chiếu của chủ từ phiên thứ hai. | Từ chối cả đọc và ghi khi UID không phải chủ. | [ĐÃ CHẠY] Hai `assertFails` đạt trong bài `1.4 Cho phép ghi user_passports/{uid} hợp lệ và chặn người dùng khác`. [Bằng chứng mã](../../rules_tests/firestore.rules.test.mjs#L243). | Pass | RULES-EMU | 25/11/2026 |
+| TC-RULE-03 | Quyền và schema Firestore | Để trống | Chủ hộ chiếu, dữ liệu thiếu `passportNo` | Bỏ trường bắt buộc khỏi fixture rồi yêu cầu ghi hộ chiếu. | Từ chối ghi do thiếu trường bắt buộc. | [ĐÃ CHẠY] `assertFails` đạt trong bài `1.4 Từ chối user_passports thiếu trường bắt buộc, sai kiểu, vượt ngưỡng hoặc thừa trường`. [Bằng chứng mã](../../rules_tests/firestore.rules.test.mjs#L250). | Pass | RULES-EMU | 25/11/2026 |
+| TC-RULE-04 | Quyền và schema Firestore | Dữ liệu biên | Danh sách `taskPhotos` có 3 hoặc 4 mục hợp lệ riêng lẻ | Dùng fixture chủ để ghi tiến độ với từng kích thước danh sách. | Cho phép danh sách 3 mục, từ chối danh sách 4 mục. | [ĐÃ CHẠY] `assertSucceeds` ở 3 mục và `assertFails` ở 4 mục đạt trong bài `S2 Ràng buộc taskPhotos`. [Bằng chứng mã](../../rules_tests/firestore.rules.test.mjs#L123). | Pass | RULES-EMU | 25/11/2026 |
+
 ## Kiểm tra tự động
 
-Mỗi dòng đại diện cho một lệnh hoặc một bộ kiểm thử. Chi tiết từng test bên trong bộ và lỗi lệnh (nếu có) xem [báo cáo tổng hợp](04-bao-cao-tong-hop.md).
+Mỗi dòng trong nhóm Tự động đại diện cho một mốc chạy lệnh hoặc bộ kiểm thử. `TC-AUTO-04` theo dõi việc chạy suite Firestore Rules. Các dòng `TC-RULE-01` đến `TC-RULE-04` ở trên theo dõi hành vi nghiệp vụ đã đối chiếu từ các assertion của suite đó. Số bài do runner báo được trình bày riêng trong [báo cáo tổng hợp](04-bao-cao-tong-hop.md).
 
 | Mã TC | Chức năng | Loại case | Dữ liệu vào | Các bước | Kết quả mong đợi | Kết quả thực tế | Trạng thái | Môi trường | Ngày chạy |
 | --- | --- | --- | --- | --- | --- | --- | --- | --- | --- |

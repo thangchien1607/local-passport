@@ -28,7 +28,7 @@ Môn Kiểm thử và sửa lỗi · Nhóm [Điền tên nhóm] · Thành viên 
 
 ## Thống kê test case theo phân hệ
 
-Đơn vị là **dòng TC** trong bảng chi tiết. Số bài kiểm tra bên trong một suite được lưu ở log và không cộng thêm vào bảng này.
+Đơn vị là **dòng trong bảng chi tiết**. Trong 74 ca nghiệp vụ và Rules có 70 ca thủ công và 4 ca Rules có assertion được đối chiếu từ log của `TC-AUTO-04`. Năm dòng còn lại thuộc nhóm Tự động, ghi việc chạy các lệnh hoặc bộ kiểm thử. Số bài do trình chạy báo được trình bày riêng ở phần log.
 
 | Phân hệ | Tổng | Pass | Fail | Chưa chạy |
 | --- | ---: | ---: | ---: | ---: |
@@ -40,10 +40,26 @@ Môn Kiểm thử và sửa lỗi · Nhóm [Điền tên nhóm] · Thành viên 
 | Đồng bộ, offline và TimeLens | 8 | 0 | 0 | 8 |
 | Đa kích thước màn hình | 4 | 0 | 0 | 4 |
 | **Thủ công** | **70** | **0** | **0** | **70** |
+| Firestore Rules | 4 | 4 | 0 | 0 |
 | Kiểm tra tự động | 5 | 5 | 0 | 0 |
-| **Tổng** | **75** | **5** | **0** | **70** |
+| **Tổng** | **79** | **9** | **0** | **70** |
+
+## Thống kê test case theo loại
+
+| Loại case | Tổng | Pass | Fail | Chưa chạy |
+| --- | ---: | ---: | ---: | ---: |
+| Nhập đúng | 18 | 1 | 0 | 17 |
+| Nhập sai | 18 | 1 | 0 | 17 |
+| Để trống | 18 | 1 | 0 | 17 |
+| Dữ liệu biên | 20 | 1 | 0 | 19 |
+| Tự động | 5 | 5 | 0 | 0 |
+| **Tổng** | **79** | **9** | **0** | **70** |
+
+Mỗi ca Rules bổ sung một dòng Pass cho nhóm đầu vào tương ứng. Các ca kỳ vọng từ chối đạt Pass khi assertion xác nhận Rules từ chối. Xem các assertion và kết quả đối chiếu tại [bảng test case](02-bang-test-case.md#firestore-rules).
 
 ## Kết quả chạy tự động trên bản gốc
+
+### Lượt ban đầu ngày 25/11/2026
 
 | Mã TC | Lệnh | Bắt đầu, giờ Việt Nam | Trích log | Exit |
 | --- | --- | --- | --- | ---: |
@@ -54,6 +70,18 @@ Môn Kiểm thử và sửa lỗi · Nhóm [Điền tên nhóm] · Thành viên 
 | TC-AUTO-05 | `flutter build web --release` | 25/11/2026 22:15:23 | [ĐÃ CHẠY] `Compiling lib\main.dart for the Web... 426.1s`, `√ Built build\web` | 0 |
 
 [ĐÃ CHẠY] Log Firestore có các dòng `PERMISSION_DENIED` từ những bài chủ động kiểm tra rules từ chối thao tác. Kết quả suite là 12 bài đạt và exit 0. Lệnh `npm ci --no-audit --no-fund` cũng đã chạy xong với exit 0.
+
+### Lượt chạy lại ngày 26/11/2026
+
+Lượt này đối chiếu lại cùng các mốc tự động khi cập nhật tài liệu. Tên tệp dưới đây tra trong thư mục tạm `localpassport-qa-pptx-ef2afd7d` trên máy chạy. Các dòng trong bảng TC vẫn giữ ngày của lượt ban đầu.
+
+| Mã TC | Lệnh | Bắt đầu, giờ Việt Nam | Trích log | Exit |
+| --- | --- | --- | --- | ---: |
+| TC-AUTO-01 | `dart format --output=none --set-exit-if-changed lib test` | 26/11/2026 13:57:53 | [ĐÃ CHẠY] `Formatted 58 files (0 changed) in 1.24 seconds.` · `dart-format.log` | 0 |
+| TC-AUTO-02 | `flutter analyze` | 26/11/2026 13:58:07 | [ĐÃ CHẠY] `No issues found! (ran in 196.6s)` · `flutter-analyze.log` | 0 |
+| TC-AUTO-03 | `flutter test` | 26/11/2026 14:01:35 | [ĐÃ CHẠY] `00:21 +57: All tests passed!` · `flutter-test.log` | 0 |
+| TC-AUTO-04 | `npm test` tại `rules_tests/` | 26/11/2026 13:57:53 | [ĐÃ CHẠY] `tests 12`, `pass 12`, `fail 0`, `Script exited successfully (code 0)` · `rules-test.log` | 0 |
+| TC-AUTO-05 | `flutter build web --release` | 26/11/2026 14:02:15 | [ĐÃ CHẠY] `Compiling lib\main.dart for the Web... 212.0s`, `√ Built build\web` · `flutter-build-web.log` | 0 |
 
 ## Quan sát màn chào trên Web
 
@@ -67,7 +95,7 @@ Môn Kiểm thử và sửa lỗi · Nhóm [Điền tên nhóm] · Thành viên 
 | --- | --- |
 | [CHƯA XÁC MINH] `52/52` Flutter test | [ĐÃ CHẠY] Log bản gốc báo 57 bài đạt. Chênh 5 bài so với tuyên bố trong nháp. |
 | [CHƯA XÁC MINH] `12/12` bài rules và 16 file test Flutter | [ĐÃ CHẠY] Runner báo 12 bài rules đạt. Đếm `rg --files test -g '*_test.dart'` trên bản gốc có 16 file. |
-| [CHƯA XÁC MINH] 29 TC | Bộ hợp nhất có 75 dòng, gồm 70 ca thủ công và 5 dòng lệnh tự động. Các ca được tách theo loại đầu vào và môi trường nên đơn vị khác phần mô tả ngắn trong nháp. |
+| [CHƯA XÁC MINH] 29 TC | Bộ hợp nhất có 79 dòng, gồm 70 ca thủ công, 4 ca Rules có assertion đối chiếu và 5 dòng lệnh tự động. Các ca được tách theo loại đầu vào và môi trường. |
 | [CHƯA XÁC MINH] `PR #27` và `v1.8.2` là căn cứ phiên chạy | [ĐÃ CHẠY] Phiên này bám commit `065103c` của `origin/develop`. [TỪ CODE] Phiên bản khai báo trong [pubspec.yaml](../../pubspec.yaml#L19) là `1.0.0+1`. |
 | Google Maps, OpenStreetMap và iOS | [TỪ CODE] OpenStreetMap là mặc định. Google Maps là tùy chọn. iOS có đường chạy cục bộ khi `currentFirebaseOptions` trả `null`. |
 | Danh sách lỗi nháp | Nhận định gốc, điều đã xác minh và rủi ro được truy theo từng hàng trong [bảng lỗi](03-bang-loi.md). |
@@ -90,6 +118,10 @@ Môn Kiểm thử và sửa lỗi · Nhóm [Điền tên nhóm] · Thành viên 
 
 [ĐÃ CHẠY] Bộ smoke chọn các bài xác thực, đóng dấu, cộng đồng, bảng xếp hạng, đồng bộ và TimeLens. Để kiểm tra tương tác giữa các bản vá, một worktree cục bộ áp dụng cả bảy commit bằng `git cherry-pick --no-commit`. Log `combined-regression.log` ngày 25/11/2026 ghi `01:19 +65: All tests passed!`, exit 0, với `flutter test --no-pub --concurrency=2 --reporter expanded`. Các commit sửa hiện có trên bảy nhánh GitHub độc lập.
 
+[ĐÃ CHẠY] Ngày 26/11/2026 lúc 14:09:07, trên worktree gộp bản vá, đã thử `flutter test --no-pub --reporter expanded "$env:TEMP\localpassport-qa-pptx-ef2afd7d\core_smoke_test.dart"`. Bài thử dùng camera, GPS, ảnh và backend mô phỏng. Lượt này đi qua đăng nhập, mở bản đồ và xác nhận địa điểm được mở khóa. Widget test dừng ở nút **Viết cảm nhận** do thao tác chạm không tới nút, sau đó ghi `Bad state: No element` và exit 1. Log `core-smoke.log` có chẩn đoán về phông chữ và `ListTile`. Kết quả thăm dò được ghi riêng, các TC về cảm nhận, ảnh và đồng bộ vẫn Chưa chạy theo checklist.
+
+[CHƯA XÁC MINH] Smoke xuyên suốt trên thiết bị còn chờ. Chuỗi cần thực hiện gồm đăng nhập, mở bản đồ, quét QR check-in, viết/sửa cảm nhận kèm ảnh, rồi ngắt và bật mạng để kiểm đồng bộ. Ghi kết quả từng chặng theo [checklist smoke](05-huong-dan-chay-thu-cong.md#smoke-chuỗi-luồng-cốt-lõi).
+
 ## Thống kê lỗi theo mức độ và trạng thái
 
 | Mức độ | Đã sửa trên nhánh | Open | Tổng |
@@ -110,9 +142,10 @@ Môn Kiểm thử và sửa lỗi · Nhóm [Điền tên nhóm] · Thành viên 
 
 | Hạng mục | Đối chiếu |
 | --- | --- |
-| Test case | 75 dòng = 5 Pass + 0 Fail + 70 Chưa chạy. Khớp [bảng test case](02-bang-test-case.md). Báo đỏ khi tái hiện lỗi và số bài bên trong suite được thống kê riêng trong log. |
+| Test case theo trạng thái | 79 dòng = 9 Pass + 0 Fail + 70 Chưa chạy. Khớp [bảng test case](02-bang-test-case.md). Báo đỏ khi tái hiện lỗi và số bài do runner báo được thống kê riêng trong log. |
+| Test case theo loại | 18 Nhập đúng + 18 Nhập sai + 18 Để trống + 20 Dữ liệu biên + 5 Tự động = 79 dòng. |
 | Lỗi theo mức độ | 8 lỗi = 0 Critical + 2 High + 5 Medium + 1 Low. |
 | Lỗi theo trạng thái | 8 lỗi = 7 Đã sửa trên nhánh + 1 Open (BUG-07). Khớp [bảng lỗi](03-bang-loi.md). Các mục đối chiếu nháp và rủi ro có bảng riêng. |
 | [CHƯA XÁC MINH] Kết quả thủ công | 70 ca còn chờ, gồm hành vi trên máy ảo và thiết bị thật, camera/GPS, nhà cung cấp đăng nhập, toàn bộ luồng hiển thị khi tăng chữ/xoay, offline/Slow 3G/rớt mạng và phục hồi đồng bộ. Tên thành viên, thiết bị, phiên bản, thời điểm và ảnh của từng lượt còn chờ điền. |
 | [CHƯA XÁC MINH] Các điểm cần môi trường riêng | Hành vi Firebase iOS, mức sử dụng quota khi tải nhiều ảnh, retest bằng phần cứng và dữ liệu ngoài emulator. |
-| Công việc chưa thực hiện và lý do | [ĐÃ CHẠY] `emulator.exe -list-avds` không liệt kê AVD, `adb.exe devices -l` không liệt kê thiết bị. Windows không có môi trường iOS Simulator. Smoke Edge chỉ quan sát màn chào. Các luồng thật cần thiết bị, quyền camera/GPS, tài khoản và dữ liệu Firebase thử của nhóm. |
+| Công việc chưa thực hiện và lý do | [ĐÃ CHẠY] Kiểm tra lại ngày 26/11/2026, `emulator.exe -list-avds` không liệt kê AVD, `adb.exe devices -l` chỉ trả tiêu đề danh sách. Windows không có môi trường iOS Simulator. Smoke Edge chỉ quan sát màn chào. Lượt thử với widget mô phỏng dừng trước khi lưu cảm nhận, chi tiết tại [kiểm thử nhánh sửa](#kiểm-thử-nhánh-sửa). Các luồng thật cần thiết bị, quyền camera/GPS, tài khoản và dữ liệu Firebase thử của nhóm. |

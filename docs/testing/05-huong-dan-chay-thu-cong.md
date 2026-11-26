@@ -11,6 +11,20 @@
 5. [TỪ CODE] Bản mặc định lấy cấu hình Firebase từ `lib/firebase_options.dart`. `npm test` tại `rules_tests/` chạy Rules trên emulator theo `package.json` của thư mục đó. Xác nhận riêng ứng dụng đang trỏ đúng môi trường thử trước khi ghi dữ liệu. Nếu môi trường chưa sẵn sàng, giữ TC phụ thuộc ở trạng thái Chưa chạy.
 6. Với ca cần kiểm trước/sau sửa, dùng đúng trạng thái ban đầu và cùng biến thể trên mỗi bản. Ghi commit thực và log riêng cho mỗi lượt.
 
+## Smoke chuỗi luồng cốt lõi
+
+[CHƯA XÁC MINH] Chuỗi này chờ thực thi trên bản đã tích hợp các sửa lỗi cần nghiệm thu. Dùng tài khoản và dữ liệu thử, có thiết bị camera/GPS và vị trí thử được phép dùng. Trên mỗi chặng, ghi kết quả và đường dẫn ảnh thật vào phiếu của các mã TC tương ứng ở dưới.
+
+1. **Đăng nhập.** Mở app với mạng ổn định, đăng nhập bằng tài khoản thử, xác nhận đúng hộ chiếu (`TC-AUTH-01`).
+2. **Bản đồ.** Mở Khám phá, chọn tuyến, bấm điểm thử và xem đúng chi tiết (`TC-MAP-01`).
+3. **Check-in.** Cấp quyền camera/GPS, quét mã của điểm thử và xác nhận tiến độ của đúng điểm được mở (`TC-QR-01`, `TC-REF-01`).
+4. **Cảm nhận và ảnh.** Sau khi nhận dấu, đăng cảm nhận kèm ảnh được phép dùng. Mở bài của mình, sửa nội dung hoặc ảnh, lưu và mở lại (`TC-REF-05`, `TC-REF-09`, `TC-REF-12`).
+5. **Đồng bộ khi mạng gián đoạn.** Ngắt mạng có kiểm soát trong lúc lưu một chỉnh sửa. Ghi trạng thái cục bộ. Bật lại mạng, thử lại khi ứng dụng yêu cầu rồi đối chiếu ở phiên thứ hai (`TC-SYNC-02`).
+
+Nếu một chặng chưa đủ điều kiện, ghi rõ chặng, lý do và log hoặc ảnh đã thu được. Giữ trạng thái Chưa chạy cho các bước phụ thuộc chưa thực hiện. Chỉ đánh Pass toàn bộ TC khi đã kiểm hết các biến thể bắt buộc nêu trong bảng test case.
+
+Firestore Rules có nhóm ca riêng trong [bảng test case](02-bang-test-case.md#firestore-rules). Chạy lại bằng `npm test` tại `rules_tests/` và lưu log emulator theo mã TC. Phiếu bên dưới dùng cho các ca cần thao tác trên giao diện, thiết bị và mạng.
+
 ## Web và thay đổi kích thước
 
 1. Mở Chrome/Edge DevTools, bật chế độ mô phỏng thiết bị và thử tuần tự 360×640, 390×844, 768×1024 và 1440×900. Ghi kích thước viewport thực tế. Trên thiết bị thật, kiểm tra bàn phím, dọc/ngang và mức chữ 130% nếu hệ điều hành hỗ trợ đúng mức này. Ghi riêng tỉ lệ chữ và mức zoom của trình duyệt.

@@ -1,75 +1,122 @@
 # Kịch bản thuyết trình Local Passport
 
-Mỗi phần dự kiến 30–60 giây. Người trình bày điền tên trước buổi báo cáo. Đối chiếu các số liệu với [báo cáo tổng hợp](04-bao-cao-tong-hop.md), [bảng test case](02-bang-test-case.md) và [bảng lỗi](03-bang-loi.md).
+Mỗi slide dự kiến 30–60 giây. Điền tên nhóm, thành viên và giảng viên trước buổi trình bày. Đọc các đoạn lời thoại. Dòng đối chiếu giúp người trình bày mở đúng minh chứng khi được hỏi.
 
-| Phần | Người trình bày |
-| --- | --- |
-| Slide 1–5, dự án và kế hoạch | [Điền tên thành viên phụ trách kế hoạch] |
-| Slide 6–8, thiết kế và kết quả | [Điền tên thành viên phụ trách kiểm thử] |
-| Slide 9–14, lỗi và kết luận | [Điền tên thành viên phụ trách xử lý lỗi] |
+| Slide | Nội dung | Người trình bày |
+| --- | --- | --- |
+| 1–6 | Giới thiệu, lập kế hoạch và thiết kế test case | [Tên thành viên] |
+| 7–10 | Test case tiêu biểu và thực hiện kiểm thử | [Tên thành viên] |
+| 11–15 | Ghi nhận lỗi, demo, retest và hồi quy | [Tên thành viên] |
+| 16–18 | Kết quả, hạn chế và hỏi đáp | [Tên thành viên] |
 
-## Slide 1 · Local Passport
+## Slide 1 · Kiểm thử và sửa lỗi Local Passport
 
-Em chào thầy/cô và các bạn. Nhóm em trình bày bài kiểm thử và sửa lỗi cho Local Passport, ứng dụng hộ chiếu trải nghiệm văn hóa Đà Nẵng. Nhóm sẽ lần lượt nói về phạm vi, cách chọn dữ liệu đầu vào và kết quả thu được từ các lệnh kiểm thử. Sau đó, nhóm sẽ trình bày bảng lỗi cùng những thao tác còn cần xác nhận trên thiết bị.
+Em chào thầy/cô và các bạn. Nhóm em trình bày đề tài kiểm thử và sửa lỗi cho Local Passport, ứng dụng hộ chiếu trải nghiệm văn hóa Đà Nẵng. Bài trình bày bắt đầu từ cách nhóm lập kế hoạch và chọn dữ liệu kiểm thử. Sau đó, nhóm sẽ chia sẻ kết quả đã chạy, chỉ ra lỗi bằng một ví dụ trước và sau sửa, rồi nêu các tình huống cần thực hiện tiếp trên thiết bị. Thông tin nhóm và người thực hiện được điền trên trang đầu trước khi báo cáo.
 
-## Slide 2 · Phạm vi kiểm thử
+## Slide 2 · Giới thiệu và phạm vi
 
-[TỪ CODE] Luồng chính bắt đầu từ tài khoản và bản đồ khám phá, tiếp theo là quét mã QR, kiểm tra vị trí, đóng dấu, rồi lưu ảnh hoặc cảm nhận. Nhóm cũng kiểm tra cộng đồng, bảng xếp hạng, thông báo, đồng bộ và TimeLens. OpenStreetMap là bản đồ mặc định. Google Maps chỉ là cấu hình tùy chọn. Ứng dụng có cấu hình Firebase trên Web và Android. Phần iOS được ghi riêng theo chế độ mà mã nguồn hỗ trợ. Mốc đối chiếu là `lib/firebase_options.dart`, `currentFirebaseOptions`, và `lib/services/maps_config.dart`, `initGoogleMaps()`.
+Local Passport cho phép người dùng khám phá địa điểm, quét QR và kiểm tra vị trí để nhận dấu, sau đó viết cảm nhận hoặc lưu ảnh. Nhóm đưa cả tài khoản, cộng đồng, bảng xếp hạng, thông báo, đồng bộ, TimeLens và giao diện vào phạm vi kiểm thử. OpenStreetMap là cấu hình bản đồ mặc định. Google Maps cần khóa và SDK sẵn sàng. Web và Android có cấu hình Firebase. Phần iOS được rà riêng vì bản hiện tại có thể dùng lưu trữ cục bộ.
+
+[TỪ CODE] `lib/services/maps_config.dart`, `initGoogleMaps()` dòng 18–21. `lib/screens/map_screen.dart`, nhánh `OsmDiscoveryMap` dòng 166. `lib/firebase_options.dart`, `currentFirebaseOptions` dòng 9. `lib/main.dart`, `_initFirebase()` dòng 38–47.
 
 ## Slide 3 · Quy trình kiểm thử và sửa lỗi
 
-Đầu tiên nhóm xác định mục tiêu và môi trường kiểm thử. Tiếp theo, nhóm thiết kế dữ liệu và kết quả mong đợi cho từng test case. Khi thực thi, nhóm ghi kết quả quan sát được cùng môi trường và minh chứng. Nếu phát hiện chênh lệch, nhóm lập lỗi có bước tái hiện và vị trí trong mã. Với bản sửa, nhóm chạy lại đúng tình huống lỗi rồi chọn các luồng dễ bị ảnh hưởng để kiểm tra hồi quy.
+Bài trình bày đi theo năm bước. Nhóm lập kế hoạch để chốt phạm vi và tiêu chí. Khi viết test case, nhóm xác định dữ liệu vào và kết quả mong đợi. Khi thực thi, nhóm lưu kết quả quan sát, môi trường và minh chứng. Nếu kết quả lệch khỏi kỳ vọng, nhóm ghi lỗi kèm cách tái hiện. Sau khi sửa, nhóm chạy lại ca làm lộ lỗi rồi kiểm tra hồi quy các phần liên quan. Ba tài liệu chính để tra cứu là bảng test case, bảng lỗi và báo cáo tổng hợp.
 
-## Slide 4 · Kế hoạch và tiêu chí đạt
+## Slide 4 · Bước 1 - Lập kế hoạch kiểm thử
 
-Nhóm ưu tiên đăng nhập, check-in, đóng dấu và lưu tiến độ vì đây là hành trình chính của người dùng. Trước khi chạy, người kiểm tra ghi lại phiên bản, môi trường và dữ liệu cần chuẩn bị. Một test case chỉ được đánh Pass khi kết quả quan sát khớp với kỳ vọng. Khi còn tình huống chưa thực thi, bảng giữ nguyên trạng thái Chưa chạy để nhóm có thể tiếp tục mà không cần suy ra từ kết quả tự động.
+Nhóm ưu tiên hành trình đăng nhập, mở bản đồ, quét QR, nhận dấu và lưu cảm nhận vì các bước này nối tiếp nhau. Trước khi chạy, người kiểm tra cần ghi phiên bản, dữ liệu thử, thiết bị và kết nối. Tiêu chí Pass là quan sát đúng kết quả mong đợi và có minh chứng. Với lỗi cần sửa, nhóm cần commit, retest và hồi quy. Nghiệm thu đầy đủ còn phụ thuộc vào những bài thực hành trên thiết bị và trong các tình huống mạng đã liệt kê trong kế hoạch.
 
-## Slide 5 · Môi trường dự kiến
+Chi tiết tiêu chí đầu vào và kết thúc nằm trong [kế hoạch kiểm thử](01-ke-hoach-kiem-thu.md).
 
-[CHƯA XÁC MINH] Nhóm lên kế hoạch dùng trình duyệt, máy ảo và thiết bị thật. Trình duyệt giúp lặp lại các kích thước màn hình và cấu hình mạng. Trên máy thật, nhóm cần thử thao tác quét bằng camera, quyền GPS và định vị ngoài hiện trường. Nhóm cũng thử cỡ chữ lớn, xoay ngang, mất mạng và kết nối khôi phục. Các môi trường này là kế hoạch, kết quả được điền sau từng phiên chạy.
+## Slide 5 · Bước 2 - Viết test case
 
-## Slide 6 · Thiết kế test case
+Nhóm chia dữ liệu thành bốn loại. TC-AUTH-01 dùng email và mật khẩu hợp lệ để kiểm tra luồng tài khoản. TC-QR-02 dùng mã đúng địa điểm nhưng sai khóa để kiểm tra phản hồi lỗi. TC-RULE-03 bỏ trường bắt buộc passportNo và kỳ vọng Firestore từ chối ghi. TC-REF-08 dùng cảm nhận 20 và 600 ký tự để kiểm tra hai giá trị ngay tại giới hạn. Việc chọn ví dụ theo hành vi giúp người đọc hiểu vì sao một ca thuộc mỗi nhóm.
 
-[TỪ CODE] Các ví dụ minh họa bốn nhóm dữ liệu. Email đúng định dạng qua bước kiểm tra đầu vào. Email thiếu ký tự `@` phải hiện lỗi định dạng và email trống phải yêu cầu nhập. Với cảm nhận, nhóm lấy ngay ngưỡng trong hàm kiểm tra độ dài. Chuỗi ngay dưới ngưỡng phải bị chặn, còn chuỗi tại đúng ngưỡng qua bước kiểm tra độ dài. Kết quả đăng nhập hay lưu bài vẫn cần được kiểm tra riêng. Căn cứ trong `lib/services/validators.dart` là `validateEmail()` và `validateReflection()`.
+[TỪ CODE] `lib/services/validators.dart`, `validateEmail()` dòng 19–24 và `validateReflection()` dòng 43–52. [ĐÃ CHẠY] TC-RULE-03 đối chiếu với bài kiểm tra hộ chiếu thiếu trường tại `rules_tests/firestore.rules.test.mjs` dòng 250–257. Các kỳ vọng và trạng thái nằm ở [bảng test case](02-bang-test-case.md).
 
-## Slide 7 · Kiểm tra tự động
+## Slide 6 · Tổng quan bộ test case
 
-[ĐÃ CHẠY] Ở bản gốc, trình định dạng kiểm tra 58 tệp và không đổi tệp nào. Phân tích tĩnh không báo vấn đề. Flutter ghi nhận 57 bài test đạt, còn Firestore Rules ghi nhận 12 bài đạt trên Emulator. Các số này là số bài bên trong suite. Mỗi suite hoặc lệnh được ghi một dòng riêng trong bảng test case. Build Web release hoàn thành. Tổng cộng 5 dòng kiểm tra tự động đều đạt.
+Bảng có 79 dòng. Trong đó, 70 ca thủ công đang Chưa chạy, bốn ca Firestore Rules có kết quả từ Emulator và năm dòng ghi kết quả lệnh tự động. Theo loại đầu vào, Nhập đúng, Nhập sai và Để trống có 18 ca mỗi loại. Dữ liệu biên có 20 ca. Chín dòng Pass gồm bốn ca Rules và năm dòng lệnh. Bốn ca Rules là các khẳng định đã có trong lượt chạy Rules. Số 12 ở log là tổng số bài mà bộ chạy Rules thực thi.
 
-## Slide 8 · Kết quả kiểm thử thủ công
+[ĐÃ CHẠY] Đối chiếu [bảng test case](02-bang-test-case.md) và phần [thống kê của báo cáo](04-bao-cao-tong-hop.md).
 
-Biểu đồ thể hiện số ca thủ công theo từng phân hệ. Cả 70 ca hiện ở trạng thái Chưa chạy. [ĐÃ CHẠY] Riêng lượt smoke Web đã mở màn chào trên Edge ở bốn kích thước. [CHƯA XÁC MINH] Những ca thủ công còn cần chạy đủ các bước liên quan đến camera, GPS, tài khoản và điều kiện mạng. Khi thực thi một ca, người chạy ghi môi trường, kết quả quan sát và minh chứng để cập nhật biểu đồ.
+## Slide 7 · Test case tài khoản, bản đồ và QR
 
-## Slide 9 · Lỗi tiêu biểu
+Mỗi nhóm trong bảng có ví dụ cho cả bốn loại. Ở tài khoản, nhóm so đầu vào hợp lệ, email sai định dạng, trường bị bỏ trống và độ dài mật khẩu tại biên. Ở bản đồ, TC-MAP-04 đổi tuyến khi đang chọn một điểm rồi kiểm tra lựa chọn và khung bản đồ. Ở QR, TC-QR-02 dùng mã đúng điểm nhưng sai khóa. Khi đọc một ví dụ, nhóm chỉ rõ điều kiện đầu vào và kết quả mong đợi. Tất cả các ca trên slide còn Chưa chạy.
 
-[TỪ CODE] Nhóm chọn ba tình huống để trình bày. Màn hình quét có đường gọi cập nhật giao diện sau một thao tác chờ. Nếu màn hình đã đóng, lần cập nhật này có thể xảy ra sai vòng đời. Luồng sửa cảm nhận dùng cờ xóa ảnh cũ khi bỏ ảnh vừa chọn. Trên iOS, mã nguồn chuyển sang lưu cục bộ khi chưa có cấu hình Firebase. [ĐÃ CHẠY] BUG-02 và BUG-06 có commit và kết quả retest trên từng nhánh. BUG-07 vẫn Open, cần cấu hình Firebase iOS và thiết bị để xác nhận. Bảng lỗi dẫn đến vị trí code, bước tái hiện và minh chứng của mỗi mục.
+[CHƯA XÁC MINH] Kết quả thiết bị của TC-AUTH-01 đến TC-AUTH-04, TC-MAP-01 đến TC-MAP-04 và TC-QR-01 đến TC-QR-04 tra trong [bảng test case](02-bang-test-case.md).
 
-## Slide 10 · Demo BUG-06
+## Slide 8 · Test case đóng dấu, cộng đồng và đồng bộ
 
-[TỪ CODE] Với BUG-06, người dùng vào sửa bài đã có ảnh, chọn ảnh mới rồi bấm Bỏ ảnh mới. Trước bản sửa, thao tác này truyền cờ xóa cả ảnh cũ khi lưu. Bản vá tách việc bỏ ảnh vừa chọn khỏi hành động xóa ảnh đã lưu. [ĐÃ CHẠY] Lượt thử trước sửa báo 5 đạt và 1 lỗi. Sau bản sửa, cả 6 bài trong lượt retest đạt. Widget test xác nhận ảnh cũ vẫn còn sau khi bỏ ảnh mới và lưu. [CHƯA XÁC MINH] Nhóm vẫn cần thử thư viện ảnh trên máy thật.
+Ở nhóm dấu và cảm nhận, TC-REF-01 kiểm tra cấp dấu sau khi hoàn tất nhiệm vụ. Ba ca tiếp theo thử nội dung ngoài giới hạn, nội dung rỗng và hai độ dài hợp lệ ngay tại biên. Ở cộng đồng, TC-COM-03 quan sát trạng thái danh sách rỗng khi lọc. Ở đồng bộ, TC-SYNC-04 dùng Slow 3G, ngắt mạng giữa thao tác rồi nối lại để quan sát việc khôi phục. Cả ba nhóm có đủ bốn loại ca và đang Chưa chạy. Người thử sẽ lưu kết quả, ảnh hoặc log theo từng mã.
 
-## Slide 11 · Retest và regression
+[CHƯA XÁC MINH] Kết quả của TC-REF-01, TC-REF-06 đến TC-REF-08, TC-COM-01 đến TC-COM-04 và TC-SYNC-01 đến TC-SYNC-04 tra trong [bảng test case](02-bang-test-case.md).
 
-Nhóm dùng retest để kiểm tra đúng tình huống lỗi, rồi chạy hồi quy các luồng liên quan như xác thực, đồng bộ, cảm nhận và QR. [ĐÃ CHẠY] Các nhánh sửa đều hoàn thành kiểm tra định dạng, phân tích tĩnh, Flutter, Firestore Rules và build Web. Lượt chạy gộp các bản sửa trên bản kiểm tra cục bộ đạt 65 bài Flutter. Bảng báo cáo dẫn đến từng commit và log để người xem lần lại kết quả.
+## Slide 9 · Test case giao diện và Firestore Rules
 
-## Slide 12 · Tổng hợp lỗi theo trạng thái
+Bốn ca giao diện thay đổi kích thước, bàn phím, trạng thái form và cỡ chữ khi xoay để quan sát khả năng hiển thị. Bốn ca Firestore Rules minh họa quyền chủ hộ chiếu, quyền của tài khoản khác, hồ sơ thiếu trường và biên số lượng ảnh tác vụ. Trong bài thử tại biên, Firestore cho phép ba ảnh và từ chối bốn ảnh. Bốn ca Rules lấy bằng chứng từ cùng một suite trên Emulator. Nhóm giao diện còn Chưa chạy, chờ thực hiện đủ bước trên các cấu hình đã nêu.
 
-[TỪ CODE] Mức độ lỗi phản ánh ảnh hưởng đã đối chiếu trong bảng lỗi. Có 8 mục với bằng chứng, gồm 2 High, 5 Medium và 1 Low. [ĐÃ CHẠY] Các commit và kết quả retest, hồi quy xác nhận đã sửa 7 mục trên nhánh riêng. BUG-07 là mục High còn Open. Các nhận định nháp về quota và đánh đổi kiến trúc có phần đối chiếu riêng để người xem biết căn cứ.
+[ĐÃ CHẠY] TC-RULE-01 đến TC-RULE-04 ánh xạ tới `rules_tests/firestore.rules.test.mjs`, bài S2 dòng 123 và các bài hộ chiếu dòng 237, 250. [CHƯA XÁC MINH] TC-UI-01 đến TC-UI-04 trong [bảng test case](02-bang-test-case.md).
 
-## Slide 13 · Hạn chế và bước tiếp theo
+## Slide 10 · Bước 3 - Thực hiện kiểm thử
 
-[CHƯA XÁC MINH] Phần còn lại là vận hành trên máy thật, đặc biệt là camera, GPS, xoay màn hình và các luồng đang thao tác thì mất mạng. Firebase trên iOS cần cấu hình và xác nhận trên thiết bị. Bài học của nhóm là ghi riêng kết quả từng lần quan sát và chỉ cập nhật trạng thái khi có đủ bằng chứng cho ca đó. Nhóm sẽ dùng checklist, ghi môi trường và đính kèm minh chứng theo đúng mã test case.
+Lượt chạy bản gốc kiểm tra format, analyze, Flutter test, Firestore Rules và build Web release. Format sạch, analyze báo không có vấn đề, Flutter đạt 57 bài và Rules đạt 12 bài. Build Web release đã tạo bản build. Riêng lượt Edge quan sát thấy màn chào mở được ở cả bốn kích thước theo kế hoạch. Ca thủ công cần thiết bị thật, máy ảo hoặc thử mất mạng vẫn Chưa chạy. Mỗi dòng trong ma trận cho biết nhóm cần môi trường nào và sẽ điền gì sau khi thực hiện.
 
-## Slide 14 · Hỏi đáp
+[ĐÃ CHẠY] Log lệnh và giới hạn lượt Edge nằm trong [báo cáo tổng hợp](04-bao-cao-tong-hop.md). [CHƯA XÁC MINH] Ma trận thực thi thiết bị và mạng nằm trong [hướng dẫn thủ công](05-huong-dan-chay-thu-cong.md).
 
-Em xin kết thúc phần trình bày. Nhóm có thể mở bảng test case để chỉ rõ dữ liệu, kỳ vọng và bằng chứng của từng tình huống, hoặc mở bảng lỗi để giải thích cách nhóm xác minh. Các mục chưa chạy đang được giữ đúng trạng thái để các thành viên có thể tiếp tục trên thiết bị. Nhóm xin mời thầy/cô và các bạn đặt câu hỏi.
+## Slide 11 · Bước 4 - Ghi nhận lỗi
 
-## Câu hỏi giảng viên có thể hỏi
+Nhóm ghi bốn thông tin chính cho mỗi lỗi. Mô tả cho biết hành vi quan sát được. Cách tái hiện giúp người khác thử lại. Mức độ dựa trên ảnh hưởng và phạm vi. Người phụ trách tiếp nhận việc xác minh hoặc xử lý. Critical chặn luồng chính trên diện rộng hoặc gây hậu quả dữ liệu nghiêm trọng. High chặn chức năng chính hay có thể làm văng màn hình. Medium ảnh hưởng một luồng con, còn Low có ảnh hưởng giới hạn. Bảng chi tiết thêm mã TC, file hoặc log, commit và kết quả retest.
+
+Căn cứ phân mức và trường cần ghi nằm ở [bảng lỗi](03-bang-loi.md).
+
+## Slide 12 · Lỗi tiêu biểu
+
+BUG-02 xảy ra khi màn hình QR cập nhật giao diện sau khi đã đóng. BUG-06 làm mất ảnh cũ trong tình huống bỏ ảnh vừa chọn. BUG-12 là lỗi tràn dòng chú thích check-in trên khung hẹp. Cả ba có bản sửa và retest trên nhánh riêng. BUG-07 giữ Open vì còn cần cấu hình Firebase iOS và một lượt xác nhận trên môi trường phù hợp. Khi được hỏi, nhóm mở bảng lỗi để chỉ đoạn code, điều kiện tái hiện và bằng chứng xử lý.
+
+[TỪ CODE] `lib/screens/qr_scanner_screen.dart`, `_handleCode` dòng 89–105 và `_simulate` dòng 121–128. `lib/widgets/edit_reflection_dialog.dart`, `build` dòng 205–212 và `_save` dòng 131–138. [ĐÃ CHẠY] Bằng chứng retest ở [BUG-02 và BUG-06](03-bang-loi.md).
+
+## Slide 13 · Danh sách lỗi đã phát hiện
+
+Bảng có tám lỗi với bằng chứng, gồm hai High, năm Medium và một Low. Bảy lỗi đã có commit riêng, retest và kết quả hồi quy trên nhánh sửa. BUG-07 còn Open. Cấu hình trong repo đang đưa iOS native vào chế độ cục bộ. Để xác minh đăng nhập và đồng bộ từ xa, nhóm cần cấu hình Firebase iOS và môi trường chạy phù hợp. Các nhận định từ bản nháp được đối chiếu ở phần riêng trong bảng lỗi để hội đồng có thể kiểm tra vì sao một mục được giữ, sửa hoặc cần xác minh thêm.
+
+[TỪ CODE] `lib/firebase_options.dart`, `currentFirebaseOptions` dòng 9–13 và `lib/main.dart`, `_initFirebase` dòng 38–47. [ĐÃ CHẠY] Trạng thái và retest tại [bảng lỗi](03-bang-loi.md).
+
+## Slide 14 · Demo BUG-06 - Giữ ảnh cũ
+
+Tình huống bắt đầu với một bài cảm nhận đã có ảnh. Người dùng chọn ảnh mới, bấm Bỏ ảnh mới rồi lưu. Trước khi sửa, nhánh này truyền cờ xóa ảnh cũ nên lần lưu làm mất ảnh trước đó. Sau bản vá, thao tác Bỏ ảnh mới chỉ xóa ảnh vừa chọn. Lượt tái hiện trước sửa có năm bài đạt và một bài thất bại. Chạy lại cùng tệp sau sửa, cả sáu bài đạt, gồm kiểm tra ảnh cũ được giữ. Khung trên slide 14 dành cho ảnh chụp thật trước sửa và sau retest.
+
+[TỪ CODE] `lib/widgets/edit_reflection_dialog.dart`, `build` dòng 205–212 và `_save` dòng 131–138. `lib/state/passport_store.dart`, `updateReflection` dòng 1019–1022. [ĐÃ CHẠY] Trích log trước và sau tại [báo cáo tổng hợp](04-bao-cao-tong-hop.md#kiểm-thử-nhánh-sửa). [CHƯA XÁC MINH] Kết quả thư viện ảnh thật ở TC-REF-12.
+
+## Slide 15 · Bước 5 - Sửa lỗi và kiểm thử lại
+
+Retest tập trung vào tình huống đã gây lỗi. Regression kiểm tra những phần khác có thể chịu ảnh hưởng. Mỗi nhánh có commit riêng và log chạy lại format, analyze, Flutter, Rules, build Web và các bài smoke tự động. Bản gốc có 57 bài Flutter đạt. Sau khi áp dụng cả bảy bản vá vào cùng một bản làm việc cục bộ và chạy gộp, 65 bài đạt. Luồng từ đăng nhập qua bản đồ, quét QR, sửa ảnh đến ngắt và nối mạng vẫn cần thực hiện đủ bước trên thiết bị thật.
+
+[ĐÃ CHẠY] Bảng nhánh sửa và `combined-regression.log` được dẫn trong [báo cáo tổng hợp](04-bao-cao-tong-hop.md). [CHƯA XÁC MINH] Smoke xuyên luồng có thiết bị thật.
+
+## Slide 16 · Kết quả cuối
+
+Khi nộp bài, nhóm có ba nơi để tra cứu. Bảng test case cho biết dữ liệu, kỳ vọng và trạng thái từng ca. Bảng lỗi ghi các vấn đề xác minh được, cách xử lý và commit liên quan. Báo cáo tổng hợp lưu số liệu và log. Tại mốc báo cáo, 9 trong 79 dòng có bằng chứng Pass, 70 dòng Chưa chạy và 0 dòng Fail trong bảng hiện hành. Bảy trong tám lỗi đã sửa trên nhánh riêng. Nhóm dùng bảng chi tiết để xác định ca nào còn cần người thực hiện.
+
+[ĐÃ CHẠY] Số dòng và trạng thái được đối chiếu từ [bảng test case](02-bang-test-case.md), [bảng lỗi](03-bang-loi.md) và [báo cáo tổng hợp](04-bao-cao-tong-hop.md).
+
+## Slide 17 · Hạn chế và hướng phát triển
+
+Các công việc còn lại tập trung vào quét camera, GPS, xoay màn hình, cỡ chữ lớn, Slow 3G và rớt mạng khi thao tác. Nhóm cần chạy theo checklist trên máy ảo và máy thật, lưu ảnh hoặc log cùng mã TC. Firebase iOS cần bổ sung cấu hình rồi kiểm tra trên nền tảng đó. Bài học của nhóm là một bước quan sát thành công chỉ xác nhận phạm vi đã thực thi. Khi mở rộng bộ kiểm thử, nhóm ưu tiên tự động hóa các ca lặp lại và giữ các tình huống phụ thuộc phần cứng cho lượt thử thiết bị.
+
+[CHƯA XÁC MINH] Ca thủ công, hành vi Firebase iOS và việc tái thử bằng phần cứng theo [hướng dẫn chạy thủ công](05-huong-dan-chay-thu-cong.md).
+
+## Slide 18 · Hỏi đáp
+
+Nhóm xin kết thúc phần trình bày và mời thầy/cô đặt câu hỏi. Nếu cần xem một ca cụ thể, nhóm có thể mở bảng test case để đọc dữ liệu vào, kỳ vọng, môi trường và trạng thái. Với lỗi đã sửa, nhóm sẽ mở bảng lỗi và log trước, sau bản vá để phân biệt retest với hồi quy. Với những tình huống còn chờ thiết bị hoặc cấu hình, nhóm sẽ chỉ rõ điều kiện cần chuẩn bị và ai sẽ điền minh chứng sau khi thử.
+
+## Năm câu hỏi giảng viên có thể hỏi
 
 | Câu hỏi | Gợi ý trả lời |
 | --- | --- |
-| Tại sao nhiều test case thủ công ở trạng thái Chưa chạy? | Bảng ghi trạng thái theo từng lần thực thi. Camera, GPS, kích cỡ màn hình và mất mạng phải được quan sát trên môi trường ghi trong hướng dẫn thủ công. |
-| Vì sao dùng OpenStreetMap trong kế hoạch? | [TỪ CODE] `lib/services/maps_config.dart`, `initGoogleMaps()` chỉ khởi tạo SDK Google khi có API key. `lib/screens/map_screen.dart` chọn `OsmDiscoveryMap` khi Google Maps chưa sẵn sàng. |
-| Khi nào được đánh một lỗi là đã sửa? | Khi có commit sửa thực tế, test case tái hiện đã được chạy lại và các luồng hồi quy liên quan đã có kết quả. Bảng lỗi liên kết tới bằng chứng tương ứng. |
-| Kết quả build Web xác nhận những gì? | [ĐÃ CHẠY] Lệnh đã tạo bản build Web release. Các luồng thao tác được xác nhận theo từng test case và môi trường ghi trong bảng. |
-| Vì sao test các giá trị sát ngưỡng? | Nhiều lỗi xuất hiện ở dấu so sánh tại ngưỡng. Kiểm tra dưới, đúng và trên ngưỡng giúp phân biệt giá trị bị chặn với giá trị hợp lệ. |
+| Vì sao bảng có 79 dòng nhưng Flutter báo 57 và Firestore Rules báo 12? | 79 là số dòng theo dõi trong tài liệu, gồm ca nghiệp vụ, ca Rules ánh xạ tới các khẳng định của suite, và dòng tổng hợp lệnh. 57 và 12 là số bài do từng bộ chạy báo. [ĐÃ CHẠY] Căn cứ bảng thống kê và log trong [báo cáo tổng hợp](04-bao-cao-tong-hop.md). |
+| Vì sao chọn OpenStreetMap làm mặc định trong kế hoạch? | [TỪ CODE] `lib/services/maps_config.dart`, `initGoogleMaps()` dòng 18–21, chỉ khởi tạo SDK Google khi có khóa. `lib/screens/map_screen.dart` chọn `OsmDiscoveryMap` khi Google Maps chưa sẵn sàng. |
+| Retest BUG-06 và regression khác nhau thế nào? | [ĐÃ CHẠY] Retest chạy lại ca bỏ ảnh mới trong `test/reflection_edit_test.dart`, kết quả cả sáu bài trong tệp đạt. Regression chạy thêm các bài liên quan và toàn bộ bộ Flutter, gồm lượt chạy gộp bảy bản vá đạt 65 bài. |
+| Vì sao có dòng `PERMISSION_DENIED` nhưng bộ Rules vẫn Pass? | [ĐÃ CHẠY] Với đầu vào sai quyền hoặc sai dữ liệu, việc Firestore từ chối chính là kết quả mong đợi của khẳng định. Runner xác nhận cả 12 bài đạt trên Emulator. |
+| Vì sao thử được màn chào trên Edge mà 70 ca thủ công vẫn Chưa chạy? | [ĐÃ CHẠY] Smoke Edge chỉ quan sát màn chào ở bốn viewport. [CHƯA XÁC MINH] Mỗi ca thủ công còn cần chạy đủ thao tác và quan sát kết quả trong môi trường đã ghi, nhất là camera, GPS, đồng bộ và gián đoạn mạng. |
