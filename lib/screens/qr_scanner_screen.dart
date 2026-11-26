@@ -40,14 +40,17 @@ class _QrScannerScreenState extends State<QrScannerScreen>
   String _error = '';
   MobileScannerController? _controller;
   bool _handling = false;
-  late final AnimationController _line = AnimationController(
-    vsync: this,
-    duration: const Duration(milliseconds: 2400),
-  )..repeat(reverse: true);
+  late final AnimationController _line;
 
   @override
   void initState() {
     super.initState();
+    // Tạo ngay, không để lười: nếu màn quét đóng khi chưa từng vẽ thanh quét
+    // (mở từ link QR), dispose() sẽ tạo nó giữa lúc gỡ cây widget và lỗi.
+    _line = AnimationController(
+      vsync: this,
+      duration: const Duration(milliseconds: 2400),
+    )..repeat(reverse: true);
     final preset = widget.presetCode;
     if (preset != null) {
       WidgetsBinding.instance.addPostFrameCallback((_) => _handleCode(preset));
