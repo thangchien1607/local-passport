@@ -5,6 +5,7 @@ import '../data/routes.dart';
 import '../services/geo.dart';
 import '../state/passport_store.dart';
 import '../theme.dart';
+import '../widgets/location_prompt.dart';
 
 enum ScanResult { real, demo }
 
@@ -102,9 +103,13 @@ class _QrScannerScreenState extends State<QrScannerScreen>
       );
     }
 
+    if (!mounted) return;
     setState(() => _status = _Status.verifying);
     try {
-      final here = await currentPosition();
+      final here = await requestLocation(context);
+      if (here == null) {
+        return _fail('Cần chia sẻ vị trí để xác nhận bạn đang ở ${loc.name}.');
+      }
       final d = distanceMeters(here, loc.coordinates);
       if (d > checkinRadiusM) {
         return _fail(
