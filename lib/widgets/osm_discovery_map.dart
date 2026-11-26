@@ -9,6 +9,7 @@ import '../services/geo.dart';
 import '../theme.dart';
 import 'common.dart';
 import 'discovery_map.dart';
+import 'location_prompt.dart';
 
 /// Khung ban đầu vừa đủ mọi địa điểm, từ Nam Ô tới Non Nước.
 final _fit = CameraFit.coordinates(
@@ -62,7 +63,10 @@ class _OsmDiscoveryMapState extends State<OsmDiscoveryMap> {
   @override
   void initState() {
     super.initState();
-    _autoLocate();
+    // Đợi khung hình đầu để hộp thoại hỏi vị trí (nếu có) hiện được.
+    WidgetsBinding.instance.addPostFrameCallback((_) {
+      if (mounted) _autoLocate();
+    });
   }
 
   @override
@@ -88,8 +92,8 @@ class _OsmDiscoveryMapState extends State<OsmDiscoveryMap> {
 
   Future<void> _autoLocate() async {
     try {
-      final p = await currentPosition();
-      if (!mounted) return;
+      final p = await requestLocation(context, quiet: true);
+      if (!mounted || p == null) return;
       setState(() => _me = p);
       _watch();
     } catch (_) {
@@ -114,8 +118,8 @@ class _OsmDiscoveryMapState extends State<OsmDiscoveryMap> {
   Future<void> _locate() async {
     setState(() => _locating = true);
     try {
-      final p = await currentPosition();
-      if (!mounted) return;
+      final p = await requestLocation(context);
+      if (!mounted || p == null) return;
       setState(() => _me = p);
       _watch();
       final inCity = _bounds.contains(_ll(p));
