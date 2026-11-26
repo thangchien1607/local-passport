@@ -7,9 +7,18 @@ import '../state/passport_store.dart';
 import '../theme.dart';
 import '../widgets/location_prompt.dart';
 
-enum ScanResult { real, demo }
+enum ScanResult {
+  /// Mã QR đúng và đang ở gần di tích.
+  real,
 
-enum _Status { idle, camera, verifying, demo, error }
+  /// Mã QR đúng, bỏ qua đo vị trí (bật trong tab Hộ chiếu).
+  skippedLocation,
+
+  /// Không quét gì cả (nút giả lập).
+  demo,
+}
+
+enum _Status { idle, camera, verifying, accepted, demo, error }
 
 /// Quét QR tại di tích + xác thực GPS. Nút Demo bỏ qua cả hai để ban giám khảo
 /// trải nghiệm luồng mở khóa ngay trong phòng thuyết trình.
@@ -31,14 +40,17 @@ class _QrScannerScreenState extends State<QrScannerScreen>
   String _error = '';
   MobileScannerController? _controller;
   bool _handling = false;
-  late final AnimationController _line = AnimationController(
-    vsync: this,
-    duration: const Duration(milliseconds: 2400),
-  )..repeat(reverse: true);
+  late final AnimationController _line;
 
   @override
   void initState() {
     super.initState();
+    // Tạo ngay, không để lười: nếu màn quét đóng khi chưa từng vẽ thanh quét
+    // (mở từ link QR), dispose() sẽ tạo nó giữa lúc gỡ cây widget và lỗi.
+    _line = AnimationController(
+      vsync: this,
+      duration: const Duration(milliseconds: 2400),
+    )..repeat(reverse: true);
     final preset = widget.presetCode;
     if (preset != null) {
       WidgetsBinding.instance.addPostFrameCallback((_) => _handleCode(preset));
@@ -104,6 +116,14 @@ class _QrScannerScreenState extends State<QrScannerScreen>
     }
 
     if (!mounted) return;
+    if (PassportScope.read(context).skipLocationCheck) {
+      setState(() => _status = _Status.accepted);
+      // Cho thấy mã đã đúng, và để trang mở xong rồi mới đóng (đóng giữa
+      // hiệu ứng chuyển trang khi mở từ link QR sẽ lỗi).
+      await Future<void>.delayed(const Duration(milliseconds: 800));
+      if (mounted) Navigator.of(context).pop(ScanResult.skippedLocation);
+      return;
+    }
     setState(() => _status = _Status.verifying);
     try {
       final here = await requestLocation(context);
@@ -135,7 +155,11 @@ class _QrScannerScreenState extends State<QrScannerScreen>
 
   @override
   Widget build(BuildContext context) {
-    final busy = _status == _Status.verifying || _status == _Status.demo;
+    final busy =
+        _status == _Status.verifying ||
+        _status == _Status.accepted ||
+        _status == _Status.demo;
+    final skipLocation = PassportScope.of(context).skipLocationCheck;
     final controller = _controller;
 
     return Scaffold(
@@ -238,9 +262,14 @@ class _QrScannerScreenState extends State<QrScannerScreen>
                                                   ),
                                                   const SizedBox(height: 12),
                                                   Text(
-                                                    _status == _Status.demo
-                                                        ? 'Đang giả lập quét mã…'
-                                                        : 'Đang xác thực vị trí GPS…',
+                                                    switch (_status) {
+                                                      _Status.demo =>
+                                                        'Đang giả lập quét mã…',
+                                                      _Status.accepted =>
+                                                        'Mã QR hợp lệ, đang check-in…',
+                                                      _ =>
+                                                        'Đang xác thực vị trí GPS…',
+                                                    },
                                                     style: bodyStyle(
                                                       14,
                                                       color: AppColors.paper
@@ -342,16 +371,27 @@ class _QrScannerScreenState extends State<QrScannerScreen>
                         mainAxisSize: MainAxisSize.min,
                         children: [
                           Icon(
-                            Icons.place_outlined,
+                            skipLocation
+                                ? Icons.location_off_outlined
+                                : Icons.place_outlined,
                             size: 14,
-                            color: AppColors.paper.withValues(alpha: 0.6),
+                            color: skipLocation
+                                ? AppColors.goldLight
+                                : AppColors.paper.withValues(alpha: 0.6),
                           ),
                           const SizedBox(width: 6),
-                          Text(
-                            'Cần ở trong bán kính ${checkinRadiusM.round()} m quanh di tích',
-                            style: bodyStyle(
-                              12,
-                              color: AppColors.paper.withValues(alpha: 0.6),
+                          Flexible(
+                            child: Text(
+                              skipLocation
+                                  ? 'Đang bỏ qua kiểm tra vị trí (tắt ở tab Hộ chiếu)'
+                                  : 'Cần ở trong bán kính ${checkinRadiusM.round()} m quanh di tích',
+                              textAlign: TextAlign.center,
+                              style: bodyStyle(
+                                12,
+                                color: skipLocation
+                                    ? AppColors.goldLight
+                                    : AppColors.paper.withValues(alpha: 0.6),
+                              ),
                             ),
                           ),
                         ],

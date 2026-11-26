@@ -41,12 +41,12 @@ class LocationScreen extends StatelessWidget {
     );
     if (result == null || !context.mounted) return;
     final stamped = store.unlock(locationId);
-    showToast(
-      context,
-      result == ScanResult.demo
-          ? 'Đã mở khóa (chế độ Demo)'
-          : 'Check-in thành công tại ${location.name}!',
-    );
+    showToast(context, switch (result) {
+      ScanResult.real => 'Check-in thành công tại ${location.name}!',
+      ScanResult.skippedLocation =>
+        'Check-in tại ${location.name} (đã bỏ qua kiểm tra vị trí)',
+      ScanResult.demo => 'Đã mở khóa (chế độ Demo)',
+    });
     if (stamped) await showStampCeremony(context, locationId);
   }
 
