@@ -18,7 +18,7 @@ enum ScanResult {
   demo,
 }
 
-enum _Status { idle, camera, verifying, demo, error }
+enum _Status { idle, camera, verifying, accepted, demo, error }
 
 /// Quét QR tại di tích + xác thực GPS. Nút Demo bỏ qua cả hai để ban giám khảo
 /// trải nghiệm luồng mở khóa ngay trong phòng thuyết trình.
@@ -114,7 +114,11 @@ class _QrScannerScreenState extends State<QrScannerScreen>
 
     if (!mounted) return;
     if (PassportScope.read(context).skipLocationCheck) {
-      Navigator.of(context).pop(ScanResult.skippedLocation);
+      setState(() => _status = _Status.accepted);
+      // Cho thấy mã đã đúng, và để trang mở xong rồi mới đóng (đóng giữa
+      // hiệu ứng chuyển trang khi mở từ link QR sẽ lỗi).
+      await Future<void>.delayed(const Duration(milliseconds: 800));
+      if (mounted) Navigator.of(context).pop(ScanResult.skippedLocation);
       return;
     }
     setState(() => _status = _Status.verifying);
@@ -148,7 +152,10 @@ class _QrScannerScreenState extends State<QrScannerScreen>
 
   @override
   Widget build(BuildContext context) {
-    final busy = _status == _Status.verifying || _status == _Status.demo;
+    final busy =
+        _status == _Status.verifying ||
+        _status == _Status.accepted ||
+        _status == _Status.demo;
     final skipLocation = PassportScope.of(context).skipLocationCheck;
     final controller = _controller;
 
@@ -252,9 +259,14 @@ class _QrScannerScreenState extends State<QrScannerScreen>
                                                   ),
                                                   const SizedBox(height: 12),
                                                   Text(
-                                                    _status == _Status.demo
-                                                        ? 'Đang giả lập quét mã…'
-                                                        : 'Đang xác thực vị trí GPS…',
+                                                    switch (_status) {
+                                                      _Status.demo =>
+                                                        'Đang giả lập quét mã…',
+                                                      _Status.accepted =>
+                                                        'Mã QR hợp lệ, đang check-in…',
+                                                      _ =>
+                                                        'Đang xác thực vị trí GPS…',
+                                                    },
                                                     style: bodyStyle(
                                                       14,
                                                       color: AppColors.paper

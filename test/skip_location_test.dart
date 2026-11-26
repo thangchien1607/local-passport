@@ -42,7 +42,10 @@ Future<ScanResult?> _scanPreset(
   );
   await tester.tap(find.text('go'));
   await tester.pump();
-  await tester.pump(const Duration(milliseconds: 500));
+  // Hết hiệu ứng mở trang + thời gian màn quét báo "Mã QR hợp lệ".
+  for (var i = 0; i < 4; i++) {
+    await tester.pump(const Duration(milliseconds: 500));
+  }
   return result;
 }
 
