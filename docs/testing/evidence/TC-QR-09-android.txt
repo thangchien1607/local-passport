@@ -1,0 +1,4 @@
+Env: Android Emulator LP_390x844_API35 (Android 15 API 35, 390×844 dp, app-debug.apk build 27/11/2026)
+Time: 2026-11-27T03:10:40Z
+Rapid double-tap Demo button on Nghĩa trủng Hòa Vang -> unlocked ("Đã mở khóa (chế độ Demo)", "Đang khám phá 1/4 nhiệm vụ 25%") and stayed cleanly on location screen (single pop). See TC-QR-09-android.png.
+Result: Pass

@@ -1,0 +1,5 @@
+Env: Android Emulator LP_390x844_API35 (Android 15 API 35, 390×844 dp, app-debug.apk build 27/11/2026)
+Time: 2026-11-27T03:14:53.806Z
+Register form keyboard+rotation: ime="mInputShown=true", preservedLand=true, preservedPort=true, overflow=false
+Reflection form keyboard+rotation: ime="mInputShown=true", preservedLand=true, preservedPort=true, overflow=false
+Screenshots: TC-UI-02-register-landscape.png, TC-UI-02-register-portrait.png, TC-UI-02-reflection-landscape.png, TC-UI-02.png

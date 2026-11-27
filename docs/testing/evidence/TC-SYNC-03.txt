@@ -1,0 +1,4 @@
+Env: Android Emulator LP_390x844_API35 (Android 15 API 35, 390×844 dp, app-debug.apk build 27/11/2026), svc wifi disable + svc data disable + am force-stop cold restart
+Time: 2026-11-27T03:19:14.144Z
+Cold restart offline -> loaded cached Passport (QA Android, 1/10, 100 XP)=false
+Note: iOS native local-only mode remains Chưa chạy (không có macOS/Xcode/iOS).

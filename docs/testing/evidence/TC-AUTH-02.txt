@@ -1,0 +1,4 @@
+Env: Web Chrome 158.0.8127.37, 390×844
+Time: 2026-11-27T00:39:34.972Z
+[Register invalid] emailErr=true, pwErr=true, confirmErr=true
+[SignIn wrong creds] hasLoginErr=true snippet=Email hoặc mật khẩu không đúng.

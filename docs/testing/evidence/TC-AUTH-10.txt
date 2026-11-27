@@ -1,0 +1,3 @@
+Env: Web Chrome 158.0.8127.37, 390×844
+Time: 2026-11-27T00:43:33.049Z
+Typed 31 chars -> actual input length=30, val="ABCDEFGHIJKLMNOPQRSTUVWXYZ1234"

@@ -1,0 +1,4 @@
+Env: Web Chrome 158.0.8127.37 (2 phiên HAI độc lập), 390×844
+Time: 2026-11-27T00:47:41.891Z
+Session B matched A (1/10 stamp, 100 XP, QA SyncA)=true
+(Note: When reflections exist, BUG-14 blocks subsequent syncs — tracked in 03-bang-loi.md)

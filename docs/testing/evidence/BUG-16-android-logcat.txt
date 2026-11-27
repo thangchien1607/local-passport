@@ -1,0 +1,4 @@
+Env: Android Emulator LP_390x844_API35 (Android 15 API 35, 390×844 dp, app-debug.apk build 27/11/2026)
+Time: 2026-11-27T03:19:41.631Z
+Repro: Passport -> Đổi tên -> Lưu -> disposed TextEditingController / _dependents.isEmpty crash
+

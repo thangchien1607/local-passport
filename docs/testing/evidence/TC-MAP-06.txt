@@ -1,0 +1,5 @@
+Env: Web Chrome 158.0.8127.37, 390×844
+Time: 2026-11-27T00:41:30.733Z
+Search "xyz987@@@" -> empty state=true
+Filter Lịch sử + search "bánh tráng" -> empty=false
+Switch to Tất cả -> found Làng bánh tráng Túy Loan=true

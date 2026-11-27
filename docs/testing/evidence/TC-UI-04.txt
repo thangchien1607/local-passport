@@ -1,0 +1,7 @@
+Env: Web Chrome 158.0.8127.37, 360×640/390×844/768×1024/1440×900/landscape
+Time: 2026-11-27T00:52:49.773Z
+360x640: scrollWidth=360 (viewport=360)
+390x844: scrollWidth=390 (viewport=390)
+768x1024: scrollWidth=768 (viewport=768)
+1440x900: scrollWidth=1440 (viewport=1440)
+844x390-landscape: scrollWidth=844 (viewport=844)

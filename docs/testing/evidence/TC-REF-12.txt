@@ -1,0 +1,4 @@
+Env: Web Chrome 158.0.8127.37, 390×844
+Time: 2026-11-27T00:51:09.564Z
+After clicking "Bỏ ảnh mới" -> dialog shows "Thêm ảnh" instead of keeping old photo ("Đổi ảnh"): BUG-06=true
+Re-opened Sửa after save -> old photo LOST (BUG-06 confirmed live!)=true

@@ -1,0 +1,3 @@
+Env: Web Chrome 158.0.8127.37 (2 phiên HAI độc lập), 390×844
+Time: 2026-11-27T01:55:46.541Z
+Baseline BUG-14: B searches "QAPUB343573" -> screen shows `0 bài khớp "QAPUB343573"` / `Không có bài nào khớp "QAPUB343573"` (see TC-COM-01.png); A's reflection failed Firestore sync via reflection_owners PERMISSION_DENIED.

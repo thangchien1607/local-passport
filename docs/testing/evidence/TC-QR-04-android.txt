@@ -1,0 +1,4 @@
+Env: Android Emulator LP_390x844_API35 (Android 15 API 35, 390×844 dp, app-debug.apk build 27/11/2026), hw.camera.back=emulated
+Time: 2026-11-27T02:54:10.983Z
+Closed & reopened MobileScanner -> setStateAfterDispose=false.
+Closing mid-detection requires scannable QR on real phone/camera.

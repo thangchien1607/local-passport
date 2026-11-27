@@ -1,0 +1,6 @@
+Env: Web Chrome 158.0.8127.37, 390×844
+Time: 2026-11-27T00:47:27.489Z
+20 trimmed chars: Gửi enabled=true
+Submitted 20-char reflection -> score=30/100, approved=true
+exact600 length=600
+Edited to exact 600 chars -> saved locally, new score=75/100, syncErrSnack=true

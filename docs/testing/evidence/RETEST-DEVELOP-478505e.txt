@@ -1,0 +1,22 @@
+Kiểm tra lại 12 lỗi trên code mới nhất origin/develop 478505e (= main 2d4e489), ngày 27/11/2026
+Cách làm: lấy nguyên file test tái hiện lỗi từ 11 nhánh fix/ngocanh-* đặt vào test/bugcheck/ của bản sao develop, chạy: flutter test test/bugcheck -r expanded
+Test đỏ = lỗi còn trên develop; test xanh = develop đã hết lỗi.
+
+ĐỎ  BUG-05 ngocanh-auth-chong-gui-lap__auth_submit_reentry_test.dart: Gửi từ bàn phím khi đang đăng nhập chỉ gọi Auth một lần [E]
+ĐỎ  BUG-06 ngocanh-giu-anh-cam-nhan__reflection_edit_test.dart: Bỏ ảnh mới giữ nguyên ảnh cũ khi lưu cảm nhận [E]
+ĐỎ  BUG-15 ngocanh-hien-loi-anh-cam-nhan__stamp_ceremony_photo_error_test.dart: Ảnh JPEG hỏng hiện lỗi trực tiếp trong hộp thoại cảm nhận, không bị che sau dialog (BUG-15) [E]
+ĐỎ  BUG-16 ngocanh-huy-controller-hop-thoai__passport_dialog_dispose_test.dart: Đóng hộp thoại Đổi tên không hủy TextEditingController trong khi hoạt ảnh còn chạy (BUG-16) [E]
+ĐỎ  BUG-01 ngocanh-qr-bao-sai-ma__qr_invalid_secret_test.dart: QR đúng địa điểm nhưng sai mã xác thực báo đúng nguyên nhân [E]
+ĐỎ  BUG-03 ngocanh-qr-chong-bam-lap__qr_demo_reentry_test.dart: Nhấn Demo liên tiếp chỉ đóng màn hình quét một lần [E]
+ĐỎ  BUG-02 ngocanh-qr-dong-khi-quet__qr_camera_lifecycle_test.dart: Đóng khi camera đang dừng cho Demo [E]
+ĐỎ  BUG-13 ngocanh-tim-kiem-theo-tu__validators_search_test.dart: Tìm kiếm không dấu Tìm kiếm khớp đầu từ, không dính chuỗi con giữa từ (BUG-13) [E]
+ĐỎ  BUG-11 xoa-anh-url-cu__passport_remote_sync_test.dart: Đồng bộ xóa ảnh URL cũ khi người dùng bỏ ảnh cảm nhận [E]
+
+Xanh (đã hết lỗi trên develop):
+XANH  ngocanh-qr-man-hinh-hep__qr_scanner_layout_test.dart  (BUG-12, sửa ở 28d3f16 - Flexible)
+XANH  dong-bo-cam-nhan__passport_remote_sync_test.dart     (BUG-14, sửa ở PR #43: ff13324, 3e75657)
+
+00:08 +21 -9: Some tests failed.
+
+Toàn bộ flutter test trên docs/test-report sau khi gộp develop 478505e:
+00:09 +85: All tests passed!

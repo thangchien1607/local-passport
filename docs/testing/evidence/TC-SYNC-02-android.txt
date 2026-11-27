@@ -1,0 +1,4 @@
+Env: Android Emulator LP_390x844_API35 (Android 15 API 35, 390×844 dp, app-debug.apk build 27/11/2026), svc wifi disable/enable + svc data disable/enable
+Time: 2026-11-27T03:21:32.294Z
+Offline task toggle on Nghĩa trủng Hòa Vang -> 50% locally=true, Retry shown=false, online consistent (1/10, 100 XP)=false
+NOTE: Offline Rename on Android debug APK triggered BUG-16 (see BUG-16-android-redscreen.png & BUG-16-android-logcat.txt).

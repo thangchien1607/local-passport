@@ -1,0 +1,6 @@
+Env: Web Chrome 158.0.8127.37, 390×844
+Time: 2026-11-27T00:40:18.835Z
+Registered qa.lp.a01.941891@example.com -> Khám phá opened
+Passport after register: has name=true, has email=true
+Logged out cleanly
+Re-login with 0 reflections: ok=true

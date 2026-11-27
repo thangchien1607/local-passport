@@ -1,0 +1,7 @@
+Env: Web Chrome 158.0.8127.37, 390×844 (bản gộp 11 bản vá cục bộ)
+Time: 2026-11-27T02:22:48.066Z
+BUG-13 (TC-MAP-05): Pass — Search Cầu Rồng -> Kết quả tìm kiếm (1) only Cầu Rồng (RETEST-BUG-13.png)
+BUG-01 (TC-QR-02): Pass — Deep-link ?checkin=dien-hai&k=SAI -> Mã xác thực QR không hợp lệ (RETEST-BUG-01.png)
+BUG-15 (TC-REF-10): Pass — Corrupt JPEG shows preview error box + visible inline error banner inside modal (RETEST-BUG-15.png)
+BUG-06 (TC-REF-12): Pass — Pick new photo -> Bỏ ảnh mới -> keeps old photo before & after save (RETEST-BUG-06.png)
+BUG-14 (TC-COM-01/02, AUTH-09, REF-05, SYNC-01): Pass — noSyncError=true, offline->online rename synced (RETEST-SMOKE-SYNC.png), Session B sees renamed public post + photo without Sửa/Xóa (RETEST-BUG-14-COM01.png), sees anonymous post (RETEST-BUG-14-AUTH09.png), Session B login A sees 2/10 stamps & QA RetestA2=true (RETEST-BUG-14-SYNC01.png)

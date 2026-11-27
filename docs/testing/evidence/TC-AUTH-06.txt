@@ -1,0 +1,6 @@
+Env: Web Chrome 158.0.8127.37, 390×844
+Time: 2026-11-27T00:43:19.940Z
+[ForgotPw invalid email] msg=true
+[ChangePw mismatch] blocked=true
+[ChangePw wrong current] err=true
+MISSING VARIANT: Không có liên kết xác minh hết hạn/không hợp lệ từ hộp thư thật -> giữ Chưa chạy.

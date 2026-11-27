@@ -1,0 +1,6 @@
+Env: Web Chrome 158.0.8127.37, 390×844
+Time: 2026-11-27T02:23:27Z
+At 9 unread (700 XP, 7 stamps + welcome + rank-up): bell badge visually shows "9" (see TC-COM-12-badge9.png).
+At >=10 unread (800 XP, 8 stamps): bell badge visually shows "9+" (see TC-COM-12.png).
+After tapping "Đọc tất cả" and reloading page: unread badge disappeared (badgeCleared=true).
+Result: Pass

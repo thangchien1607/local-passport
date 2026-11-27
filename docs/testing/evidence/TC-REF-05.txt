@@ -1,0 +1,4 @@
+Env: Web Chrome 158.0.8127.37, 390×844
+Time: 2026-11-27T00:47:27.581Z
+Toggled anonymous -> shows "Một Lữ khách Ẩn danh"=true
+XP before edit=115, after edit=115 (no dup XP=true), score600=75, remoteSyncErr(BUG-14)=true

@@ -1,0 +1,5 @@
+Env: Web Chrome 158.0.8127.37, 390×844
+Time: 2026-11-27T00:39:15.719Z
+[SignIn empty] has "Nhập email": true, has "Nhập mật khẩu": true
+[Register empty] has name err: true, email err: true, pw err: true, confirm err: true
+[Register space-only name] blocked: true

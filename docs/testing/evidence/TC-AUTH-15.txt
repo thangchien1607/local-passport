@@ -1,0 +1,4 @@
+Env: Web Chrome 158.0.8127.37, 390×844
+Time: 2026-11-27T00:50:52.758Z
+Guest entered cleanly -> Passport shows "Tài khoản khách": true
+Delete with empty password blocked: true

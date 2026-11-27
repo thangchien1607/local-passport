@@ -1,0 +1,11 @@
+Env: Web Chrome 158.0.8127.37, 390×844, CDP Geolocation (16.0857, 108.2208)
+Rejected outside 300m=true
+CHECK-IN THỰC ĐỊA
+Thành Điện Hải
+Đóng
+Hướng camera vào mã QR gắn tại cổng di tích.
+Bạn đang cách Thành Điện Hải khoảng 1.1 km. Hãy đến gần hơn để check-in.
+Vị trí của bạn: 16.08570, 108.22080
+Cần ở trong bán kính 300 m quanh di tích
+Thử xác thực vị trí lại
+Giả lập quét QR (Demo)

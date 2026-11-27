@@ -1,0 +1,7 @@
+Env: Web Chrome 158.0.8127.37, 390×844
+Time: 2026-11-27T00:49:23.689Z
+Name 31 chars truncated to len=30; pw 5 chars err=true
+Pw 65 chars truncated to len=64
+Registered padded name "  B  " & padded email & 64-char pw with spaces -> name trimmed="B": true, email trimmed: true
+Login with trimmed pw (without spaces) rejected: true
+Login with padded email + exact 64-char pw (spaces preserved) SUCCEEDED
