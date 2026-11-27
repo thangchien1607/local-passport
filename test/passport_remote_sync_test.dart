@@ -40,10 +40,6 @@ class _RuleEnforcingMemoryAdapter implements SyncStorageAdapter {
   }
 
   @override
-  Future<bool> reflectionOwnerExists(String reflectionId) async =>
-      docs.containsKey('reflection_owners/$reflectionId');
-
-  @override
   Future<bool> reflectionDocExists(String reflectionId) async =>
       docs.containsKey('reflections/$reflectionId');
 

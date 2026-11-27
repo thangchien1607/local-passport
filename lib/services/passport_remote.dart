@@ -100,7 +100,6 @@ abstract class SyncStorageAdapter {
   Future<Set<String>> listVisitIds(String uid);
   Future<Set<String>> listNotificationIds(String uid);
   Future<Set<String>> listOwnedReflectionIds(String uid);
-  Future<bool> reflectionOwnerExists(String reflectionId);
   Future<bool> reflectionDocExists(String reflectionId);
   Future<void> commitBatch(List<SyncWriteOp> ops);
 }
@@ -139,15 +138,6 @@ class _FirestoreSyncAdapter implements SyncStorageAdapter {
         .where('uid', isEqualTo: uid)
         .get();
     return {for (final d in snap.docs) d.id};
-  }
-
-  @override
-  Future<bool> reflectionOwnerExists(String reflectionId) async {
-    final snap = await _db
-        .collection('reflection_owners')
-        .doc(reflectionId)
-        .get();
-    return snap.exists;
   }
 
   @override
@@ -258,9 +248,9 @@ Future<int> runIdempotentChunkedSync({
     final existenceChecks = await Future.wait([
       for (final r in reflections)
         () async {
-          final ownerExists = existingOwnedReflections.contains(r.id)
-              ? true
-              : await adapter.reflectionOwnerExists(r.id);
+          // Danh sách bài của chính mình đã đủ biết bài có chủ chưa; không
+          // đọc lẻ `reflection_owners/{id}` của bài mới (rules cũ từ chối).
+          final ownerExists = existingOwnedReflections.contains(r.id);
           final docExists = await adapter.reflectionDocExists(r.id);
           return (
             reflection: r,
