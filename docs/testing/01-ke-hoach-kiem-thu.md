@@ -1,6 +1,6 @@
 # Kế hoạch kiểm thử Local Passport
 
-Đồ án Kiểm thử và sửa lỗi · Nhóm [Điền tên nhóm] · Thành viên [Tên thành viên] · Giảng viên [Điền tên]
+Đồ án Kiểm thử và sửa lỗi · Nhóm [Điền tên nhóm] · Thành viên Chiến Thắng, Ngọc Anh, Minh Khoa · Giảng viên [Điền tên]
 
 ## Mục tiêu và phạm vi
 
@@ -49,15 +49,15 @@ Các dòng dưới đây là cấu hình yêu cầu thử. [CHƯA XÁC MINH] K�
 
 | Mã môi trường | Nền tảng và phương tiện | Cỡ khung hoặc thiết lập | Ca ưu tiên | Người chạy |
 | --- | --- | --- | --- | --- |
-| WEB-P | Web, DevTools hoặc trình duyệt thật | 360×640 và 390×844, dọc rồi ngang | Chào, xác thực, QR HTTPS/localhost, chi tiết, đánh giá | [Tên thành viên] |
-| WEB-T | Web, DevTools hoặc tablet thật | 768×1024, dọc rồi ngang | Bản đồ, TimeLens, cộng đồng, hộ chiếu | [Tên thành viên] |
-| WEB-D | Web, màn hình lớn | 1440×900, cỡ chữ 100% và 130% | Điều hướng, cuộn, dialog, bảng xếp hạng | [Tên thành viên] |
-| AND-EM | Android Emulator | Cấu hình AVD [Điền sau], GPS giả lập | Biên khoảng cách, luồng demo, cấp/từ chối quyền | [Tên thành viên] |
-| AND-REAL | Android thật | Thiết bị/OS [Điền sau], dọc/ngang, cỡ chữ 130% | Camera thật, định vị thực địa, ảnh, ứng dụng quay về foreground | [Tên thành viên] |
-| IOS-SIM | iOS Simulator trên macOS/Xcode | Cấu hình Simulator [Điền sau] | Khởi động cục bộ, điều hướng, bố cục, GPS giả lập | [Tên thành viên] |
-| IOS-REAL | iPhone thật | Thiết bị/OS [Điền sau], dọc/ngang, cỡ chữ 130% | Camera/GPS, ảnh, lưu cục bộ, Firebase nếu đã cấu hình | [Tên thành viên] |
-| NET | Web DevTools và thiết bị thật | Online, Slow 3G, offline trước khi mở và rớt mạng giữa chừng | Tải bản đồ/TimeLens, gửi bài, đồng bộ và phục hồi sau kết nối | [Tên thành viên] |
-| RULES-EMU | CLI và Firestore Emulator | Project `demo-local-passport`, dữ liệu dựng sẵn trong test | Quyền truy cập, schema hộ chiếu, biên số ảnh | [Tên thành viên] |
+| WEB-P | Web, DevTools hoặc trình duyệt thật | 360×640 và 390×844, dọc rồi ngang | Chào, xác thực, QR HTTPS/localhost, chi tiết, đánh giá | Chiến Thắng, Ngọc Anh |
+| WEB-T | Web, DevTools hoặc tablet thật | 768×1024, dọc rồi ngang | Bản đồ, TimeLens, cộng đồng, hộ chiếu | Minh Khoa |
+| WEB-D | Web, màn hình lớn | 1440×900, cỡ chữ 100% và 130% | Điều hướng, cuộn, dialog, bảng xếp hạng | Minh Khoa |
+| AND-EM | Android Emulator | AVD `LP_390x844_API35` (Android 15 API 35, 390×844 dp), GPS giả lập | Biên khoảng cách, luồng demo, cấp/từ chối quyền | Chiến Thắng, Ngọc Anh, Minh Khoa |
+| AND-REAL | Android thật | Thiết bị/OS [Điền sau], dọc/ngang, cỡ chữ 130% | Camera thật, định vị thực địa, ảnh, ứng dụng quay về foreground | Ngọc Anh |
+| IOS-SIM | iOS Simulator trên macOS/Xcode | Cấu hình Simulator [Điền sau] | Khởi động cục bộ, điều hướng, bố cục, GPS giả lập | Minh Khoa (chưa có máy) |
+| IOS-REAL | iPhone thật | Thiết bị/OS [Điền sau], dọc/ngang, cỡ chữ 130% | Camera/GPS, ảnh, lưu cục bộ, Firebase nếu đã cấu hình | Minh Khoa (chưa có máy) |
+| NET | Web DevTools và thiết bị thật | Online, Slow 3G, offline trước khi mở và rớt mạng giữa chừng | Tải bản đồ/TimeLens, gửi bài, đồng bộ và phục hồi sau kết nối | Minh Khoa |
+| RULES-EMU | CLI và Firestore Emulator | Project `demo-local-passport`, dữ liệu dựng sẵn trong test | Quyền truy cập, schema hộ chiếu, biên số ảnh | Chiến Thắng |
 
 Giữ riêng lần chạy trên từng thiết bị/cấu hình. Khi dùng emulator để đặt vị trí biên, ghi tọa độ và khoảng cách tính. Khi có lỗi, ghi mức zoom/cỡ chữ, hướng màn hình, điều kiện mạng và đúng bước bị gián đoạn.
 

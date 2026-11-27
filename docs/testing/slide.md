@@ -19,21 +19,26 @@ node docs/testing/build-slides.cjs
 
 1. Kiểm thử và sửa lỗi Local Passport
 2. Giới thiệu và phạm vi
-3. Quy trình kiểm thử và sửa lỗi
-4. Bước 1 - Lập kế hoạch kiểm thử
-5. Bước 2 - Viết test case
-6. Tổng quan bộ test case
-7. Test case tài khoản, bản đồ và QR
-8. Test case đóng dấu, cộng đồng và đồng bộ
-9. Test case giao diện và Firestore Rules
-10. Bước 3 - Thực hiện kiểm thử
-11. Bước 4 - Ghi nhận lỗi
-12. Lỗi tiêu biểu
-13. Danh sách lỗi đã phát hiện
-14. Demo BUG-06 - Giữ ảnh cũ
-15. Bước 5 - Sửa lỗi và kiểm thử lại
-16. Kết quả cuối
-17. Hạn chế và hướng phát triển
-18. Hỏi đáp
+3. Quy trình kiểm thử 5 bước
+4. Bước 1 - Chức năng cần kiểm tra
+5. Bước 1 - Tiêu chí đạt yêu cầu
+6. Bước 1 - Môi trường kiểm thử
+7. Bước 2 - Cách viết test case
+8. Bước 2 - Tổng quan bộ test case
+9–14. Bước 2 - Bảng test case đầy đủ (6 slide, 18 chức năng × 4 loại ca)
+15. Bước 3 - Kiểm tra tự động
+16. Bước 3 - Máy ảo, máy thật, nhiều màn hình, mất mạng
+17. Bước 3 - Kết quả trên điện thoại thật
+18. Bước 3 - Minh chứng nhiều màn hình và mất mạng
+19. Bước 4 - Mẫu ghi nhận lỗi
+20–21. Bước 4 - Danh sách lỗi đã phát hiện (mô tả, cách tái hiện, mức độ, phụ trách, tình trạng)
+22. Bước 4 - Thống kê lỗi theo mức độ và tình trạng
+23. Ví dụ một lỗi: BUG-06 giữ ảnh cũ (ảnh trước/sau)
+24. Bước 5 - Quy trình sửa lỗi và kiểm thử lại
+25. Bước 5 - Kết quả kiểm thử lại từng lỗi
+26. Bước 5 - Tình trạng xử lý trên code mới nhất
+27. Đối chiếu với 5 yêu cầu của đồ án
+28. Hạn chế và hướng phát triển
+29. Hỏi đáp
 
-Slide 14 có khung `[Chèn ảnh: BUG-06 trước sửa và sau retest]` dành cho ảnh chụp thật.
+Slide 6 và 17 có chỗ `[Điền model · hệ điều hành]`, `[Điền ngày]` và `[Bổ sung ảnh]` cho phần điện thoại thật.
