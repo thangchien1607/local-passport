@@ -64,5 +64,15 @@ void main() {
         isEmpty,
       );
     });
+
+    test('Tìm kiếm khớp đầu từ, không dính chuỗi con giữa từ (BUG-13)', () {
+      expect(matchesQuery('Bức tường trong thành', 'rong'), isFalse);
+      expect(matchesQuery('Thành Điện Hải', 'die'), isTrue);
+      final cauRongMatches = publishedLocations
+          .where((l) => locationMatches(l, 'Cầu Rồng'))
+          .map((l) => l.id)
+          .toList();
+      expect(cauRongMatches, ['cau-rong']);
+    });
   });
 }
