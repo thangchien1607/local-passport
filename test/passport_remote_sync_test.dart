@@ -275,4 +275,66 @@ void main() {
       });
     },
   );
+
+  test(
+    'Đồng bộ cảm nhận mới không gọi get() lên reflection_owners chưa tồn tại (BUG-14)',
+    () async {
+      final adapter = _StrictOwnerReadAdapter();
+      final now = DateTime.utc(2026, 11, 26).toIso8601String();
+      final payload = <String, dynamic>{
+        'user': {'name': 'QA Sync', 'passportNo': 'DN123456', 'joinedAt': now},
+        'xp': 125,
+        'progress': {
+          'dien-hai': {
+            'unlocked': true,
+            'unlockedAt': now,
+            'tasks': ['timelens', 'story', 'statue'],
+            'taskPhotos': <String, String>{},
+          },
+        },
+        'stamps': {'dien-hai': now},
+        'notifications': const <Map<String, dynamic>>[],
+        'reflections': [
+          {
+            'id': 'r-new-bug14',
+            'locationId': 'dien-hai',
+            'displayAuthor': 'QA Sync',
+            'isAnonymous': false,
+            'content': 'Thành Điện Hải gắn liền lịch sử bảo vệ Đà Nẵng.',
+            'aiScore': 80,
+            'createdAt': now,
+            'photoUrl': null,
+          },
+        ],
+      };
+
+      // Phải thành công ngay cả khi Firestore Rules chặn get() document chưa tồn tại ở reflection_owners.
+      await runIdempotentChunkedSync(
+        uid: 'u-bug14',
+        data: payload,
+        adapter: adapter,
+      );
+      expect(adapter.ownerExistsCalls, 0);
+      expect(adapter.docs['reflection_owners/r-new-bug14'], {'uid': 'u-bug14'});
+      expect(adapter.docs.containsKey('reflections/r-new-bug14'), isTrue);
+    },
+  );
+}
+
+/// Giống Firestore Rules thật (`firestore.rules:143`):
+/// `allow read: if signedIn() && resource.data.uid == request.auth.uid;`
+/// nên `get()` trên `reflection_owners/{id}` chưa tồn tại ném `permission-denied`.
+class _StrictOwnerReadAdapter extends _RuleEnforcingMemoryAdapter {
+  int ownerExistsCalls = 0;
+
+  @override
+  Future<bool> reflectionOwnerExists(String reflectionId) async {
+    ownerExistsCalls++;
+    if (!docs.containsKey('reflection_owners/$reflectionId')) {
+      throw StateError(
+        'permission-denied: reflection_owners/$reflectionId không tồn tại (resource == null)',
+      );
+    }
+    return true;
+  }
 }

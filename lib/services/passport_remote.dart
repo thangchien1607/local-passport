@@ -143,11 +143,18 @@ class _FirestoreSyncAdapter implements SyncStorageAdapter {
 
   @override
   Future<bool> reflectionOwnerExists(String reflectionId) async {
-    final snap = await _db
-        .collection('reflection_owners')
-        .doc(reflectionId)
-        .get();
-    return snap.exists;
+    try {
+      final snap = await _db
+          .collection('reflection_owners')
+          .doc(reflectionId)
+          .get();
+      return snap.exists;
+    } on FirebaseException catch (e) {
+      // firestore.rules chỉ cho đọc reflection_owners/{id} khi resource.data.uid == auth.uid,
+      // nên document chưa tồn tại trả permission-denied thay vì exists == false.
+      if (e.code == 'permission-denied') return false;
+      rethrow;
+    }
   }
 
   @override
@@ -253,14 +260,13 @@ Future<int> runIdempotentChunkedSync({
       ]);
     }
 
-    // Kiểm tra tồn tại `reflection_owners/{id}` và `reflections/{id}` song song
-    // thay vì phụ thuộc vào map cache `_written`.
+    // `existingOwnedReflections` đã truy vấn toàn bộ `reflection_owners` thuộc `uid`,
+    // nên không gọi `reflectionOwnerExists(r.id)` cho ID mới (tránh permission-denied
+    // trên document chưa tồn tại theo `firestore.rules:143`).
     final existenceChecks = await Future.wait([
       for (final r in reflections)
         () async {
-          final ownerExists = existingOwnedReflections.contains(r.id)
-              ? true
-              : await adapter.reflectionOwnerExists(r.id);
+          final ownerExists = existingOwnedReflections.contains(r.id);
           final docExists = await adapter.reflectionDocExists(r.id);
           return (
             reflection: r,
