@@ -1,0 +1,82 @@
+Env: Web Chrome 158.0.8127.37, 390×844
+Time: 2026-11-27T01:21:00.350Z
+New account B on Leaderboard: shows "QA Beta (Bạn)" & "0 XP"=true
+--- Text ---
+Bảng xếp hạng
+46 nhà khám phá Đà Nẵng · theo XP và dấu mộc
+VỊ TRÍ CỦA BẠN
+#46
+QA Beta (Bạn)
+Tân binh · 0 XP
+Hạng 2: QA Ref06, 135 XP
+Hạng 1: QA Notif12, 400 XP
+Hạng 3: QA Ref2, 115 XP
+4
+QR
+QA Ref2
+1 dấu mộc
+115 XP
+5
+N5
+Nhóm 5 demo
+1 dấu mộc
+115 XP
+6
+QR
+QA RefUser
+1 dấu mộc
+115 XP
+7
+QS
+QA S3G848
+1 dấu mộc
+100 XP
+8
+N5
+Nhom 5 Demo
+1 dấu mộc
+100 XP
+9
+QA
+QA Alpha
+1 dấu mộc
+100 XP
+10
+QS
+QA S3G782
+1 dấu mộc
+100 XP
+11
+N
+Nanh
+1 dấu mộc
+100 XP
+12
+QU
+QA UI
+0 dấu mộc
+0 XP
+13
+QU
+QA User 01
+0 dấu mộc
+0 XP
+14
+KQ
+Khách QA 14
+0 dấu mộc
+0 XP
+15
+QU
+QA UI
+0 dấu mộc
+0 XP
+16
+QM
+QA Map
+0 dấu mộc
+0 XP
+Khám phá
+Hộ chiếu
+Bảng tin
+Xếp hạng

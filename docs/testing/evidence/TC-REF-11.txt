@@ -1,0 +1,4 @@
+Env: Web Chrome 158.0.8127.37, 390×844
+Time: 2026-11-27T00:51:09.509Z
+Cancel task photo -> still "Chụp ảnh" & no stamp=true
+Cancel reflection photo -> still "Thêm ảnh thực tế"=true

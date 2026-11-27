@@ -1,0 +1,3 @@
+Env: Web Chrome 158.0.8127.37 (2 phiên HAI độc lập), 390×844
+Time: 2026-11-27T01:56:13.646Z
+Renamed A to "QA Ren573" -> leaderboard_public updated on B (`#2 QA Ren573 · 265 XP`, see TC-AUTH-09.png), BUT A's public & anonymous reflections failed Firestore sync (0 results on B, see TC-COM-01.png) due to BUG-14.

@@ -1,0 +1,4 @@
+Env: Android Emulator LP_390x844_API35 (Android 15 API 35, 390×844 dp, app-debug.apk build 27/11/2026), hw.camera.back=emulated
+Time: 2026-11-27T03:14:06.168Z
+Captured task photo with Android emulated camera at Cầu Rồng -> completed task & triggered Stamp Ceremony ("Cộp!")=true
+Note: Real-device physical camera capture still pending real phone.

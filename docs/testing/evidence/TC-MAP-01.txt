@@ -1,0 +1,6 @@
+Env: Web Chrome 158.0.8127.37, 390×844
+Time: 2026-11-27T00:40:50.198Z
+Filter Lịch sử -> Điểm đến (3)=true
+Map marker found: {"label":"","x":230,"y":451}
+Selected card shown=true
+Opened detail screen=true

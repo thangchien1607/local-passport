@@ -1,0 +1,5 @@
+Env: Web Chrome 158.0.8127.37, 390×844
+Time: 2026-11-27T00:47:27.416Z
+Empty form: Gửi disabled=true, helper="Viết thêm ít nhất 20"=true
+Whitespace-only: Gửi disabled=true
+Edit whitespace-only -> Lưu disabled=true

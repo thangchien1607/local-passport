@@ -1,0 +1,5 @@
+Env: Web Chrome 158.0.8127.37, 390×844
+Time: 2026-11-27T00:41:25.790Z
+Search "Cầu Rồng" -> Kết quả tìm kiếm (7), includes Cầu Rồng (after scroll)
+Tapped Cầu Rồng result -> opened Cầu Rồng detail
+Search story keyword "Nguyễn Tri Phương" -> Kết quả tìm kiếm (1)=true, matches Thành Điện Hải=true

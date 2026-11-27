@@ -1,0 +1,4 @@
+Env: Android Emulator LP_390x844_API35 (Android 15 API 35, 390×844 dp, app-debug.apk build 27/11/2026), font_scale=1.3
+Time: 2026-11-27T02:53:21.594Z
+QR screen 390×844 dp @ 130% font -> RenderFlex overflow matches=0: none
+Screenshot: TC-UI-03-android-130-qr.png

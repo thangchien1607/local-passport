@@ -1,0 +1,3 @@
+Env: Web Chrome 158.0.8127.37, 360×640
+Time: 2026-11-27T00:52:49.705Z
+360×640 QR screen: radiusHint rect={"x":68,"w":244,"right":312}, clipped=false, consoleOverflows=0

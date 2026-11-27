@@ -1,0 +1,5 @@
+Env: Web Chrome 158.0.8127.37 (2 phiên HAI), 390×844
+Time: 2026-11-27T00:54:37.504Z
+Created legacy reflection on Firestore with photoUrl=https://local-passport-danang.web.app/icons/Icon-192.png
+Remote Firestore photoUrl after delete+sync: https://local-passport-danang.web.app/icons/Icon-192.png
+Session B Edit dialog shows "Đổi ảnh" (old photoUrl STILL present = BUG-11 live!): true, remotePhotoUrl=https://local-passport-danang.web.app/icons/Icon-192.png

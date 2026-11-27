@@ -1,0 +1,5 @@
+Env: Web Chrome 158.0.8127.37, 390×844
+Time: 2026-11-27T00:51:09.496Z
+Task photo uploaded at Cầu Rồng -> completed task & triggered Stamp Ceremony!
+Reflection with JPEG posted -> task shows "Xem ảnh"=true, reflection visible=true
+Note: Web uses file chooser; Android emulated camera tested in Phase 3.
