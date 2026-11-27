@@ -7,6 +7,7 @@ import '../data/routes.dart';
 import '../services/geo.dart';
 import '../theme.dart';
 import 'common.dart';
+import 'location_prompt.dart';
 
 // Bản đồ minh họa Đà Nẵng (không tỉ lệ). Khi có API key, thay bằng
 // google_maps_flutter và dùng cùng dữ liệu tọa độ.
@@ -128,13 +129,16 @@ class _MyLocationLayerState extends State<_MyLocationLayer> {
   @override
   void initState() {
     super.initState();
-    _autoLocate();
+    // Đợi khung hình đầu để hộp thoại hỏi vị trí (nếu có) hiện được.
+    WidgetsBinding.instance.addPostFrameCallback((_) {
+      if (mounted) _autoLocate();
+    });
   }
 
   Future<void> _autoLocate() async {
     try {
-      final p = await currentPosition();
-      if (!mounted) return;
+      final p = await requestLocation(context, quiet: true);
+      if (!mounted || p == null) return;
       setState(() => _me = p);
       _watch();
     } catch (_) {
@@ -162,8 +166,8 @@ class _MyLocationLayerState extends State<_MyLocationLayer> {
   Future<void> _locate() async {
     setState(() => _locating = true);
     try {
-      final p = await currentPosition();
-      if (!mounted) return;
+      final p = await requestLocation(context);
+      if (!mounted || p == null) return;
       setState(() => _me = p);
       _watch();
       // Hiện tọa độ + điểm gần nhất để đối chiếu/hiệu chỉnh tọa độ địa điểm.

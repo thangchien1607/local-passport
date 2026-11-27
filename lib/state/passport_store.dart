@@ -22,6 +22,7 @@ const _storageKey = 'local-passport/v1';
 
 /// Cài đặt riêng của máy, không đổi theo tài khoản.
 const _demoKey = 'local-passport/demo-qr';
+const _skipLocationKey = 'local-passport/skip-location';
 
 class UserProfile {
   const UserProfile({
@@ -144,6 +145,15 @@ class PassportStore extends ChangeNotifier {
 
   void setDemoQr(bool enabled) {
     _prefs.setBool(_demoKey, enabled);
+    notifyListeners();
+  }
+
+  /// Check-in vẫn phải quét mã QR thật của di tích, nhưng không đo khoảng
+  /// cách GPS. Dùng khi thử/báo cáo ở xa di tích. Chỉ áp dụng trên máy này.
+  bool get skipLocationCheck => _prefs.getBool(_skipLocationKey) ?? false;
+
+  void setSkipLocationCheck(bool enabled) {
+    _prefs.setBool(_skipLocationKey, enabled);
     notifyListeners();
   }
 
