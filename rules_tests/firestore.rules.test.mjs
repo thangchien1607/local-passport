@@ -232,6 +232,26 @@ test('1.3 Chặn ghi đè reflection_owners đã tồn tại và chặn người
   );
 });
 
+// ---- 1.3b: đọc reflection_owners khi đồng bộ bài cảm nhận mới ----
+
+test('1.3b Đọc được reflection_owners chưa tồn tại, không đọc được của người khác', async () => {
+  const aliceDb = testEnv.authenticatedContext('alice').firestore();
+  // Bài mới chưa có chủ: phải đọc được (trước đây bị từ chối, hỏng cả lần đồng bộ).
+  await assertSucceeds(getDoc(doc(aliceDb, 'reflection_owners', 'r-chua-co')));
+
+  const batch = writeBatch(aliceDb);
+  batch.set(doc(aliceDb, 'reflection_owners', 'r-cua-alice'), { uid: 'alice' });
+  batch.set(doc(aliceDb, 'reflections', 'r-cua-alice'), validReflectionDoc());
+  await assertSucceeds(batch.commit());
+  await assertSucceeds(getDoc(doc(aliceDb, 'reflection_owners', 'r-cua-alice')));
+
+  const bobDb = testEnv.authenticatedContext('bob').firestore();
+  await assertFails(getDoc(doc(bobDb, 'reflection_owners', 'r-cua-alice')));
+
+  const guestDb = testEnv.unauthenticatedContext().firestore();
+  await assertFails(getDoc(doc(guestDb, 'reflection_owners', 'r-chua-co')));
+});
+
 // ---- 1.4: Siết schema cho user_passports/{uid} ----
 
 test('1.4 Cho phép ghi user_passports/{uid} hợp lệ và chặn người dùng khác', async () => {
