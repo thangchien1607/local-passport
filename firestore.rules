@@ -140,7 +140,10 @@ service cloud.firestore {
     }
 
     match /reflection_owners/{id} {
-      allow read: if signedIn() && resource.data.uid == request.auth.uid;
+      // `resource == null`: cho đọc document chưa tồn tại để client biết bài
+      // mới chưa có chủ. Thiếu nó, lệnh đọc bị từ chối và cả lần đồng bộ hỏng.
+      allow read: if signedIn()
+        && (resource == null || resource.data.uid == request.auth.uid);
       allow create: if signedIn() && request.resource.data.uid == request.auth.uid
         && request.resource.data.keys().hasOnly(['uid']);
       allow update: if false;
