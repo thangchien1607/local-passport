@@ -1,0 +1,3 @@
+Env: Web Chrome 158.0.8127.37, 390×844
+Time: 2026-11-27T01:56:43.598Z
+Tapped stamp notif -> opened Thành Điện Hải=true, swiped item deleted=true

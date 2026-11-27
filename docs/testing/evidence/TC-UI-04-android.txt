@@ -1,0 +1,5 @@
+Env: Android Emulator LP_390x844_API35 (Android 15 API 35, 390×844 dp, app-debug.apk build 27/11/2026), font_scale=1.3, portrait & landscape
+Time: 2026-11-27T02:53:21.597Z
+QR 130% overflow=none
+Location 130% landscape overflow=none
+Screenshots: TC-UI-04-android-130-map.png, TC-UI-04-android-130-location.png, TC-UI-04-android-130-landscape.png

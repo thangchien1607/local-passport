@@ -1,61 +1,54 @@
 # Báo cáo tổng hợp kiểm thử Local Passport
 
-Môn Kiểm thử và sửa lỗi · Nhóm [Điền tên nhóm] · Thành viên [Tên thành viên] · Giảng viên [Điền tên]
+Môn Kiểm thử và sửa lỗi · Nhóm thực hiện: Chiến Thắng (`AUTH`/`QR`/`RULE`), Ngọc Anh (`MAP`/`REF`), Minh Khoa (`COM`/`SYNC`/`UI`)
 
 ## Phạm vi và nguồn dữ liệu
 
-[ĐÃ CHẠY] Bản gốc để lập và chạy bộ kiểm tra là `origin/develop` ở `065103c`. Máy chạy Windows 11, Flutter 3.47.9, Dart 3.13.7, Node.js 24.19.0 và npm 11.17.0. Ngày giờ của log bên dưới theo giờ Việt Nam.
+[ĐÃ CHẠY] Bản gốc để thực thi kiểm thử là `origin/develop` tại `065103c` (4 nhánh sửa lỗi phát hiện mới nhánh từ `origin/develop` tại `3394304`). Máy chạy Windows 11, Flutter 3.47.9, Dart 3.13.7, Node.js 24.19.0, npm 11.17.0, JDK Temurin `17.0.20.1+1` (ổ D, `GRADLE_USER_HOME=D:\.gradle`, không sửa file cấu hình Gradle của repo).
 
-[TỪ CODE] Dự án dùng Flutter, OpenStreetMap mặc định, Firebase Auth và Firestore cho Web/Android. Khi `currentFirebaseOptions` trả `null`, `main()` nạp luồng lưu cục bộ. Nguồn [README](../../README.md), [cấu hình Firebase](../../lib/firebase_options.dart#L9) và [khởi tạo](../../lib/main.dart#L26).
+Các môi trường thực thi thủ công thực tế ngày **27/11/2026**:
+- **Web Chrome 158.0.8127.37** (Windows 11, đa viewport `360×640`, `390×844`, `768×1024`, `1440×900`, ngang `844×390`, 2 phiên HAI độc lập, DevTools Offline / Slow 3G, CDP Geolocation, CDP chặn `maps.googleapis.com`, endpoint verifier lỗi HTTP 500, bản demo `lib/main_timelens.dart`).
+- **Android Emulator `LP_390x844_API35`** (Android 15 API 35, `390×844 dp`, chạy file APK debug build mới `build/app/outputs/flutter-apk/app-debug.apk` ngày `27/11/2026`, Gboard thật, `font_scale 1.3`, xoay ngang/dọc, camera ảo `com.android.camera2`, `svc wifi/data disable`, `am force-stop`).
+- Toàn bộ **169 tệp bằng chứng thật** (ảnh chụp PNG và log TXT) được lưu tại `docs/testing/evidence/`.
 
 | Bước | Việc thực hiện | Minh chứng |
 | --- | --- | --- |
-| 1. Lập kế hoạch | Gộp phạm vi của hai bản nháp, xác định môi trường và điều kiện hoàn thành | [Kế hoạch](01-ke-hoach-kiem-thu.md) |
-| 2. Viết ca kiểm thử | Chuẩn hóa mã TC, dùng bốn nhóm đúng, sai, trống và biên | [Bảng test case](02-bang-test-case.md) |
-| 3. Thực hiện | Chạy kiểm tra tự động trên commit gốc, chuẩn bị checklist thiết bị | [Log kiểm tra tự động](#kết-quả-chạy-tự-động-trên-bản-gốc), [checklist](05-huong-dan-chay-thu-cong.md) |
-| 4. Ghi nhận lỗi | Đối chiếu mười mục nháp và bổ sung lỗi có bằng chứng | [Bảng lỗi và đối chiếu](03-bang-loi.md) |
-| 5. Sửa và kiểm thử lại | Tái hiện tự động, sửa từng lỗi trên nhánh riêng, chạy retest và hồi quy | [Kiểm thử nhánh sửa](#kiểm-thử-nhánh-sửa) |
-
-## Dữ liệu biên và cấu hình dự kiến
-
-[TỪ CODE] Tên sau khi cắt khoảng trắng phải có nội dung và tối đa 30 ký tự. Mật khẩu gồm chữ, số và dài 6–64 ký tự. Cảm nhận dài 20–600 ký tự sau trim, nên dùng 19 và 20 để thử sát ngưỡng dưới. Nguồn [validators.dart](../../lib/services/validators.dart#L4), `validateName`, `validatePassword`, `validateReflection`.
-
-[TỪ CODE] QR đi qua `parseQr`. `_handleCode` từ chối khi khoảng cách lớn hơn bán kính 300 m, do đó mốc 300 m được chấp nhận về mặt điều kiện code. Nguồn [geo.dart](../../lib/services/geo.dart#L8) và [qr_scanner_screen.dart](../../lib/screens/qr_scanner_screen.dart#L89).
-
-[TỪ CODE] `compressImageBytes` nhắm ảnh sau nén 80 KiB, có ngưỡng ảnh nhị phân 120 KiB. `compressImageToBase64` còn giới hạn 120000 ký tự. `validTaskPhotos` cho tối đa ba ảnh nhiệm vụ mỗi visit. Ứng dụng kiểm tra kích thước document ước lượng 800 KiB trước ghi. Nguồn [photo_service.dart](../../lib/services/photo_service.dart#L8), [firestore.rules](../../firestore.rules#L28) và [passport_remote.dart](../../lib/services/passport_remote.dart), `runIdempotentChunkedSync`.
-
-[CHƯA XÁC MINH] Các cấu hình thiết bị dự kiến là 360×640, 390×844, 768×1024 và 1440×900, cỡ chữ 130%, dọc/ngang, Slow 3G, offline và rớt mạng khi đang thao tác. Đây là thông số kế hoạch, kết quả lấy từ từng lần thực hiện trong [checklist](05-huong-dan-chay-thu-cong.md).
+| 1. Lập kế hoạch | Gộp phạm vi, xác định môi trường, phân công nhóm và điều kiện hoàn thành | [Kế hoạch](01-ke-hoach-kiem-thu.md) |
+| 2. Viết ca kiểm thử | Chuẩn hóa 79 dòng TC, đủ bốn nhóm đúng, sai, trống, biên và phân công thành viên | [Bảng test case](02-bang-test-case.md) |
+| 3. Thực hiện | Chạy tự động trên bản gốc, chạy thủ công trên Web Chrome 158 và Android Emulator `LP_390x844_API35` kèm 169 tệp bằng chứng | [Bảng test case](02-bang-test-case.md), `docs/testing/evidence/` |
+| 4. Ghi nhận lỗi | Đối chiếu 10 mục nháp và lập danh sách **12 lỗi đã xác minh** (gồm 4 lỗi mới `BUG-13..16`) | [Bảng lỗi và đối chiếu](03-bang-loi.md) |
+| 5. Sửa và kiểm thử lại | 11 nhánh sửa riêng có test tái hiện trước sửa, hồi quy gộp `+69` Flutter test, Rules `12/12`, build web và retest trực tiếp trên Chrome | [Kiểm thử nhánh sửa](#kiểm-thử-nhánh-sửa) |
 
 ## Thống kê test case theo phân hệ
 
-Đơn vị là **dòng trong bảng chi tiết**. Trong 74 ca nghiệp vụ và Rules có 70 ca thủ công và 4 ca Rules có assertion được đối chiếu từ log của `TC-AUTO-04`. Năm dòng còn lại thuộc nhóm Tự động, ghi việc chạy các lệnh hoặc bộ kiểm thử. Số bài do trình chạy báo được trình bày riêng ở phần log.
+Đơn vị là **dòng trong bảng chi tiết** (79 dòng = 70 ca thủ công + 4 ca Firestore Rules + 5 dòng kiểm tra tự động). Chỉ tính **Pass** hoặc **Fail** cho các ca đã thực sự thao tác, quan sát và có bằng chứng lưu trong `docs/testing/evidence/`.
 
-| Phân hệ | Tổng | Pass | Fail | Chưa chạy |
-| --- | ---: | ---: | ---: | ---: |
-| Xác thực và tài khoản | 16 | 0 | 0 | 16 |
-| Khám phá và bản đồ | 8 | 0 | 0 | 8 |
-| QR và GPS check-in | 9 | 0 | 0 | 9 |
-| Đóng dấu, cảm nhận và ảnh | 13 | 0 | 0 | 13 |
-| Cộng đồng, xếp hạng và thông báo | 12 | 0 | 0 | 12 |
-| Đồng bộ, offline và TimeLens | 8 | 0 | 0 | 8 |
-| Đa kích thước màn hình | 4 | 0 | 0 | 4 |
-| **Thủ công** | **70** | **0** | **0** | **70** |
-| Firestore Rules | 4 | 4 | 0 | 0 |
-| Kiểm tra tự động | 5 | 5 | 0 | 0 |
-| **Tổng** | **79** | **9** | **0** | **70** |
+| Phân hệ | Người phụ trách | Tổng | Pass | Fail | Chưa chạy |
+| --- | --- | ---: | ---: | ---: | ---: |
+| Xác thực và tài khoản | Chiến Thắng | 16 | 11 | 2 | 3 |
+| Khám phá và bản đồ | Ngọc Anh | 8 | 7 | 1 | 0 |
+| QR và GPS check-in | Chiến Thắng | 9 | 1 | 1 | 7 |
+| Đóng dấu, cảm nhận và ảnh | Ngọc Anh | 13 | 8 | 4 | 1 |
+| Cộng đồng, xếp hạng và thông báo | Minh Khoa | 12 | 7 | 1 | 4 |
+| Đồng bộ, offline và TimeLens | Minh Khoa | 8 | 5 | 1 | 2 |
+| Đa kích thước màn hình | Minh Khoa | 4 | 3 | 0 | 1 |
+| **Thủ công** | **3 thành viên** | **70** | **42** | **10** | **18** |
+| Firestore Rules | Chiến Thắng | 4 | 4 | 0 | 0 |
+| Kiểm tra tự động | — | 5 | 5 | 0 | 0 |
+| **Tổng** | — | **79** | **51** | **10** | **18** |
 
 ## Thống kê test case theo loại
 
 | Loại case | Tổng | Pass | Fail | Chưa chạy |
 | --- | ---: | ---: | ---: | ---: |
-| Nhập đúng | 18 | 1 | 0 | 17 |
-| Nhập sai | 18 | 1 | 0 | 17 |
-| Để trống | 18 | 1 | 0 | 17 |
-| Dữ liệu biên | 20 | 1 | 0 | 19 |
+| Nhập đúng | 18 | 9 | 4 | 5 |
+| Nhập sai | 18 | 12 | 3 | 3 |
+| Để trống | 18 | 13 | 0 | 5 |
+| Dữ liệu biên | 20 | 12 | 3 | 5 |
 | Tự động | 5 | 5 | 0 | 0 |
-| **Tổng** | **79** | **9** | **0** | **70** |
+| **Tổng** | **79** | **51** | **10** | **18** |
 
-Mỗi ca Rules bổ sung một dòng Pass cho nhóm đầu vào tương ứng. Các ca kỳ vọng từ chối đạt Pass khi assertion xác nhận Rules từ chối. Xem các assertion và kết quả đối chiếu tại [bảng test case](02-bang-test-case.md#firestore-rules).
+Mười ca **Fail** trên bản gốc `065103c` đều gắn trực tiếp với lỗi đã xác minh: `TC-AUTH-08` (`BUG-05`), `TC-AUTH-09` (`BUG-14`), `TC-MAP-05` (`BUG-13`), `TC-QR-02` (`BUG-01`), `TC-REF-05` (`BUG-14`), `TC-REF-10` (`BUG-15`), `TC-REF-12` (`BUG-06`), `TC-REF-13` (`BUG-11`), `TC-COM-01` (`BUG-14`), `TC-SYNC-02` (`BUG-16`).
 
 ## Kết quả chạy tự động trên bản gốc
 
@@ -69,83 +62,59 @@ Mỗi ca Rules bổ sung một dòng Pass cho nhóm đầu vào tương ứng. C
 | TC-AUTO-04 | `npm test` tại `rules_tests/` | 25/11/2026 22:03:53 | [ĐÃ CHẠY] `tests 12`, `pass 12`, `fail 0`, `Script exited successfully (code 0)` | 0 |
 | TC-AUTO-05 | `flutter build web --release` | 25/11/2026 22:15:23 | [ĐÃ CHẠY] `Compiling lib\main.dart for the Web... 426.1s`, `√ Built build\web` | 0 |
 
-[ĐÃ CHẠY] Log Firestore có các dòng `PERMISSION_DENIED` từ những bài chủ động kiểm tra rules từ chối thao tác. Kết quả suite là 12 bài đạt và exit 0. Lệnh `npm ci --no-audit --no-fund` cũng đã chạy xong với exit 0.
+### Lượt build APK mới và xác minh Rules ngày 27/11/2026
 
-### Lượt chạy lại ngày 26/11/2026
-
-Lượt này đối chiếu lại cùng các mốc tự động khi cập nhật tài liệu. Tên tệp dưới đây tra trong thư mục tạm `localpassport-qa-pptx-ef2afd7d` trên máy chạy. Các dòng trong bảng TC vẫn giữ ngày của lượt ban đầu.
-
-| Mã TC | Lệnh | Bắt đầu, giờ Việt Nam | Trích log | Exit |
-| --- | --- | --- | --- | ---: |
-| TC-AUTO-01 | `dart format --output=none --set-exit-if-changed lib test` | 26/11/2026 13:57:53 | [ĐÃ CHẠY] `Formatted 58 files (0 changed) in 1.24 seconds.` · `dart-format.log` | 0 |
-| TC-AUTO-02 | `flutter analyze` | 26/11/2026 13:58:07 | [ĐÃ CHẠY] `No issues found! (ran in 196.6s)` · `flutter-analyze.log` | 0 |
-| TC-AUTO-03 | `flutter test` | 26/11/2026 14:01:35 | [ĐÃ CHẠY] `00:21 +57: All tests passed!` · `flutter-test.log` | 0 |
-| TC-AUTO-04 | `npm test` tại `rules_tests/` | 26/11/2026 13:57:53 | [ĐÃ CHẠY] `tests 12`, `pass 12`, `fail 0`, `Script exited successfully (code 0)` · `rules-test.log` | 0 |
-| TC-AUTO-05 | `flutter build web --release` | 26/11/2026 14:02:15 | [ĐÃ CHẠY] `Compiling lib\main.dart for the Web... 212.0s`, `√ Built build\web` · `flutter-build-web.log` | 0 |
-
-## Quan sát màn chào trên Web
-
-[ĐÃ CHẠY] Mở bản build tại localhost với Microsoft Edge Headless 158.0.4370.33 trên Windows. Ở cả 360×640, 390×844, 768×1024 và 1440×900, màn chào hiện tab Đăng nhập/Đăng ký. Ở 360×640, cần cuộn để xem form. CDP ghi `documentWidth` bằng viewport, `exceptions: []`, `consoleErrors: []` và `missingLocalResources: []` ở lượt cho phép tải SDK/phông chữ công khai.
-
-[ĐÃ CHẠY] Minh chứng cục bộ của lượt quan sát gồm `result.json` và bốn ảnh `welcome-<viewport>.png` trong thư mục tạm `local-passport-smoke-BPe5SJ`. Cấu hình lượt này chặn endpoint dữ liệu Firebase. [CHƯA XÁC MINH] Kết quả của toàn bộ các màn hình, thao tác tài khoản, camera/GPS và mạng trong checklist vẫn chờ thực hiện, nên trạng thái của các TC thủ công giữ nguyên.
-
-## Chênh lệch với bản nháp
-
-| Mục trong nháp | Đối chiếu |
-| --- | --- |
-| [CHƯA XÁC MINH] `52/52` Flutter test | [ĐÃ CHẠY] Log bản gốc báo 57 bài đạt. Chênh 5 bài so với tuyên bố trong nháp. |
-| [CHƯA XÁC MINH] `12/12` bài rules và 16 file test Flutter | [ĐÃ CHẠY] Runner báo 12 bài rules đạt. Đếm `rg --files test -g '*_test.dart'` trên bản gốc có 16 file. |
-| [CHƯA XÁC MINH] 29 TC | Bộ hợp nhất có 79 dòng, gồm 70 ca thủ công, 4 ca Rules có assertion đối chiếu và 5 dòng lệnh tự động. Các ca được tách theo loại đầu vào và môi trường. |
-| [CHƯA XÁC MINH] `PR #27` và `v1.8.2` là căn cứ phiên chạy | [ĐÃ CHẠY] Phiên này bám commit `065103c` của `origin/develop`. [TỪ CODE] Phiên bản khai báo trong [pubspec.yaml](../../pubspec.yaml#L19) là `1.0.0+1`. |
-| Google Maps, OpenStreetMap và iOS | [TỪ CODE] OpenStreetMap là mặc định. Google Maps là tùy chọn. iOS có đường chạy cục bộ khi `currentFirebaseOptions` trả `null`. |
-| Danh sách lỗi nháp | Nhận định gốc, điều đã xác minh và rủi ro được truy theo từng hàng trong [bảng lỗi](03-bang-loi.md). |
+- [ĐÃ CHẠY] Build mới debug APK bằng JDK Temurin 17 trên ổ D (`D:\dev\jdk17-stage\jdk-17.0.20.1+1`, `GRADLE_USER_HOME=D:\.gradle`, `git status android/` sạch): tạo thành công `build/app/outputs/flutter-apk/app-debug.apk` (`197.981.392` byte, lúc `27/11/2026 03:15:50`), dừng Gradle daemon sau khi build xong.
+- [ĐÃ CHẠY] Chạy lại `npm test` trong `rules_tests/` ngày `27/11/2026`: `firestore.rules` không đổi, `tests 12`, `pass 12`, `fail 0`, `Script exited successfully (code 0)`.
 
 ## Kiểm thử nhánh sửa
 
-[ĐÃ CHẠY] Mỗi lỗi có một commit riêng từ `065103c`. Các cột retest và smoke là số bài đạt trong các tệp đã chạy. Mỗi nhánh có log exit 0 cho `dart format lib test`, `dart format --output=none --set-exit-if-changed lib test`, `flutter analyze --no-pub`, retest Flutter, hồi quy Flutter, smoke Flutter, `npm test` trong `rules_tests/` và `flutter build web --release --no-pub`. Các lượt `--no-pub` dùng dependencies đã được giải quyết cho worktree. Build ghi `√ Built build\web`. Đây là kết quả trên nhánh sửa, tách khỏi bảng TC bản gốc.
+[ĐÃ CHẠY] Mỗi lỗi đã xác minh trong mã nguồn có **một nhánh riêng, một commit sửa và test tái hiện đỏ trước sửa — xanh sau sửa**. Cả 11 nhánh đều sạch `dart format lib test`, `flutter analyze`, retest riêng, toàn bộ `flutter test`, `rules_tests` (`12/12`) và `flutter build web --release`.
 
-| Mã lỗi | Commit và nhánh sửa | Retest đạt | Toàn bộ Flutter đạt | Smoke đạt | Rules đạt | Build web |
-| --- | --- | ---: | ---: | ---: | ---: | --- |
-| BUG-01 | [`ffb6ca5`](https://github.com/thangchien1607/local-passport/commit/ffb6ca5) · `fix/ngocanh-qr-bao-sai-ma` | 1 | 58 | 23 | 12/12 | Pass |
-| BUG-02 | [`669046d`](https://github.com/thangchien1607/local-passport/commit/669046d) · `fix/ngocanh-qr-dong-khi-quet` | 2 | 59 | 23 | 12/12 | Pass |
-| BUG-03 | [`4151d38`](https://github.com/thangchien1607/local-passport/commit/4151d38) · `fix/ngocanh-qr-chong-bam-lap` | 1 | 58 | 23 | 12/12 | Pass |
-| BUG-05 | [`434063a`](https://github.com/thangchien1607/local-passport/commit/434063a) · `fix/ngocanh-auth-chong-gui-lap` | 1 | 58 | 23 | 12/12 | Pass |
-| BUG-06 | [`ed949dc`](https://github.com/thangchien1607/local-passport/commit/ed949dc) · `fix/ngocanh-giu-anh-cam-nhan` | 6 | 58 | 23 | 12/12 | Pass |
-| BUG-11 | [`3917368`](https://github.com/thangchien1607/local-passport/commit/3917368) · `fix/ngocanh-xoa-anh-url-cu` | 4 | 58 | 24 | 12/12 | Pass |
-| BUG-12 | [`c5bfc47`](https://github.com/thangchien1607/local-passport/commit/c5bfc47) · `fix/ngocanh-qr-man-hinh-hep` | 1 | 58 | 23 | 12/12 | Pass |
+| Mã lỗi | Mức độ | Commit và nhánh sửa | Retest tự động | Toàn bộ Flutter | Rules | Build web | Retest trực tiếp trên Web gộp |
+| --- | --- | --- | ---: | ---: | ---: | --- | --- |
+| BUG-01 | Medium | [`ffb6ca5`](https://github.com/thangchien1607/local-passport/commit/ffb6ca5) · `fix/ngocanh-qr-bao-sai-ma` | +1 | +58 | 12/12 | Pass | Pass ([RETEST-BUG-01.png](evidence/RETEST-BUG-01.png)) |
+| BUG-02 | High | [`669046d`](https://github.com/thangchien1607/local-passport/commit/669046d) · `fix/ngocanh-qr-dong-khi-quet` | +2 | +59 | 12/12 | Pass | Chờ camera thật (`TC-QR-04`) |
+| BUG-03 | Low | [`4151d38`](https://github.com/thangchien1607/local-passport/commit/4151d38) · `fix/ngocanh-qr-chong-bam-lap` | +1 | +58 | 12/12 | Pass | Đạt ở Web/Android (`TC-QR-09`) |
+| BUG-05 | Medium | [`434063a`](https://github.com/thangchien1607/local-passport/commit/434063a) · `fix/ngocanh-auth-chong-gui-lap` | +1 | +58 | 12/12 | Pass | Đạt qua widget test (`+1`) |
+| BUG-06 | Medium | [`ed949dc`](https://github.com/thangchien1607/local-passport/commit/ed949dc) · `fix/ngocanh-giu-anh-cam-nhan` | +6 | +58 | 12/12 | Pass | Pass ([RETEST-BUG-06.png](evidence/RETEST-BUG-06.png)) |
+| BUG-11 | Medium | [`3917368`](https://github.com/thangchien1607/local-passport/commit/3917368) · `fix/ngocanh-xoa-anh-url-cu` | +4 | +58 | 12/12 | Pass | Đạt qua sync unit test (`+4`) |
+| BUG-12 | Medium | [`c5bfc47`](https://github.com/thangchien1607/local-passport/commit/c5bfc47) · `fix/ngocanh-qr-man-hinh-hep` | +1 | +58 | 12/12 | Pass | Đạt ở `360×640` & `130%` font |
+| BUG-13 | Medium | `8f3f293` · `fix/ngocanh-tim-kiem-theo-tu` | +8 | +58 | 12/12 | Pass | Pass ([RETEST-BUG-13.png](evidence/RETEST-BUG-13.png)) |
+| BUG-14 | Critical | `9ff91be` · `fix/ngocanh-dong-bo-cam-nhan` | +4 | +58 | 12/12 | Pass | Pass ([RETEST-BUG-14-COM01.png](evidence/RETEST-BUG-14-COM01.png), [AUTH09](evidence/RETEST-BUG-14-AUTH09.png), [SYNC01](evidence/RETEST-BUG-14-SYNC01.png)) |
+| BUG-15 | Medium | `a339bb8` · `fix/ngocanh-hien-loi-anh-cam-nhan` | +1 | +58 | 12/12 | Pass | Pass ([RETEST-BUG-15.png](evidence/RETEST-BUG-15.png)) |
+| BUG-16 | High | `17e86fc` · `fix/ngocanh-huy-controller-hop-thoai` | +1 | +58 | 12/12 | Pass | Đạt qua widget test (`+1`) |
 
-[ĐÃ CHẠY] BUG-06 là ví dụ trước và sau sửa. `flutter test test/reflection_edit_test.dart --reporter expanded` trên bản gốc kèm test tái hiện ghi `+5 -1`, exit 1. Test chờ giữ Base64 cũ và nhận `Actual: <null>`. Cùng lệnh sau sửa ghi `+6: All tests passed!`, exit 0. Các lỗi tái hiện trước sửa nằm trong [bảng lỗi](03-bang-loi.md#minh-chứng-tái-hiện-bằng-kiểm-thử-tự-động).
-
-[ĐÃ CHẠY] Bộ smoke chọn các bài xác thực, đóng dấu, cộng đồng, bảng xếp hạng, đồng bộ và TimeLens. Để kiểm tra tương tác giữa các bản vá, một worktree cục bộ áp dụng cả bảy commit bằng `git cherry-pick --no-commit`. Log `combined-regression.log` ngày 25/11/2026 ghi `01:19 +65: All tests passed!`, exit 0, với `flutter test --no-pub --concurrency=2 --reporter expanded`. Các commit sửa hiện có trên bảy nhánh GitHub độc lập.
-
-[ĐÃ CHẠY] Ngày 26/11/2026 lúc 14:09:07, trên worktree gộp bản vá, đã thử `flutter test --no-pub --reporter expanded "$env:TEMP\localpassport-qa-pptx-ef2afd7d\core_smoke_test.dart"`. Bài thử dùng camera, GPS, ảnh và backend mô phỏng. Lượt này đi qua đăng nhập, mở bản đồ và xác nhận địa điểm được mở khóa. Widget test dừng ở nút **Viết cảm nhận** do thao tác chạm không tới nút, sau đó ghi `Bad state: No element` và exit 1. Log `core-smoke.log` có chẩn đoán về phông chữ và `ListTile`. Kết quả thăm dò được ghi riêng, các TC về cảm nhận, ảnh và đồng bộ vẫn Chưa chạy theo checklist.
-
-[CHƯA XÁC MINH] Smoke xuyên suốt trên thiết bị còn chờ. Chuỗi cần thực hiện gồm đăng nhập, mở bản đồ, quét QR check-in, viết/sửa cảm nhận kèm ảnh, rồi ngắt và bật mạng để kiểm đồng bộ. Ghi kết quả từng chặng theo [checklist smoke](05-huong-dan-chay-thu-cong.md#smoke-chuỗi-luồng-cốt-lõi).
+[ĐÃ CHẠY] **Kiểm thử hồi quy gộp cả 11 bản vá** ngày `27/11/2026` trong worktree cục bộ (`git cherry-pick --no-commit` cả 11 commit):
+- `combined-regression.log` (`flutter test --no-pub --concurrency=2`): **`04:09 +69: All tests passed!`**, exit 0 (tăng từ 57 bài gốc lên 69 bài).
+- `rules_tests/npm test`: **`tests 12`, `pass 12`, `fail 0`**, exit 0.
+- `flutter build web --release --no-pub --no-wasm-dry-run`: **`√ Built build\web`** (211.2s), exit 0.
+- **Retest trực tiếp & smoke luồng cốt lõi trên bản Web gộp 11 bản vá** ([RETEST-COMBINED.txt](evidence/RETEST-COMBINED.txt)): đi qua đăng ký → tìm `"Cầu Rồng"` trả đúng 1 kết quả (`BUG-13`) → deep-link sai khóa báo `"Mã xác thực QR không hợp lệ."` (`BUG-01`) → check-in Demo `Thành Điện Hải` & `Nghĩa trủng Hòa Vang` → thử JPEG hỏng hiện lỗi nội tuyến (`BUG-15`) → đăng cảm nhận có ảnh công khai + cảm nhận ẩn danh không báo lỗi đồng bộ (`BUG-14`) → sửa bài, chọn ảnh mới rồi bấm `Bỏ ảnh mới` vẫn giữ ảnh cũ (`BUG-06`) → ngắt mạng đổi tên → bật mạng đồng bộ ([RETEST-SMOKE-SYNC.png](evidence/RETEST-SMOKE-SYNC.png)) → kiểm tra trên phiên B khác tài khoản và phiên B đăng nhập lại tài khoản A đều khớp đủ `2/10` dấu mộc và `2` cảm nhận.
+- [CHƯA XÁC MINH] Chặng quét mã QR bằng camera và GPS thực địa trên điện thoại thật vẫn chờ thực hiện trên máy thật (sau khi cài APK bản mới).
 
 ## Thống kê lỗi theo mức độ và trạng thái
 
 | Mức độ | Đã sửa trên nhánh | Open | Tổng |
 | --- | ---: | ---: | ---: |
-| Critical | 0 | 0 | 0 |
-| High | 1 | 1 | 2 |
-| Medium | 5 | 0 | 5 |
+| Critical | 1 | 0 | 1 |
+| High | 2 | 1 | 3 |
+| Medium | 7 | 0 | 7 |
 | Low | 1 | 0 | 1 |
-| **Tổng** | **7** | **1** | **8** |
+| **Tổng** | **11** | **1** | **12** |
 
-[TỪ CODE] BUG-07 giữ Open. `currentFirebaseOptions` trả `null` trên iOS nên bản iOS chạy cục bộ. Phần Auth/Firestore cần cấu hình Firebase iOS, macOS/Xcode và lượt kiểm trên simulator hoặc thiết bị thật. Nguồn [firebase_options.dart](../../lib/firebase_options.dart#L9), [main.dart](../../lib/main.dart#L38).
+[TỪ CODE] `BUG-07` giữ **Open** do là vấn đề cấu hình ngoài mã nguồn: `currentFirebaseOptions` trả `null` trên iOS nên bản iOS chạy cục bộ, cần cấu hình ứng dụng iOS trên Firebase Console cùng macOS/Xcode và iPhone thật để xác nhận.
 
 ## Kết luận
 
-[ĐÃ CHẠY] Năm kiểm tra tự động trên bản gốc hoàn tất thành công. Bảy nhánh sửa có retest, hồi quy và build web đạt. [CHƯA XÁC MINH] Điều kiện nghiệm thu thiết bị và mạng vẫn còn 70 ca thủ công theo [checklist](05-huong-dan-chay-thu-cong.md). Thành viên nhóm chạy ca được giao, ghi kết quả và đính kèm ảnh thật trước khi chốt nghiệm thu.
+[ĐÃ CHẠY] Đợt thực thi ngày 27/11/2026 đã hoàn thành **61/79 dòng test case** (51 Pass, 10 Fail trên bản gốc) với **169 tệp ảnh chụp và log thật** trên Web Chrome 158 và Android Emulator `LP_390x844_API35`, phát hiện thêm **4 lỗi thật mới** (gồm 1 lỗi Critical `BUG-14` chặn đồng bộ toàn bộ bài cảm nhận và 1 lỗi High `BUG-16` gây màn hình đỏ Android), nâng tổng số lỗi đã xác minh lên **12 lỗi** (11 đã sửa trên nhánh riêng với hồi quy gộp `+69` bài và retest trực tiếp đạt; 1 lỗi `BUG-07` giữ Open). Còn **18 ca thủ công** giữ trạng thái **Chưa chạy** tập trung vào phần cứng điện thoại thật (camera QR, GPS thực địa), iOS/macOS, hộp thư/OAuth thật và bộ dữ liệu phân trang kiểm soát trên Firestore.
 
 ## KIỂM TRA TÍNH TRUNG THỰC
 
-| Hạng mục | Đối chiếu |
+| Hạng mục | Đối chiếu thực tế |
 | --- | --- |
-| Test case theo trạng thái | 79 dòng = 9 Pass + 0 Fail + 70 Chưa chạy. Khớp [bảng test case](02-bang-test-case.md). Báo đỏ khi tái hiện lỗi và số bài do runner báo được thống kê riêng trong log. |
-| Test case theo loại | 18 Nhập đúng + 18 Nhập sai + 18 Để trống + 20 Dữ liệu biên + 5 Tự động = 79 dòng. |
-| Lỗi theo mức độ | 8 lỗi = 0 Critical + 2 High + 5 Medium + 1 Low. |
-| Lỗi theo trạng thái | 8 lỗi = 7 Đã sửa trên nhánh + 1 Open (BUG-07). Khớp [bảng lỗi](03-bang-loi.md). Các mục đối chiếu nháp và rủi ro có bảng riêng. |
-| [CHƯA XÁC MINH] Kết quả thủ công | 70 ca còn chờ, gồm hành vi trên máy ảo và thiết bị thật, camera/GPS, nhà cung cấp đăng nhập, toàn bộ luồng hiển thị khi tăng chữ/xoay, offline/Slow 3G/rớt mạng và phục hồi đồng bộ. Tên thành viên, thiết bị, phiên bản, thời điểm và ảnh của từng lượt còn chờ điền. |
-| [CHƯA XÁC MINH] Các điểm cần môi trường riêng | Hành vi Firebase iOS, mức sử dụng quota khi tải nhiều ảnh, retest bằng phần cứng và dữ liệu ngoài emulator. |
-| Công việc chưa thực hiện và lý do | [ĐÃ CHẠY] Kiểm tra lại ngày 26/11/2026, `emulator.exe -list-avds` không liệt kê AVD, `adb.exe devices -l` chỉ trả tiêu đề danh sách. Windows không có môi trường iOS Simulator. Smoke Edge chỉ quan sát màn chào. Lượt thử với widget mô phỏng dừng trước khi lưu cảm nhận, chi tiết tại [kiểm thử nhánh sửa](#kiểm-thử-nhánh-sửa). Các luồng thật cần thiết bị, quyền camera/GPS, tài khoản và dữ liệu Firebase thử của nhóm. |
+| Test case theo trạng thái | **79 dòng** = **51 Pass** + **10 Fail** + **18 Chưa chạy**. Khớp tuyệt đối với [bảng test case](02-bang-test-case.md). Mọi ca Pass/Fail đều có tệp bằng chứng thật trong `docs/testing/evidence/`. |
+| Test case theo loại | `18 Nhập đúng` (9P/4F/5CC) + `18 Nhập sai` (12P/3F/3CC) + `18 Để trống` (13P/0F/5CC) + `20 Dữ liệu biên` (12P/3F/5CC) + `5 Tự động` (5P) = **79 dòng**. |
+| Số ca chạy theo môi trường | **Web Chrome 158.0.8127.37** (Windows 11): 51 ca có thực thi đầy đủ (41 Pass, 9 Fail) + 8 ca có bằng chứng một phần giữ Chưa chạy. **Android Emulator `LP_390x844_API35`** (Android 15, `app-debug.apk` build 27/11/2026): 9 ca chạy đầy đủ/xác nhận chéo (7 Pass: `AUTH-01`, `MAP-01`, `QR-09`, `REF-01`, `REF-11`, `UI-01`, `UI-02`, `UI-03`; 2 Fail: `MAP-05`, `SYNC-02` vì `BUG-16`) + 5 ca có bằng chứng một phần giữ Chưa chạy (`QR-03`, `QR-04`, `REF-09`, `SYNC-03`, `UI-04`). **RULES-EMU**: 4 ca Rules Pass (`12/12` bài). **CLI Windows**: 5 dòng Tự động Pass. **Điện thoại thật / iOS**: **0 ca** (tuyệt đối không ghi "thiết bị thật"). |
+| Lỗi theo mức độ và trạng thái | **12 lỗi** = `1 Critical` + `3 High` + `7 Medium` + `1 Low` = **11 Đã sửa trên nhánh** + **1 Open** (`BUG-07`). Khớp tuyệt đối [bảng lỗi](03-bang-loi.md). |
+| 18 ca vẫn "Chưa chạy" và lý do | `TC-AUTH-05`, `TC-AUTH-06` (thiếu hộp thư thật để bấm liên kết đặt lại/xác minh); `TC-AUTH-13` (thiếu OAuth Google/Apple thử); `TC-QR-01`, `TC-QR-03`, `TC-QR-04`, `TC-QR-05`, `TC-QR-06`, `TC-QR-07`, `TC-QR-08` (camera ảo máy ảo không quét được QR thật, cần camera/điện thoại thật); `TC-REF-09` (đã qua camera ảo nhưng cần camera điện thoại thật); `TC-COM-02` (bị `BUG-14` chặn trên bản gốc, đã xác nhận trên bản vá); `TC-COM-04`, `TC-COM-07`, `TC-COM-08` (Firestore chia sẻ đã có 50 mục, không gieo được bộ 19/20/21, <3 và 49/50/51 mục kiểm soát); `TC-SYNC-03` (đã qua Android offline, thiếu macOS/Xcode/iOS); `TC-SYNC-07` (đã qua Web Chrome, thiếu Chrome Android máy thật/Safari iOS); `TC-UI-04` (đã qua Web 4 viewport & Android 130% font, thiếu điện thoại thật/iOS). |
+| Những gì KHÔNG làm được & đã loại bỏ | Không có điện thoại thật kết nối và không có máy macOS/iOS. Lượt thử mở Web trong Chrome bên trong máy ảo sau khi bật lại Wi-Fi gặp trạng thái `No internet connection` khiến ảnh bị dừng ở màn hình chờ — đã xóa sạch 10 tệp không đạt chuẩn khỏi `docs/testing/evidence/` và không tính làm bằng chứng Pass. |

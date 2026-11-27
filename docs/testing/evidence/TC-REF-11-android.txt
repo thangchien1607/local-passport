@@ -1,0 +1,3 @@
+Env: Android Emulator LP_390x844_API35 (Android 15 API 35, 390×844 dp, app-debug.apk build 27/11/2026), hw.camera.back=emulated
+Time: 2026-11-27T03:13:41.381Z
+Opened Android Camera (com.android.camera2) -> pressed BACK to cancel -> stayed 75% & shows "Chụp ảnh"=true

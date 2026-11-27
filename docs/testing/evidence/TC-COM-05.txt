@@ -1,0 +1,80 @@
+Env: Web Chrome 158.0.8127.37 (2 phiên HAI độc lập), 390×844
+Time: 2026-11-27T01:56:13.647Z
+Leaderboard shows "QA Ren573"=true, shows updated entries=true
+Bảng xếp hạng
+50 nhà khám phá Đà Nẵng · theo XP và dấu mộc
+VỊ TRÍ CỦA BẠN
+#50
+QA Beta (Bạn)
+Tân binh · 0 XP
+Hạng 2: QA Ren573, 265 XP
+Hạng 1: QA Notif12, 400 XP
+Hạng 3: QA Alpha, 235 XP
+4
+QR
+QA Ref06
+1 dấu mộc
+135 XP
+5
+QR
+QA Ref2
+1 dấu mộc
+115 XP
+6
+QR
+QA Ref2
+1 dấu mộc
+115 XP
+7
+N5
+Nhóm 5 demo
+1 dấu mộc
+115 XP
+8
+QR
+QA RefUser
+1 dấu mộc
+115 XP
+9
+QS
+QA S3G848
+1 dấu mộc
+100 XP
+10
+N5
+Nhom 5 Demo
+1 dấu mộc
+100 XP
+11
+QA
+QA Alpha
+1 dấu mộc
+100 XP
+12
+QS
+QA S3G782
+1 dấu mộc
+100 XP
+13
+N
+Nanh
+1 dấu mộc
+100 XP
+14
+QU
+QA UI
+0 dấu mộc
+0 XP
+15
+QU
+QA User 01
+0 dấu mộc
+0 XP
+16
+KQ
+Khách QA 14
+0 dấu 
+Khám phá
+Hộ chiếu
+Bảng tin
+Xếp hạng

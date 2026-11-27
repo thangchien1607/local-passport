@@ -1,0 +1,12 @@
+Env: Web Chrome 158.0.8127.37, 390×844
+Time: 2026-11-27T00:42:40.531Z
+Web deep-link /?checkin=dien-hai&k=SAI -> shows BUG-01 wrong message=true, expected invalid-key message=false
+--- Screen text ---
+CHECK-IN THỰC ĐỊA
+Thành Điện Hải
+Đóng
+Hướng camera vào mã QR gắn tại cổng di tích.
+Mã này thuộc "Thành Điện Hải", không phải điểm bạn đang mở.
+Cần ở trong bán kính 300 m quanh di tích
+Thử xác thực vị trí lại
+Giả lập quét QR (Demo)

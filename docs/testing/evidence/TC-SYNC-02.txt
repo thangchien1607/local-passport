@@ -1,0 +1,4 @@
+Env: Web Chrome 158.0.8127.37 (2 phiên HAI độc lập), 390×844, DevTools Offline
+Time: 2026-11-27T00:48:12.962Z
+Offline rename "QA Off848": retryBtn=false
+After reconnect: Session B sees "QA Off848" & 1/10=true

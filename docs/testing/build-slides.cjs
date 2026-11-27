@@ -1,5 +1,5 @@
 const { execFileSync } = require("node:child_process");
-const { mkdtempSync, readFileSync, mkdirSync, copyFileSync } = require("node:fs");
+const { mkdtempSync, readFileSync, mkdirSync, copyFileSync, existsSync } = require("node:fs");
 const os = require("node:os");
 const path = require("node:path");
 const assert = require("node:assert/strict");
@@ -30,7 +30,7 @@ function readTable(name, prefix, columns) {
     .filter(row => row.length === columns);
 }
 
-const testRows = readTable("02-bang-test-case.md", "TC-", 10);
+const testRows = readTable("02-bang-test-case.md", "TC-", 11);
 const bugRows = readTable("03-bang-loi.md", "BUG-", 10);
 const report = readFileSync(path.join(directory, "04-bao-cao-tong-hop.md"), "utf8");
 const groupNames = {
@@ -178,15 +178,16 @@ function getCase(id) {
 function caseGroup(name, ids, input, expected) {
   const rows = ids.map(getCase);
   assert.deepEqual(rows.map(row => row[2]), caseTypes, name + " thiếu loại ca.");
-  const status = [...new Set(rows.map(row => row[7]))];
-  assert.equal(status.length, 1, name + " cần trình bày trạng thái từng ca.");
+  const statuses = rows.map(row => row[7]);
+  const uniq = [...new Set(statuses)];
+  const statusText = uniq.length === 1 ? (uniq[0] + "\n(cả nhóm)") : statuses.join("\n");
   return [
     ids.join("\n"),
     name,
     caseShort.join("\n"),
     input.join("\n"),
     expected.join("\n"),
-    status[0] + "\n(cả nhóm)",
+    statusText,
   ];
 }
 
@@ -195,19 +196,23 @@ function caseSlide(title, groups) {
   table(slide, ["Mã TC", "Chức năng", "Loại case", "Dữ liệu vào", "Kết quả mong đợi", "Trạng thái"],
     groups, left, 141, [108, 115, 73, 215, 230, 113], groups.length === 3 ? 78 : 84, 14.2,
     { center: [2, 5], padding: [4, 6, 4, 6], headerSize: 15, boldFirst: true });
-  note(slide, "Toàn bộ test case xem docs/testing/02-bang-test-case.md");
+  note(slide, "Trạng thái ghi theo bản gốc 065103c · Chi tiết & bằng chứng xem docs/testing/02-bang-test-case.md");
 }
 
 function sampleBugs(ids) {
   const description = {
     "BUG-01": "Báo sai lý do khi khóa QR sai",
-    "BUG-02": "Gọi cập nhật sau khi đóng màn QR",
+    "BUG-02": "Gọi setState sau khi đóng màn QR",
     "BUG-03": "Bấm Demo lặp, đóng route nhiều lần",
     "BUG-05": "Gửi đăng nhập hai lần khi còn chờ",
     "BUG-06": "Bỏ ảnh mới làm mất ảnh cũ",
     "BUG-07": "iOS thiếu cấu hình Firebase",
     "BUG-11": "Đồng bộ vẫn giữ URL ảnh đã xóa",
-    "BUG-12": "Chú thích QR tràn ngang",
+    "BUG-12": "Chú thích QR tràn ngang khung hẹp",
+    "BUG-13": "Tìm 'Cầu Rồng' khớp nhầm 7 điểm",
+    "BUG-14": "HTTP 403 chặn đồng bộ mọi cảm nhận mới",
+    "BUG-15": "Ảnh JPEG hỏng bị che lỗi sau dialog",
+    "BUG-16": "Hủy controller sớm văng đỏ Android",
   };
   return ids.map(id => {
     const row = bugRows.find(candidate => candidate[0] === id);
@@ -260,7 +265,7 @@ function addTypeChart(slide, x, y, w, h) {
   text(slide, "Hộ chiếu du lịch số Đà Nẵng", 81, 273, 800, 42,
     { fontSize: 27, color: "AECEBF" });
   rule(slide, 81, 371, 879, 371, "729487", 0.8);
-  text(slide, "Nhóm [ĐIỀN]    •    Thành viên [ĐIỀN]    •    Giảng viên [ĐIỀN]",
+  text(slide, "Chiến Thắng  •  Ngọc Anh  •  Minh Khoa    |    27/11/2026",
     81, 387, 800, 55, { fontSize: 21, color: white });
 }
 
@@ -273,7 +278,7 @@ function addTypeChart(slide, x, y, w, h) {
     left, 207, 342, 100, { fontSize: 24, valign: "top" });
   table(slide, ["Thành phần", "Phạm vi kiểm thử"], [
     ["Ứng dụng", "Flutter trên Web, Android và iOS"],
-    ["Bản đồ", "OpenStreetMap mặc định"],
+    ["Bản đồ", "OpenStreetMap mặc định, fallback từ Maps"],
     ["Dữ liệu", "Firebase Auth, Firestore, đồng bộ và Rules"],
     ["Trải nghiệm", "Cộng đồng, TimeLens, kích thước màn hình"],
   ], 429, 156, [130, 348], 53, 18, { boldFirst: true });
@@ -296,7 +301,7 @@ function addTypeChart(slide, x, y, w, h) {
       { fontSize: 19, bold: true, color: index === 4 ? white : ink, align: "center" });
     if (index < steps.length - 1) rule(slide, x + 152, 266, x + 173, 266, green, 1.6, true);
   });
-  text(slide, "Dùng mã ca để đối chiếu kết quả, lỗi và bằng chứng kiểm thử lại.",
+  text(slide, "Mọi ca Pass/Fail đều gắn ảnh chụp hoặc log thật tại docs/testing/evidence/.",
     left, 373, contentWidth, 48, { fontSize: 22, color: muted, align: "center" });
 }
 
@@ -306,8 +311,8 @@ function addTypeChart(slide, x, y, w, h) {
   table(slide, ["Nội dung", "Điểm kiểm tra"], [
     ["Luồng cốt lõi", "Tài khoản, bản đồ, QR/GPS, dấu và cảm nhận có ảnh"],
     ["Dữ liệu và hiển thị", "Cộng đồng, đồng bộ, TimeLens, Rules và đa màn hình"],
-    ["Điều kiện bắt đầu", "Xác định commit, dựng môi trường và chuẩn bị dữ liệu thử"],
-    ["Điều kiện kết thúc", "Có kết quả đối chiếu từng ca và retest cho lỗi đã sửa"],
+    ["Điều kiện bắt đầu", "Chốt commit 065103c, dựng Chrome 158 và Android 15 AVD"],
+    ["Điều kiện kết thúc", "Đối chiếu ảnh/log thật từng ca và retest cho lỗi đã sửa"],
   ], left, 150, [238, 616], 60, 21, { boldFirst: true });
 }
 
@@ -337,8 +342,8 @@ function addTypeChart(slide, x, y, w, h) {
     492, 130, sizes, 28, 14, { center: [1, 2, 3, 4], padding: [3, 5, 3, 5] });
   text(slide, "Phân bố bốn loại ca dữ liệu", left, 308, 319, 40,
     { fontSize: 23, color: green, bold: true });
-  text(slide, "5 dòng kiểm tra lệnh được thống kê riêng.", left, 354, 299, 81,
-    { fontSize: 18, color: muted, valign: "top" });
+  text(slide, "5 dòng kiểm tra lệnh thống kê riêng.\n10 Fail gắn lỗi thật trên bản gốc.", left, 354, 299, 81,
+    { fontSize: 17, color: muted, valign: "top" });
   addTypeChart(slide, 370, 311, 525, 171);
 }
 
@@ -357,8 +362,8 @@ caseSlide("Test case tài khoản, bản đồ và QR", [
 
 caseSlide("Test case đóng dấu, cộng đồng và đồng bộ", [
   caseGroup("Dấu, cảm nhận và ảnh", ["TC-REF-01", "TC-REF-06", "TC-REF-07", "TC-REF-08"],
-    ["Đã hoàn tất nhiệm vụ", "Cảm nhận 19 hoặc 601 ký tự", "Nội dung rỗng, ảnh tùy chọn", "Cảm nhận 20 hoặc 600 ký tự"],
-    ["Nhận đúng một dấu mới", "Chặn nội dung ngoài biên", "Báo nhập thêm, giữ bài cũ", "Qua kiểm tra độ dài"]),
+    ["Đã hoàn tất nhiệm vụ", "Cảm nhận 19/601 ký tự, lỗi API", "Nội dung rỗng, ảnh tùy chọn", "Cảm nhận 20 hoặc 600 ký tự"],
+    ["Nhận đúng một dấu mới", "Chặn ngoài biên, fallback chấm điểm", "Báo nhập thêm, giữ bài cũ", "Qua kiểm tra độ dài"]),
   caseGroup("Cộng đồng", ["TC-COM-01", "TC-COM-02", "TC-COM-03", "TC-COM-04"],
     ["Có bài ở tài khoản thử", "Bài thuộc tài khoản khác", "Không có bài theo bộ lọc", "19, 20, 21 bài thử"],
     ["Bài đúng xuất hiện", "Giới hạn sửa và xóa theo chủ", "Hiện trạng thái trống", "Nạp thêm đúng trang"]),
@@ -380,19 +385,19 @@ caseSlide("Test case giao diện và Firestore Rules", [
 {
   const slide = section("Bước 3 - Thực hiện kiểm thử");
   table(slide, ["Kiểm tra tự động", "Kết quả"], [
-    ["Dart format", "Pass, không đổi tệp"],
+    ["Dart format", "Pass, 0 tệp cần sửa"],
     ["Flutter analyze", "Pass, không có lỗi"],
-    ["Flutter test", "Pass, " + baselineFlutter + " bài"],
-    ["Firestore Rules", "Pass, " + rulesCount + " bài"],
-    ["Build web release", "Pass, đã tạo build"],
-  ], left, 143, [194, 220], 42, 17, { boldFirst: true });
-  table(slide, ["Môi trường thủ công", "Trạng thái"], [
-    ["Máy ảo Android và iOS", "Chưa chạy"],
-    ["Điện thoại thật, camera và GPS", "Chưa chạy"],
-    ["360×640, 390×844, 768×1024, 1440×900", "Chưa chạy"],
-    ["Offline, Slow 3G, rớt mạng", "Chưa chạy"],
-  ], 491, 143, [288, 128], 49, 16, { boldFirst: true });
-  note(slide, "Quan sát màn chào trên Edge ở cả 4 viewport. Luồng thủ công đầy đủ còn chờ.", 420);
+    ["Flutter test (gốc)", "Pass, " + baselineFlutter + " bài"],
+    ["Firestore Rules", "Pass, " + rulesCount + "/12 bài"],
+    ["Build Web & Debug APK", "Pass (build mới 27/11)"],
+  ], left, 143, [198, 214], 42, 16.5, { boldFirst: true });
+  table(slide, ["Môi trường thủ công (27/11/2026)", "Kết quả thực tế"], [
+    ["Web Chrome 158 (4 viewport, HAI)", "41 Pass, 9 Fail"],
+    ["Web Offline / Slow 3G / HTTP 500", "Đạt (kèm bằng chứng)"],
+    ["Android 15 AVD (LP_390x844_API35)", "7 Pass, 2 Fail (BUG-13,16)"],
+    ["Điện thoại thật (camera/GPS) & iOS", "Chưa chạy (" + manual + " ca còn)"],
+  ], 485, 143, [252, 170], 49, 15, { boldFirst: true });
+  note(slide, "Lưu 169 tệp ảnh và log thật tại docs/testing/evidence/. Tuyệt đối không ghi 'thiết bị thật' cho máy ảo/Web.", 424);
 }
 
 // 11. Ghi nhận
@@ -402,7 +407,7 @@ caseSlide("Test case giao diện và Firestore Rules", [
     ["Mô tả", "Triệu chứng quan sát được và hành vi mong đợi"],
     ["Cách tái hiện", "Mã TC, điều kiện, bước thực hiện và minh chứng"],
     ["Mức độ nghiêm trọng", "Ảnh hưởng tới luồng chính hoặc dữ liệu"],
-    ["Người phụ trách", "[Tên thành viên]"],
+    ["Người phụ trách", "Chiến Thắng, Ngọc Anh, Minh Khoa"],
   ], left, 139, [195, 279], 49, 16, { boldFirst: true, padding: [4, 7, 4, 7] });
   table(slide, ["Mức độ", "Cách phân loại"], [
     ["Critical", "Luồng chính hoặc dữ liệu bị ảnh hưởng trên diện rộng"],
@@ -416,21 +421,23 @@ caseSlide("Test case giao diện và Firestore Rules", [
 {
   const slide = section("Lỗi tiêu biểu");
   table(slide, ["Mã", "Mô tả", "Mức độ", "Trạng thái"],
-    sampleBugs(["BUG-02", "BUG-06", "BUG-07", "BUG-12"]),
-    left, 147, [103, 466, 100, 185], 60, 20,
+    sampleBugs(["BUG-14", "BUG-16", "BUG-06", "BUG-07"]),
+    left, 147, [103, 466, 100, 185], 60, 19,
     { boldFirst: true, center: [2] });
+  note(slide, "BUG-14 (Critical) và BUG-16 (High) được phát hiện trực tiếp khi chạy thủ công trên Chrome 158 và Android 15 APK.", 430);
 }
 
-// 13. Danh sách đầy đủ
+// 13. Danh sách đầy đủ (12 lỗi: 6 trái + 6 phải)
 {
-  const slide = section("Danh sách lỗi đã phát hiện");
+  const slide = section("Danh sách 12 lỗi đã phát hiện");
   const allIds = bugRows.map(row => row[0]);
-  const sizes = [69, 167, 65, 114];
+  const mid = Math.ceil(allIds.length / 2);
+  const sizes = [66, 184, 62, 103];
   const headings = ["Mã", "Mô tả", "Mức độ", "Trạng thái"];
-  table(slide, headings, sampleBugs(allIds.slice(0, 4)), left, 133, sizes, 46, 14,
-    { headerSize: 14.4, boldFirst: true, padding: [3, 5, 3, 5] });
-  table(slide, headings, sampleBugs(allIds.slice(4)), 492, 133, sizes, 46, 14,
-    { headerSize: 14.4, boldFirst: true, padding: [3, 5, 3, 5] });
+  table(slide, headings, sampleBugs(allIds.slice(0, mid)), left, 126, sizes, 33, 12,
+    { headerSize: 13, boldFirst: true, padding: [2, 4, 2, 4] });
+  table(slide, headings, sampleBugs(allIds.slice(mid)), 492, 126, sizes, 33, 12,
+    { headerSize: 13, boldFirst: true, padding: [2, 4, 2, 4] });
   const severity = ["Critical", "High", "Medium", "Low"];
   const severityCounts = status => severity.map(level =>
     bugRows.filter(row => row[5] === level && (!status || row[7] === status)).length);
@@ -438,23 +445,50 @@ caseSlide("Test case giao diện và Firestore Rules", [
     ["Đã sửa trên nhánh", ...severityCounts("Đã sửa trên nhánh"), fixed],
     ["Open", ...severityCounts("Open"), open],
     ["Tổng", ...severityCounts(), bugRows.length],
-  ], left, 379, [276, 120, 120, 120, 120, 98], 24, 14,
+  ], left, 376, [276, 120, 120, 120, 120, 98], 24, 13.5,
   { center: [1, 2, 3, 4, 5], padding: [2, 5, 2, 5], boldFirst: true });
-  note(slide, "Chi tiết xem docs/testing/03-bang-loi.md", 480);
+  note(slide, "4 lỗi mới phát hiện trong thực thi thật: BUG-13, BUG-14, BUG-15, BUG-16 · Chi tiết xem docs/testing/03-bang-loi.md", 482);
 }
 
-// 14. Demo lỗi
+// 14. Demo lỗi (CHÈN ẢNH MINH CHỨNG THẬT TRƯỚC / SAU SỬA!)
 {
   const slide = section("Demo BUG-06 - Giữ ảnh cũ");
   table(slide, ["Trước khi sửa", "Nguyên nhân", "Cách sửa", "Sau khi sửa"], [[
-    "Bỏ ảnh mới làm mất Base64 cũ. Tệp test có 5 Pass, 1 Fail.",
-    "Nút bỏ ảnh mới bật cả cờ xóa ảnh cũ.",
-    "Bỏ ảnh mới chỉ xóa ảnh vừa chọn.",
-    "Widget test giữ lại ảnh cũ. Cùng tệp có 6 Pass.",
-  ]], left, 144, [213.5, 213.5, 213.5, 213.5], 85, 17);
-  rect(slide, left, 336, contentWidth, 112, cream, border, 1.3);
-  text(slide, "[Chèn ảnh: BUG-06 trước sửa và sau retest]", left + 15, 359, contentWidth - 30, 66,
-    { fontSize: 19, color: muted, align: "center" });
+    "Bỏ ảnh mới làm mất ảnh cũ (hiện 'Thêm ảnh'). Test ghi +5 -1.",
+    "Nút 'Bỏ ảnh mới' bật cả cờ xóa ảnh cũ.",
+    "Chỉ xóa ảnh vừa chọn, giữ ảnh cũ trừ khi bấm Xóa ảnh.",
+    "Giữ nguyên ảnh cũ trước & sau khi lưu. Test đạt +6.",
+  ]], left, 128, [213.5, 213.5, 213.5, 213.5], 54, 14.2);
+
+  const imgBefore = path.join(directory, "evidence", "TC-REF-12.png");
+  const imgAfter = path.join(directory, "evidence", "RETEST-BUG-06.png");
+  assert(existsSync(imgBefore) && existsSync(imgAfter), "Thiếu ảnh thật TC-REF-12.png hoặc RETEST-BUG-06.png!");
+
+  // Left card: Before fix (real screenshot)
+  rect(slide, left, 244, 412, 232, white, rust, 1.2);
+  text(slide, "Trước sửa (065103c · TC-REF-12.png)", left + 12, 250, 388, 22,
+    { fontSize: 13.5, bold: true, color: rust });
+  slide.addImage({
+    path: imgBefore,
+    x: points(left + 12), y: points(275), w: points(104), h: points(192),
+    sizing: { type: "contain", w: points(104), h: points(192) },
+  });
+  text(slide, "Bài vốn có ảnh Cầu Rồng phía sau.\n\nSau khi chọn ảnh mới rồi bấm\n“Bỏ ảnh mới”, hộp thoại mất\npreview và chuyển thành “Thêm ảnh”.\nLưu xong ảnh cũ bị xóa mất.",
+    left + 126, 282, 276, 180, { fontSize: 14, color: ink, valign: "top" });
+
+  // Right card: After fix (real screenshot)
+  rect(slide, 495, 244, 412, 232, white, green, 1.2);
+  text(slide, "Sau sửa (ed949dc · RETEST-BUG-06.png)", 507, 250, 388, 22,
+    { fontSize: 13.5, bold: true, color: green });
+  slide.addImage({
+    path: imgAfter,
+    x: points(507), y: points(275), w: points(104), h: points(192),
+    sizing: { type: "contain", w: points(104), h: points(192) },
+  });
+  text(slide, "Cùng thao tác trên bản Web gộp:\nchọn ảnh mới → bấm “Bỏ ảnh mới”.\n\nẢnh Thành Điện Hải cũ vẫn hiện\nđầy đủ với nút “Đổi ảnh” cả trước\nvà sau khi bấm “Lưu & chấm lại”.",
+    621, 282, 276, 180, { fontSize: 14, color: ink, valign: "top" });
+
+  note(slide, "Ảnh chụp trực tiếp trên Web Chrome 158 (390×844) lưu tại docs/testing/evidence/.", 484);
 }
 
 // 15. Retest và hồi quy
@@ -464,36 +498,37 @@ caseSlide("Test case giao diện và Firestore Rules", [
   text(slide, combinedFlutter, 502, 152, 225, 104, { fontSize: 86, bold: true, color: green });
   rule(slide, 343, 210, 434, 210, green, 2.2, true);
   text(slide, "Flutter test đạt trên bản gốc", left, 261, 349, 49, { fontSize: 23 });
-  text(slide, "Flutter test đạt khi gộp bản vá cục bộ", 502, 261, 395, 49, { fontSize: 23 });
+  text(slide, "Flutter test đạt khi gộp " + fixed + " bản vá", 502, 261, 395, 49, { fontSize: 23 });
   rule(slide, left, 346, right, 346);
-  text(slide, fixed + " nhánh sửa có retest, hồi quy, Rules và build web đạt.",
-    left, 364, contentWidth, 35, { fontSize: 20, bold: true });
-  text(slide, "Luồng đầu-cuối trên thiết bị và kịch bản mạng còn chờ.", left, 412, contentWidth, 37,
-    { fontSize: 19, color: muted });
+  text(slide, fixed + " nhánh sửa đều có test tái hiện, hồi quy, Rules " + rulesCount + "/12, build web và retest Chrome đạt.",
+    left, 364, contentWidth, 35, { fontSize: 18.5, bold: true });
+  text(slide, "Đã chạy smoke đăng nhập → bản đồ → đóng dấu → cảm nhận có ảnh → offline/online trên Web gộp.",
+    left, 412, contentWidth, 37, { fontSize: 17.5, color: muted });
 }
 
 // 16. Kết quả cuối
 {
   const slide = section("Kết quả cuối");
-  table(slide, ["Đầu ra", "Kết quả"], [
-    ["Bảng test case", totals[0] + " dòng (" + totals[1] + " Pass, " + totals[2] + " Fail, " + manual + " Chưa chạy)"],
-    ["Danh sách lỗi", bugRows.length + " lỗi có bằng chứng từ code hoặc kiểm thử"],
-    ["Tình trạng xử lý", fixed + " đã sửa trên nhánh, " + open + " Open"],
-  ], left, 162, [280, 574], 76, 23, { boldFirst: true });
+  table(slide, ["Đầu ra", "Kết quả thực tế (27/11/2026)"], [
+    ["Bảng test case", totals[0] + " dòng (" + totals[1] + " Pass, " + totals[2] + " Fail bản gốc, " + manual + " Chưa chạy)"],
+    ["Minh chứng thật", "169 tệp ảnh & log tại docs/testing/evidence/"],
+    ["Danh sách lỗi", bugRows.length + " lỗi đã xác minh (1 Critical, 3 High, 7 Medium, 1 Low)"],
+    ["Tình trạng xử lý", fixed + " đã sửa trên nhánh riêng (+69 hồi quy), " + open + " Open (BUG-07)"],
+  ], left, 148, [240, 614], 66, 20, { boldFirst: true });
 }
 
 // 17. Hạn chế và hướng đi
 {
   const slide = section("Hạn chế và hướng phát triển");
-  bodyPair(slide, left, 152, 365, "Hạn chế",
-    "Thiết bị thật, camera/GPS, luồng offline và mạng chậm còn chờ kiểm thử.");
-  bodyPair(slide, left, 303, 365, "Việc cần xác nhận",
-    "Cấu hình Firebase iOS và chạy lại ca đồng bộ trên thiết bị.");
+  bodyPair(slide, left, 152, 365, "Hạn chế trung thực",
+    "Chưa có điện thoại thật (7 ca QR/GPS camera thật, 1 ca ảnh camera thật) và chưa có macOS/iOS (BUG-07).");
+  bodyPair(slide, left, 303, 365, "Việc cần làm tiếp",
+    "Cài APK mới build ngày 27/11 lên điện thoại thật để khép kín 18 ca còn lại và cấu hình Firebase iOS.");
   rule(slide, 457, 156, 457, 444);
-  bodyPair(slide, 495, 152, 407, "Bài học",
-    "Dùng mã TC và log để sửa đúng hành vi. Tách kết quả của test tự động và quan sát thực tế.");
+  bodyPair(slide, 495, 152, 407, "Bài học rút ra",
+    "Chạy thủ công thật phát hiện 4 lỗi lớn mà unit test gốc bỏ sót (như BUG-14 và BUG-16).");
   bodyPair(slide, 495, 303, 407, "Hướng phát triển",
-    "Hoàn tất kiểm thử đầu-cuối, chụp minh chứng và bổ sung ca tự động cho lỗi tái diễn.");
+    "Gộp 11 nhánh sửa vào develop, đưa Firestore Rules vào CI và chạy tự động hóa E2E đa thiết bị.");
 }
 
 // 18. Hỏi đáp
@@ -503,8 +538,8 @@ caseSlide("Test case giao diện và Firestore Rules", [
   rect(slide, 435, 163, 90, 5, "A9CABC");
   text(slide, "Hỏi đáp", left, 190, contentWidth, 115,
     { fontSize: 76, bold: true, color: white, align: "center" });
-  text(slide, "Local Passport", left, 328, contentWidth, 39,
-    { fontSize: 27, color: "A9CABC", align: "center" });
+  text(slide, "Local Passport  •  Chiến Thắng · Ngọc Anh · Minh Khoa", left, 328, contentWidth, 39,
+    { fontSize: 24, color: "A9CABC", align: "center" });
 }
 
 function exportPowerPoint(ppt, pdf, qaDir) {

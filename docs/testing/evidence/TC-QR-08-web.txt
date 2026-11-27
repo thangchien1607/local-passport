@@ -1,0 +1,29 @@
+Env: Web Chrome 158.0.8127.37, 390×844, CDP Geolocation
+301m rejected=true
+299m accepted=true
+--- 301m ---
+CHECK-IN THỰC ĐỊA
+Thành Điện Hải
+Đóng
+Hướng camera vào mã QR gắn tại cổng di tích.
+Bạn đang cách Thành Điện Hải khoảng 301 m. Hãy đến gần hơn để check-in.
+Vị trí của bạn: 16.07841, 108.22080
+Cần ở trong bán kính 300 m quanh di tích
+Thử xác thực vị trí lại
+Giả lập quét QR (Demo)
+--- 299m ---
+Quay lại bản đồ
+Câu chuyện 60 giây
+01 / 03
+Pháo đài giữ cửa biển
+Năm 1813, vua Gia Long cho xây đồn Điện Hải gần cửa sông Hàn. Năm 1823, vua Minh Mạng cho dời đồn vào vị trí hiện nay và xây lại bằng gạch.
+Đến thẻ 1
+Đến thẻ 2
+Đến thẻ 3
+Lăng kính thời gian
+Kéo thanh trượt để nhìn xuyên từ hiện tại về quá khứ.
+Lăng kính thời gian Thành Điện Hải
+Xưa · Đầu TK XX
+Nay · 2024
+Tường thành Điện Hải: đầu TK XX phía sau là nhà thờ và bệnh viện Pháp, nay là cao ốc bên hào nước.
+Ảnh: Botminh24 (CC BY 4.0) · W

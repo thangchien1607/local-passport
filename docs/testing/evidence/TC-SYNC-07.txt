@@ -1,0 +1,4 @@
+Env: Web Chrome 158.0.8127.37, 390×844 (bản demo main_timelens.dart)
+Time: 2026-11-27T02:18:36.034Z
+Standalone demo opened without login/camera/GPS: hasDemo=true, defaultPos50=false, noLoginOrCheckinBtn=true, exceptions=0
+Note: Chrome Android / Safari iOS real device still pending.

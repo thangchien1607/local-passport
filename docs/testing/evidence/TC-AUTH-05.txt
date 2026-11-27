@@ -1,0 +1,7 @@
+Env: Web Chrome 158.0.8127.37, 390×844
+Time: 2026-11-27T00:43:19.938Z
+[ForgotPw valid email] snack=true
+[ChangePw valid] Đổi mật khẩu thành công
+[SendVerification] msg=false
+[Re-login with new password] OK
+MISSING VARIANT: Không có hộp thư thật để mở liên kết đặt lại mật khẩu và liên kết xác minh email -> giữ Chưa chạy.

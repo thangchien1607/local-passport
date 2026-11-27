@@ -1,0 +1,6 @@
+Env: Web Chrome 158.0.8127.37, 390×844
+Time: 2026-11-26T13:31:49Z
+Guest entered ("Khách Nâng Cấp"), unlocked Thành Điện Hải via Demo QR, upgraded to qa.lp.upg.616231@example.com.
+Verified passportNo and unlocked progress preserved, Passport shows email qa.lp.upg.616231@example.com (see TC-AUTH-13.png).
+Verified re-auth + permanent deleteAccount removed Auth user: HTTP 400 INVALID_LOGIN_CREDENTIALS
+MISSING VARIANT: Chưa có tài khoản Google/Apple thử để đăng nhập OAuth tự động -> giữ Chưa chạy.
