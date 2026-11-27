@@ -112,59 +112,11 @@ class PassportScreen extends StatelessWidget {
   Future<void> _openRename(BuildContext context) async {
     final store = PassportScope.read(context);
     final messenger = ScaffoldMessenger.of(context);
-    final ctrl = TextEditingController(text: store.user?.name ?? '');
-    final formKey = GlobalKey<FormState>();
-    final saved = await showDialog<bool>(
+    final name = await showDialog<String>(
       context: context,
-      builder: (dialogContext) => AlertDialog(
-        title: Text('Đổi tên hiển thị', style: displayStyle(22)),
-        content: Form(
-          key: formKey,
-          child: Column(
-            mainAxisSize: MainAxisSize.min,
-            crossAxisAlignment: CrossAxisAlignment.start,
-            children: [
-              Text(
-                'Tên mới hiện trên hộ chiếu, bảng xếp hạng và các bài cảm nhận '
-                'không ẩn danh.',
-                style: bodyStyle(13, color: AppColors.inkSoft, height: 1.4),
-              ),
-              const SizedBox(height: 12),
-              TextFormField(
-                controller: ctrl,
-                autofocus: true,
-                maxLength: nameMaxLength,
-                textCapitalization: TextCapitalization.words,
-                decoration: const InputDecoration(labelText: 'Tên hiển thị'),
-                validator: validateName,
-                onFieldSubmitted: (_) {
-                  if (formKey.currentState!.validate()) {
-                    Navigator.pop(dialogContext, true);
-                  }
-                },
-              ),
-            ],
-          ),
-        ),
-        actions: [
-          TextButton(
-            onPressed: () => Navigator.pop(dialogContext, false),
-            child: const Text('Hủy'),
-          ),
-          FilledButton(
-            onPressed: () {
-              if (formKey.currentState!.validate()) {
-                Navigator.pop(dialogContext, true);
-              }
-            },
-            child: const Text('Lưu'),
-          ),
-        ],
-      ),
+      builder: (_) => _RenameDialog(initialName: store.user?.name ?? ''),
     );
-    final name = ctrl.text;
-    ctrl.dispose();
-    if (saved != true) return;
+    if (name == null) return;
     final error = store.rename(name);
     messenger.showSnackBar(
       SnackBar(content: Text(error ?? 'Đã đổi tên thành “${name.trim()}”.')),
@@ -174,103 +126,10 @@ class PassportScreen extends StatelessWidget {
   Future<void> _openChangePassword(BuildContext context) async {
     final store = PassportScope.read(context);
     final messenger = ScaffoldMessenger.of(context);
-    final currentCtrl = TextEditingController();
-    final nextCtrl = TextEditingController();
-    final confirmCtrl = TextEditingController();
-    final formKey = GlobalKey<FormState>();
-
     final changed = await showDialog<bool>(
       context: context,
-      builder: (dialogContext) {
-        var busy = false;
-        String? error;
-        return StatefulBuilder(
-          builder: (ctx, setDialogState) => AlertDialog(
-            title: Text('Đổi mật khẩu', style: displayStyle(22)),
-            content: Form(
-              key: formKey,
-              child: SingleChildScrollView(
-                child: Column(
-                  mainAxisSize: MainAxisSize.min,
-                  children: [
-                    TextFormField(
-                      controller: currentCtrl,
-                      obscureText: true,
-                      decoration: const InputDecoration(
-                        labelText: 'Mật khẩu hiện tại',
-                      ),
-                      validator: (v) =>
-                          (v ?? '').isEmpty ? 'Nhập mật khẩu hiện tại' : null,
-                    ),
-                    const SizedBox(height: 10),
-                    TextFormField(
-                      controller: nextCtrl,
-                      obscureText: true,
-                      decoration: const InputDecoration(
-                        labelText: 'Mật khẩu mới',
-                      ),
-                      validator: validatePassword,
-                    ),
-                    const SizedBox(height: 10),
-                    TextFormField(
-                      controller: confirmCtrl,
-                      obscureText: true,
-                      decoration: const InputDecoration(
-                        labelText: 'Nhập lại mật khẩu mới',
-                      ),
-                      validator: (v) =>
-                          validatePasswordConfirm(nextCtrl.text, v),
-                    ),
-                    if (error != null) ...[
-                      const SizedBox(height: 10),
-                      Text(
-                        error!,
-                        style: bodyStyle(13, color: const Color(0xFFB91C1C)),
-                      ),
-                    ],
-                  ],
-                ),
-              ),
-            ),
-            actions: [
-              TextButton(
-                onPressed: busy ? null : () => Navigator.pop(dialogContext),
-                child: const Text('Hủy'),
-              ),
-              FilledButton(
-                onPressed: busy
-                    ? null
-                    : () async {
-                        if (!formKey.currentState!.validate()) return;
-                        setDialogState(() {
-                          busy = true;
-                          error = null;
-                        });
-                        try {
-                          await store.changePassword(
-                            currentPassword: currentCtrl.text,
-                            newPassword: nextCtrl.text,
-                          );
-                          if (dialogContext.mounted) {
-                            Navigator.pop(dialogContext, true);
-                          }
-                        } on AuthFailure catch (e) {
-                          setDialogState(() {
-                            busy = false;
-                            error = e.message;
-                          });
-                        }
-                      },
-                child: Text(busy ? 'Đang lưu…' : 'Cập nhật'),
-              ),
-            ],
-          ),
-        );
-      },
+      builder: (_) => _ChangePasswordDialog(store: store),
     );
-    currentCtrl.dispose();
-    nextCtrl.dispose();
-    confirmCtrl.dispose();
     if (changed == true) {
       messenger.showSnackBar(
         const SnackBar(content: Text('Đổi mật khẩu thành công.')),
@@ -280,109 +139,11 @@ class PassportScreen extends StatelessWidget {
 
   Future<void> _confirmDeleteAccount(BuildContext context) async {
     final store = PassportScope.read(context);
-    final needPassword = store.hasPasswordProvider;
-    final providerLabel = store.hasGoogleProvider
-        ? 'Google'
-        : store.hasAppleProvider
-        ? 'Apple'
-        : null;
-    final passwordCtrl = TextEditingController();
-    final formKey = GlobalKey<FormState>();
-
     await showDialog<bool>(
       context: context,
       barrierDismissible: false,
-      builder: (dialogContext) {
-        var busy = false;
-        String? error;
-        return StatefulBuilder(
-          builder: (ctx, setDialogState) => AlertDialog(
-            title: Text('Xóa vĩnh viễn tài khoản?', style: displayStyle(22)),
-            content: Form(
-              key: formKey,
-              child: SingleChildScrollView(
-                child: Column(
-                  mainAxisSize: MainAxisSize.min,
-                  crossAxisAlignment: CrossAxisAlignment.start,
-                  children: [
-                    Text(
-                      'Hành động này sẽ xóa hoàn toàn tài khoản, hộ chiếu, toàn bộ chuyến thăm, thông báo, bài cảm nhận và vị trí trên bảng xếp hạng. Không thể khôi phục.',
-                      style: bodyStyle(14),
-                    ),
-                    if (needPassword) ...[
-                      const SizedBox(height: 14),
-                      TextFormField(
-                        controller: passwordCtrl,
-                        obscureText: true,
-                        enabled: !busy,
-                        decoration: const InputDecoration(
-                          labelText: 'Mật khẩu hiện tại để xác nhận',
-                        ),
-                        validator: (v) => (v ?? '').isEmpty
-                            ? 'Nhập mật khẩu hiện tại để tiếp tục'
-                            : null,
-                      ),
-                    ] else if (providerLabel != null) ...[
-                      const SizedBox(height: 12),
-                      Text(
-                        'Bạn sẽ được yêu cầu xác thực lại bằng $providerLabel trước khi dữ liệu và tài khoản bị xóa.',
-                        style: bodyStyle(13, color: AppColors.inkSoft),
-                      ),
-                    ],
-                    if (error != null) ...[
-                      const SizedBox(height: 12),
-                      Text(
-                        error!,
-                        style: bodyStyle(13, color: const Color(0xFFB91C1C)),
-                      ),
-                    ],
-                  ],
-                ),
-              ),
-            ),
-            actions: [
-              TextButton(
-                onPressed: busy
-                    ? null
-                    : () => Navigator.pop(dialogContext, false),
-                child: const Text('Hủy'),
-              ),
-              FilledButton(
-                style: FilledButton.styleFrom(
-                  backgroundColor: const Color(0xFFB91C1C),
-                ),
-                onPressed: busy
-                    ? null
-                    : () async {
-                        if (needPassword && !formKey.currentState!.validate()) {
-                          return;
-                        }
-                        setDialogState(() {
-                          busy = true;
-                          error = null;
-                        });
-                        try {
-                          await store.deleteAccount(
-                            password: needPassword ? passwordCtrl.text : null,
-                          );
-                          if (dialogContext.mounted) {
-                            Navigator.pop(dialogContext, true);
-                          }
-                        } on AuthFailure catch (e) {
-                          setDialogState(() {
-                            busy = false;
-                            error = e.message;
-                          });
-                        }
-                      },
-                child: Text(busy ? 'Đang xóa…' : 'Xóa vĩnh viễn'),
-              ),
-            ],
-          ),
-        );
-      },
+      builder: (_) => _DeleteAccountDialog(store: store),
     );
-    passwordCtrl.dispose();
   }
 
   void _openSaveAccount(BuildContext context) {
@@ -942,6 +703,281 @@ class _StampSlot extends StatelessWidget {
           ],
         ),
       ),
+    );
+  }
+}
+
+class _RenameDialog extends StatefulWidget {
+  const _RenameDialog({required this.initialName});
+
+  final String initialName;
+
+  @override
+  State<_RenameDialog> createState() => _RenameDialogState();
+}
+
+class _RenameDialogState extends State<_RenameDialog> {
+  late final _ctrl = TextEditingController(text: widget.initialName);
+  final _formKey = GlobalKey<FormState>();
+
+  @override
+  void dispose() {
+    _ctrl.dispose();
+    super.dispose();
+  }
+
+  void _submit() {
+    if (_formKey.currentState!.validate()) {
+      Navigator.pop(context, _ctrl.text);
+    }
+  }
+
+  @override
+  Widget build(BuildContext context) => AlertDialog(
+    title: Text('Đổi tên hiển thị', style: displayStyle(22)),
+    content: Form(
+      key: _formKey,
+      child: Column(
+        mainAxisSize: MainAxisSize.min,
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          Text(
+            'Tên mới hiện trên hộ chiếu, bảng xếp hạng và các bài cảm nhận '
+            'không ẩn danh.',
+            style: bodyStyle(13, color: AppColors.inkSoft, height: 1.4),
+          ),
+          const SizedBox(height: 12),
+          TextFormField(
+            controller: _ctrl,
+            autofocus: true,
+            maxLength: nameMaxLength,
+            textCapitalization: TextCapitalization.words,
+            decoration: const InputDecoration(labelText: 'Tên hiển thị'),
+            validator: validateName,
+            onFieldSubmitted: (_) => _submit(),
+          ),
+        ],
+      ),
+    ),
+    actions: [
+      TextButton(
+        onPressed: () => Navigator.pop(context),
+        child: const Text('Hủy'),
+      ),
+      FilledButton(onPressed: _submit, child: const Text('Lưu')),
+    ],
+  );
+}
+
+class _ChangePasswordDialog extends StatefulWidget {
+  const _ChangePasswordDialog({required this.store});
+
+  final PassportStore store;
+
+  @override
+  State<_ChangePasswordDialog> createState() => _ChangePasswordDialogState();
+}
+
+class _ChangePasswordDialogState extends State<_ChangePasswordDialog> {
+  final _currentCtrl = TextEditingController();
+  final _nextCtrl = TextEditingController();
+  final _confirmCtrl = TextEditingController();
+  final _formKey = GlobalKey<FormState>();
+  var _busy = false;
+  String? _error;
+
+  @override
+  void dispose() {
+    _currentCtrl.dispose();
+    _nextCtrl.dispose();
+    _confirmCtrl.dispose();
+    super.dispose();
+  }
+
+  Future<void> _submit() async {
+    if (!_formKey.currentState!.validate()) return;
+    setState(() {
+      _busy = true;
+      _error = null;
+    });
+    try {
+      await widget.store.changePassword(
+        currentPassword: _currentCtrl.text,
+        newPassword: _nextCtrl.text,
+      );
+      if (mounted) Navigator.pop(context, true);
+    } on AuthFailure catch (e) {
+      if (!mounted) return;
+      setState(() {
+        _busy = false;
+        _error = e.message;
+      });
+    }
+  }
+
+  @override
+  Widget build(BuildContext context) => AlertDialog(
+    title: Text('Đổi mật khẩu', style: displayStyle(22)),
+    content: Form(
+      key: _formKey,
+      child: SingleChildScrollView(
+        child: Column(
+          mainAxisSize: MainAxisSize.min,
+          children: [
+            TextFormField(
+              controller: _currentCtrl,
+              obscureText: true,
+              decoration: const InputDecoration(labelText: 'Mật khẩu hiện tại'),
+              validator: (v) =>
+                  (v ?? '').isEmpty ? 'Nhập mật khẩu hiện tại' : null,
+            ),
+            const SizedBox(height: 10),
+            TextFormField(
+              controller: _nextCtrl,
+              obscureText: true,
+              decoration: const InputDecoration(labelText: 'Mật khẩu mới'),
+              validator: validatePassword,
+            ),
+            const SizedBox(height: 10),
+            TextFormField(
+              controller: _confirmCtrl,
+              obscureText: true,
+              decoration: const InputDecoration(
+                labelText: 'Nhập lại mật khẩu mới',
+              ),
+              validator: (v) => validatePasswordConfirm(_nextCtrl.text, v),
+            ),
+            if (_error != null) ...[
+              const SizedBox(height: 10),
+              Text(
+                _error!,
+                style: bodyStyle(13, color: const Color(0xFFB91C1C)),
+              ),
+            ],
+          ],
+        ),
+      ),
+    ),
+    actions: [
+      TextButton(
+        onPressed: _busy ? null : () => Navigator.pop(context),
+        child: const Text('Hủy'),
+      ),
+      FilledButton(
+        onPressed: _busy ? null : _submit,
+        child: Text(_busy ? 'Đang lưu…' : 'Cập nhật'),
+      ),
+    ],
+  );
+}
+
+class _DeleteAccountDialog extends StatefulWidget {
+  const _DeleteAccountDialog({required this.store});
+
+  final PassportStore store;
+
+  @override
+  State<_DeleteAccountDialog> createState() => _DeleteAccountDialogState();
+}
+
+class _DeleteAccountDialogState extends State<_DeleteAccountDialog> {
+  final _passwordCtrl = TextEditingController();
+  final _formKey = GlobalKey<FormState>();
+  var _busy = false;
+  String? _error;
+
+  @override
+  void dispose() {
+    _passwordCtrl.dispose();
+    super.dispose();
+  }
+
+  Future<void> _submit() async {
+    final needPassword = widget.store.hasPasswordProvider;
+    if (needPassword && !_formKey.currentState!.validate()) return;
+    setState(() {
+      _busy = true;
+      _error = null;
+    });
+    try {
+      await widget.store.deleteAccount(
+        password: needPassword ? _passwordCtrl.text : null,
+      );
+      if (mounted) Navigator.pop(context, true);
+    } on AuthFailure catch (e) {
+      if (!mounted) return;
+      setState(() {
+        _busy = false;
+        _error = e.message;
+      });
+    }
+  }
+
+  @override
+  Widget build(BuildContext context) {
+    final needPassword = widget.store.hasPasswordProvider;
+    final providerLabel = widget.store.hasGoogleProvider
+        ? 'Google'
+        : widget.store.hasAppleProvider
+        ? 'Apple'
+        : null;
+    return AlertDialog(
+      title: Text('Xóa vĩnh viễn tài khoản?', style: displayStyle(22)),
+      content: Form(
+        key: _formKey,
+        child: SingleChildScrollView(
+          child: Column(
+            mainAxisSize: MainAxisSize.min,
+            crossAxisAlignment: CrossAxisAlignment.start,
+            children: [
+              Text(
+                'Hành động này sẽ xóa hoàn toàn tài khoản, hộ chiếu, toàn bộ chuyến thăm, thông báo, bài cảm nhận và vị trí trên bảng xếp hạng. Không thể khôi phục.',
+                style: bodyStyle(14),
+              ),
+              if (needPassword) ...[
+                const SizedBox(height: 14),
+                TextFormField(
+                  controller: _passwordCtrl,
+                  obscureText: true,
+                  enabled: !_busy,
+                  decoration: const InputDecoration(
+                    labelText: 'Mật khẩu hiện tại để xác nhận',
+                  ),
+                  validator: (v) => (v ?? '').isEmpty
+                      ? 'Nhập mật khẩu hiện tại để tiếp tục'
+                      : null,
+                ),
+              ] else if (providerLabel != null) ...[
+                const SizedBox(height: 12),
+                Text(
+                  'Bạn sẽ được yêu cầu xác thực lại bằng $providerLabel trước khi dữ liệu và tài khoản bị xóa.',
+                  style: bodyStyle(13, color: AppColors.inkSoft),
+                ),
+              ],
+              if (_error != null) ...[
+                const SizedBox(height: 12),
+                Text(
+                  _error!,
+                  style: bodyStyle(13, color: const Color(0xFFB91C1C)),
+                ),
+              ],
+            ],
+          ),
+        ),
+      ),
+      actions: [
+        TextButton(
+          onPressed: _busy ? null : () => Navigator.pop(context, false),
+          child: const Text('Hủy'),
+        ),
+        FilledButton(
+          style: FilledButton.styleFrom(
+            backgroundColor: const Color(0xFFB91C1C),
+          ),
+          onPressed: _busy ? null : _submit,
+          child: Text(_busy ? 'Đang xóa…' : 'Xóa vĩnh viễn'),
+        ),
+      ],
     );
   }
 }
