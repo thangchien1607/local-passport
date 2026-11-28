@@ -48,7 +48,13 @@ class _CeremonyState extends State<_Ceremony> {
   final _text = TextEditingController();
   bool _anonymous = false;
   Uint8List? _photo;
+  String? _error;
   VerifyResult? _result;
+
+  String _formatError(Object e) {
+    if (e is FormatException) return e.message;
+    return e.toString().replaceFirst('Exception: ', '');
+  }
 
   Location get _location => locationById[widget.locationId]!;
 
@@ -74,19 +80,23 @@ class _CeremonyState extends State<_Ceremony> {
       );
       if (file == null) return;
       final bytes = await file.readAsBytes();
-      setState(() => _photo = bytes);
+      setState(() {
+        _photo = bytes;
+        _error = null;
+      });
     } catch (_) {
       if (mounted) {
-        ScaffoldMessenger.maybeOf(
-          context,
-        )?.showSnackBar(const SnackBar(content: Text('Không đọc được ảnh.')));
+        setState(() => _error = 'Không đọc được ảnh.');
       }
     }
   }
 
   Future<void> _submit() async {
     final store = PassportScope.read(context);
-    setState(() => _step = _Step.verifying);
+    setState(() {
+      _step = _Step.verifying;
+      _error = null;
+    });
     final reflectionId = 'r${DateTime.now().millisecondsSinceEpoch}';
     final displayAuthor = _anonymous
         ? anonymousAuthor
@@ -104,10 +114,10 @@ class _CeremonyState extends State<_Ceremony> {
       );
     } catch (e) {
       if (!mounted) return;
-      setState(() => _step = _Step.form);
-      ScaffoldMessenger.maybeOf(context)?.showSnackBar(
-        SnackBar(content: Text(e.toString().replaceFirst('Exception: ', ''))),
-      );
+      setState(() {
+        _step = _Step.form;
+        _error = _formatError(e);
+      });
       return;
     }
     if (!mounted) return;
@@ -118,12 +128,10 @@ class _CeremonyState extends State<_Ceremony> {
           photoBase64 = await compressImageToBase64(_photo!);
         } catch (e) {
           if (!mounted) return;
-          setState(() => _step = _Step.form);
-          ScaffoldMessenger.maybeOf(context)?.showSnackBar(
-            SnackBar(
-              content: Text(e.toString().replaceFirst('Exception: ', '')),
-            ),
-          );
+          setState(() {
+            _step = _Step.form;
+            _error = _formatError(e);
+          });
           return;
         }
       }
@@ -351,6 +359,32 @@ class _CeremonyState extends State<_Ceremony> {
                             height: 180,
                             width: double.infinity,
                             fit: BoxFit.cover,
+                            errorBuilder: (_, _, _) => Container(
+                              height: 180,
+                              width: double.infinity,
+                              color: AppColors.paper2,
+                              alignment: Alignment.center,
+                              padding: const EdgeInsets.all(16),
+                              child: Column(
+                                mainAxisSize: MainAxisSize.min,
+                                children: [
+                                  const Icon(
+                                    Icons.broken_image_outlined,
+                                    size: 36,
+                                    color: Color(0xFFB91C1C),
+                                  ),
+                                  const SizedBox(height: 8),
+                                  Text(
+                                    'Không xem trước được tệp ảnh này.',
+                                    style: bodyStyle(
+                                      13,
+                                      color: const Color(0xFFB91C1C),
+                                    ),
+                                    textAlign: TextAlign.center,
+                                  ),
+                                ],
+                              ),
+                            ),
                           ),
                         ),
                         Positioned(
@@ -363,7 +397,10 @@ class _CeremonyState extends State<_Ceremony> {
                             ),
                             onPressed: verifying
                                 ? null
-                                : () => setState(() => _photo = null),
+                                : () => setState(() {
+                                    _photo = null;
+                                    _error = null;
+                                  }),
                             icon: const Icon(
                               Icons.close_rounded,
                               size: 18,
@@ -407,6 +444,24 @@ class _CeremonyState extends State<_Ceremony> {
                       ),
                     ),
                   ),
+                  if (_error != null) ...[
+                    const SizedBox(height: 12),
+                    Container(
+                      width: double.infinity,
+                      padding: const EdgeInsets.symmetric(
+                        horizontal: 12,
+                        vertical: 10,
+                      ),
+                      decoration: BoxDecoration(
+                        color: const Color(0xFFFEE2E2),
+                        borderRadius: BorderRadius.circular(12),
+                      ),
+                      child: Text(
+                        _error!,
+                        style: bodyStyle(13, color: const Color(0xFFB91C1C)),
+                      ),
+                    ),
+                  ],
                   const SizedBox(height: 18),
                   PrimaryButton(
                     label: verifying ? 'AI đang thẩm định…' : 'Gửi cảm nhận',
