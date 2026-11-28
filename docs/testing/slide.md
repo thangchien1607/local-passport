@@ -39,6 +39,5 @@ node docs/testing/build-slides.cjs
 26. Bước 5 - Tình trạng xử lý trên code mới nhất
 27. Đối chiếu với 5 yêu cầu của đồ án
 28. Hạn chế và hướng phát triển
-29. Hỏi đáp
 
-Slide 6 và 17 có chỗ `[Điền model · hệ điều hành]`, `[Điền ngày]` và `[Bổ sung ảnh]` cho phần điện thoại thật.
+Slide 6 và 17 có chỗ `[Điền model · phiên bản Android]`, `[Điền ngày]` và `[Bổ sung ảnh]` cho phần điện thoại thật.

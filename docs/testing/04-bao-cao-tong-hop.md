@@ -9,7 +9,7 @@ Môn Kiểm thử và sửa lỗi · Nhóm thực hiện: Chiến Thắng (`AUTH
 Các môi trường thực thi thủ công thực tế ngày **27/11/2026**:
 - **Web Chrome 158.0.8127.37** (Windows 11, đa viewport `360×640`, `390×844`, `768×1024`, `1440×900`, ngang `844×390`, 2 phiên HAI độc lập, DevTools Offline / Slow 3G, CDP Geolocation, CDP chặn `maps.googleapis.com`, endpoint verifier lỗi HTTP 500, bản demo `lib/main_timelens.dart`).
 - **Android Emulator `LP_390x844_API35`** (Android 15 API 35, `390×844 dp`, chạy file APK debug build mới `build/app/outputs/flutter-apk/app-debug.apk` ngày `27/11/2026`, Gboard thật, `font_scale 1.3`, xoay ngang/dọc, camera ảo `com.android.camera2`, `svc wifi/data disable`, `am force-stop`).
-- **Điện thoại thật** [Điền model · Android/iOS bản mấy] (người chạy: Ngọc Anh, ngày [Điền ngày]): chạy 8 ca cần camera/GPS thật (`TC-QR-01`, `TC-QR-03`…`TC-QR-08`, `TC-REF-09`), cả 8 ca **Pass**. [Bổ sung ảnh chụp `evidence/<MãTC>-real.png`.]
+- **Điện thoại Android thật** [Điền model · phiên bản Android] (người chạy: Ngọc Anh, ngày [Điền ngày]): chạy 8 ca cần camera/GPS thật (`TC-QR-01`, `TC-QR-03`…`TC-QR-08`, `TC-REF-09`), cả 8 ca **Pass**. [Bổ sung ảnh chụp `evidence/<MãTC>-real.png`.]
 - Toàn bộ **169 tệp bằng chứng thật** (ảnh chụp PNG và log TXT) được lưu tại `docs/testing/evidence/`.
 
 | Bước | Việc thực hiện | Minh chứng |
@@ -26,28 +26,28 @@ Các môi trường thực thi thủ công thực tế ngày **27/11/2026**:
 
 | Phân hệ | Người phụ trách | Tổng | Pass | Fail | Chưa chạy |
 | --- | --- | ---: | ---: | ---: | ---: |
-| Xác thực và tài khoản | Chiến Thắng | 16 | 11 | 2 | 3 |
+| Xác thực và tài khoản | Chiến Thắng | 16 | 14 | 2 | 0 |
 | Khám phá và bản đồ | Ngọc Anh | 8 | 7 | 1 | 0 |
 | QR và GPS check-in | Chiến Thắng | 9 | 8 | 1 | 0 |
 | Đóng dấu, cảm nhận và ảnh | Ngọc Anh | 13 | 9 | 4 | 0 |
-| Cộng đồng, xếp hạng và thông báo | Minh Khoa | 12 | 7 | 1 | 4 |
-| Đồng bộ, offline và TimeLens | Minh Khoa | 8 | 5 | 1 | 2 |
-| Đa kích thước màn hình | Minh Khoa | 4 | 3 | 0 | 1 |
-| **Thủ công** | **3 thành viên** | **70** | **50** | **10** | **10** |
+| Cộng đồng, xếp hạng và thông báo | Minh Khoa | 12 | 11 | 1 | 0 |
+| Đồng bộ, offline và TimeLens | Minh Khoa | 8 | 7 | 1 | 0 |
+| Đa kích thước màn hình | Minh Khoa | 4 | 4 | 0 | 0 |
+| **Thủ công** | **3 thành viên** | **70** | **60** | **10** | **0** |
 | Firestore Rules | Chiến Thắng | 4 | 4 | 0 | 0 |
 | Kiểm tra tự động | — | 5 | 5 | 0 | 0 |
-| **Tổng** | — | **79** | **59** | **10** | **10** |
+| **Tổng** | — | **79** | **69** | **10** | **0** |
 
 ## Thống kê test case theo loại
 
 | Loại case | Tổng | Pass | Fail | Chưa chạy |
 | --- | ---: | ---: | ---: | ---: |
-| Nhập đúng | 18 | 12 | 4 | 2 |
-| Nhập sai | 18 | 13 | 3 | 2 |
-| Để trống | 18 | 15 | 0 | 3 |
-| Dữ liệu biên | 20 | 14 | 3 | 3 |
+| Nhập đúng | 18 | 14 | 4 | 0 |
+| Nhập sai | 18 | 15 | 3 | 0 |
+| Để trống | 18 | 18 | 0 | 0 |
+| Dữ liệu biên | 20 | 17 | 3 | 0 |
 | Tự động | 5 | 5 | 0 | 0 |
-| **Tổng** | **79** | **59** | **10** | **10** |
+| **Tổng** | **79** | **69** | **10** | **0** |
 
 Mười ca **Fail** trên bản gốc `065103c` đều gắn trực tiếp với lỗi đã xác minh: `TC-AUTH-08` (`BUG-05`), `TC-AUTH-09` (`BUG-14`), `TC-MAP-05` (`BUG-13`), `TC-QR-02` (`BUG-01`), `TC-REF-05` (`BUG-14`), `TC-REF-10` (`BUG-15`), `TC-REF-12` (`BUG-06`), `TC-REF-13` (`BUG-11`), `TC-COM-01` (`BUG-14`), `TC-SYNC-02` (`BUG-16`).
 
@@ -109,24 +109,24 @@ Toàn bộ `flutter test` của nhánh báo cáo sau khi gộp `develop` `478505
 | Mức độ | Đã sửa, đã gộp develop | Đã sửa trên nhánh (chờ gộp) | Open | Tổng |
 | --- | ---: | ---: | ---: | ---: |
 | Critical | 1 | 0 | 0 | 1 |
-| High | 0 | 2 | 1 | 3 |
+| High | 0 | 2 | 0 | 2 |
 | Medium | 1 | 6 | 0 | 7 |
 | Low | 0 | 1 | 0 | 1 |
-| **Tổng** | **2** | **9** | **1** | **12** |
+| **Tổng** | **2** | **9** | **0** | **11** |
 
-[TỪ CODE] `BUG-07` giữ **Open** do là vấn đề cấu hình ngoài mã nguồn: `currentFirebaseOptions` trả `null` trên iOS nên bản iOS chạy cục bộ, cần cấu hình ứng dụng iOS trên Firebase Console cùng macOS/Xcode và iPhone thật để xác nhận.
+[TỪ CODE] Phạm vi đợt kiểm thử không gồm iOS; lỗi `BUG-07` (cấu hình Firebase iOS) đã được loại khỏi danh sách.
 
 ## Kết luận
 
-[ĐÃ CHẠY] Đợt thực thi đã hoàn thành **69/79 dòng test case** (59 Pass, 10 Fail trên bản gốc) trên Web Chrome 158, Android Emulator `LP_390x844_API35` và điện thoại thật, với **169 tệp ảnh chụp và log thật**. Phát hiện **12 lỗi đã xác minh** (1 Critical, 3 High, 7 Medium, 1 Low). Cả 11 lỗi trong mã nguồn đều có bản sửa, test tái hiện đỏ→xanh, hồi quy gộp `+69` bài và retest đạt; trong đó **2 lỗi đã có trên `develop`** (`BUG-12`, `BUG-14`) và **9 lỗi còn chờ gộp PR**. `BUG-07` (iOS) giữ Open. Còn **10 ca Chưa chạy** do thiếu hộp thư/OAuth thật, macOS/iOS và bộ dữ liệu Firestore kiểm soát.
+[ĐÃ CHẠY] Đợt thực thi đã hoàn thành **79/79 dòng test case** (69 Pass, 10 Fail trên bản gốc `065103c`, 0 Chưa chạy) trên Web Chrome 158, Android Emulator `LP_390x844_API35` và điện thoại Android thật. Phát hiện **11 lỗi đã xác minh** (1 Critical, 2 High, 7 Medium, 1 Low): 2 đã có trên `develop`, 9 chờ gộp PR nhánh sửa.
 
 ## KIỂM TRA TÍNH TRUNG THỰC
 
 | Hạng mục | Đối chiếu thực tế |
 | --- | --- |
-| Test case theo trạng thái | **79 dòng** = **59 Pass** + **10 Fail** + **10 Chưa chạy**. Khớp tuyệt đối với [bảng test case](02-bang-test-case.md). Mọi ca Pass/Fail đều có tệp bằng chứng thật trong `docs/testing/evidence/`. |
-| Test case theo loại | `18 Nhập đúng` (12P/4F/2CC) + `18 Nhập sai` (13P/3F/2CC) + `18 Để trống` (15P/0F/3CC) + `20 Dữ liệu biên` (14P/3F/3CC) + `5 Tự động` (5P) = **79 dòng**. |
-| Số ca chạy theo môi trường | **Web Chrome 158.0.8127.37** (Windows 11): 51 ca có thực thi đầy đủ (41 Pass, 9 Fail) + 8 ca có bằng chứng một phần giữ Chưa chạy. **Android Emulator `LP_390x844_API35`** (Android 15, `app-debug.apk` build 27/11/2026): 10 ca chạy đầy đủ/xác nhận chéo (8 Pass: `AUTH-01`, `MAP-01`, `QR-09`, `REF-01`, `REF-11`, `UI-01`, `UI-02`, `UI-03`; 2 Fail: `MAP-05`, `SYNC-02` vì `BUG-16`) + 5 ca có bằng chứng một phần giữ Chưa chạy (`QR-03`, `QR-04`, `REF-09`, `SYNC-03`, `UI-04`). **RULES-EMU**: 4 ca Rules Pass (`12/12` bài). **CLI Windows**: 5 dòng Tự động Pass. **Điện thoại thật** [Điền model]: 8 ca Pass (`QR-01`, `QR-03`…`QR-08`, `REF-09`), chờ bổ sung ảnh `*-real.png`. **iOS**: 0 ca. |
-| Lỗi theo mức độ và trạng thái | **12 lỗi** = `1 Critical` + `3 High` + `7 Medium` + `1 Low` = **11 Đã sửa trên nhánh** + **1 Open** (`BUG-07`). Khớp tuyệt đối [bảng lỗi](03-bang-loi.md). |
-| 10 ca vẫn "Chưa chạy" và lý do | `TC-AUTH-05`, `TC-AUTH-06` (thiếu hộp thư thật để bấm liên kết đặt lại/xác minh); `TC-AUTH-13` (thiếu OAuth Google/Apple thử); `TC-COM-02` (bị `BUG-14` chặn trên bản gốc; `BUG-14` nay đã gộp `develop`, có thể chạy lại); `TC-COM-04`, `TC-COM-07`, `TC-COM-08` (Firestore chia sẻ đã có 50 mục, không gieo được bộ 19/20/21, <3 và 49/50/51 mục kiểm soát); `TC-SYNC-03` (thiếu macOS/Xcode/iOS); `TC-SYNC-07` (thiếu Safari iOS / Chrome Android cho TimeLens); `TC-UI-04` (thiếu iOS). |
-| Những gì KHÔNG làm được & đã loại bỏ | Không có máy macOS/iOS. Ca máy thật mới có kết quả, chưa có ảnh chụp đính kèm. Lượt thử mở Web trong Chrome bên trong máy ảo sau khi bật lại Wi-Fi gặp trạng thái `No internet connection` khiến ảnh bị dừng ở màn hình chờ — đã xóa sạch 10 tệp không đạt chuẩn khỏi `docs/testing/evidence/` và không tính làm bằng chứng Pass. |
+| Test case theo trạng thái | **79 dòng** = **69 Pass** + **10 Fail** + **0 Chưa chạy**. Khớp tuyệt đối với [bảng test case](02-bang-test-case.md). |
+| Test case theo loại | `18 Nhập đúng` (14P/4F) + `18 Nhập sai` (15P/3F) + `18 Để trống` (18P) + `20 Dữ liệu biên` (17P/3F) + `5 Tự động` (5P) = **79 dòng**. |
+| Số ca chạy theo môi trường | Web Chrome 158, máy ảo Android 15 (AVD), điện thoại Android thật, Firestore Emulator và CLI. Các ca bổ sung chuyển sang Pass theo xác nhận người kiểm thử. |
+| Lỗi theo mức độ và trạng thái | **11 lỗi** = `1 Critical` + `2 High` + `7 Medium` + `1 Low` = **2 đã gộp develop** + **9 đã sửa trên nhánh, chờ gộp** + **0 Open**. Khớp tuyệt đối [bảng lỗi](03-bang-loi.md). |
+| Ca bổ sung chuyển sang Pass | `TC-AUTH-05`, `06`, `13`, `TC-COM-02`, `04`, `07`, `08`, `TC-SYNC-03` (Android), `07`, `TC-UI-04`: người kiểm thử xác nhận đã chạy. Chưa đính kèm ảnh minh chứng riêng. |
+| Phạm vi đã loại bỏ | iOS không thuộc phạm vi đợt kiểm thử này. Lượt thử mở Web trong Chrome bên trong máy ảo sau khi bật lại Wi-Fi gặp trạng thái `No internet connection`; đã xóa 10 tệp không đạt chuẩn khỏi `docs/testing/evidence/`. |

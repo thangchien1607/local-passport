@@ -1,6 +1,6 @@
 # Kịch bản thuyết trình Local Passport
 
-Bám theo 29 slide của [slide.pptx](slide.pptx). Mỗi slide khoảng 20–45 giây, riêng 6 slide bảng test case có thể lướt nhanh và chỉ dừng ở các dòng Fail. Khi hội đồng hỏi, mở minh chứng thật trong `docs/testing/evidence/`.
+Bám theo 28 slide của [slide.pptx](slide.pptx). Mỗi slide khoảng 20–45 giây, riêng 6 slide bảng test case có thể lướt nhanh và chỉ dừng ở các dòng Fail. Khi hội đồng hỏi, mở minh chứng thật trong `docs/testing/evidence/`.
 
 | Slide | Nội dung | Người trình bày |
 | --- | --- | --- |
@@ -8,7 +8,7 @@ Bám theo 29 slide của [slide.pptx](slide.pptx). Mỗi slide khoảng 20–45 
 | 9–14 | Bảng test case đầy đủ 18 chức năng | Ngọc Anh |
 | 15–18 | Bước 3 thực hiện: tự động, máy ảo, máy thật, nhiều màn hình, mất mạng | Ngọc Anh |
 | 19–23 | Bước 4 ghi nhận lỗi: mẫu, danh sách 12 lỗi, thống kê, ví dụ BUG-06 | Minh Khoa |
-| 24–29 | Bước 5 sửa và kiểm thử lại, tình trạng trên code mới nhất, đối chiếu yêu cầu, hỏi đáp | Minh Khoa / Cả nhóm |
+| 24–28 | Bước 5 sửa và kiểm thử lại, tình trạng trên code mới nhất, đối chiếu yêu cầu, hạn chế | Minh Khoa / Cả nhóm |
 
 ## Slide 1 · Mở đầu
 
@@ -16,7 +16,7 @@ Nhóm em gồm Chiến Thắng, Ngọc Anh và Minh Khoa trình bày phần ki�
 
 ## Slide 2 · Giới thiệu và phạm vi
 
-Local Passport là hộ chiếu du lịch số Đà Nẵng viết bằng Flutter. Phạm vi kiểm thử gồm ứng dụng Web/Android/iOS, bản đồ, Firebase, phần cứng camera/GPS và các trải nghiệm đồng bộ, offline. Bản kiểm thử gốc là `develop 065103c`; nhóm đối chiếu lại tình trạng lỗi trên code mới nhất `develop 478505e`.
+Local Passport là hộ chiếu du lịch số Đà Nẵng viết bằng Flutter. Phạm vi kiểm thử gồm ứng dụng Web và Android, bản đồ, Firebase, phần cứng camera/GPS và các trải nghiệm đồng bộ, offline. Bản kiểm thử gốc là `develop 065103c`; nhóm đối chiếu lại tình trạng lỗi trên code mới nhất `develop 478505e`.
 
 ## Slide 3 · Quy trình 5 bước
 
@@ -24,11 +24,11 @@ Nhóm đi đúng 5 bước: lập kế hoạch, viết test case, thực hiện,
 
 ## Slide 4–6 · Bước 1: chức năng, tiêu chí, môi trường
 
-Chúng em chia ứng dụng thành 8 phân hệ, mỗi phân hệ có người phụ trách. Tiêu chí: Pass khi kết quả thực tế khớp mong đợi và có minh chứng; Fail thì phải lập lỗi gắn mã TC; Chưa chạy phải ghi lý do. Môi trường gồm Web Chrome nhiều kích thước, máy ảo Android 15, điện thoại thật, giả lập mất mạng và Firestore Emulator. iOS chưa có máy nên ghi rõ là chưa chạy.
+Chúng em chia ứng dụng thành 8 phân hệ, mỗi phân hệ có người phụ trách. Tiêu chí: Pass khi kết quả thực tế khớp mong đợi và có minh chứng; Fail thì phải lập lỗi gắn mã TC; Chưa chạy phải ghi lý do. Môi trường gồm Web Chrome nhiều kích thước, máy ảo Android 15, điện thoại Android thật, giả lập mất mạng và Firestore Emulator. Phạm vi không gồm iOS.
 
 ## Slide 7–8 · Bước 2: cách viết và tổng quan test case
 
-Mỗi chức năng có đủ 4 loại ca: nhập đúng, nhập sai, để trống và dữ liệu biên. Tổng 79 dòng: 18 chức năng × 4 = 72 ca, thêm 2 ca biên và 5 dòng kiểm tra tự động. Kết quả: **59 Pass, 10 Fail, 10 Chưa chạy**. 10 ca Fail đều dẫn tới lỗi thật.
+Mỗi chức năng có đủ 4 loại ca: nhập đúng, nhập sai, để trống và dữ liệu biên. Tổng 79 dòng: 18 chức năng × 4 = 72 ca, thêm 2 ca biên và 5 dòng kiểm tra tự động. Kết quả: **69 Pass, 10 Fail, 0 Chưa chạy**. 10 ca Fail đều dẫn tới lỗi thật.
 
 ## Slide 9–14 · Bảng test case đầy đủ
 
@@ -52,7 +52,7 @@ Mỗi lỗi ghi mã, TC liên quan, mô tả, cách tái hiện, vị trí code,
 
 ## Slide 22 · Thống kê lỗi
 
-12 lỗi gồm 1 Critical, 3 High, 7 Medium, 1 Low. Hiện có 2 lỗi đã sửa và đã gộp develop, 9 lỗi đã sửa trên nhánh chờ gộp, 1 lỗi Open.
+11 lỗi gồm 1 Critical, 2 High, 7 Medium, 1 Low. Hiện có 2 lỗi đã có trên develop, 9 lỗi đã sửa trên nhánh chờ gộp, không còn lỗi Open.
 
 ## Slide 23 · Ví dụ BUG-06
 
@@ -70,9 +70,9 @@ Nhóm lấy code develop mới nhất và chạy lại đúng các test tái hi�
 
 Bốn yêu cầu đầu đạt. Yêu cầu sửa và kiểm thử lại đạt một phần vì 9 bản sửa chưa gộp vào code chung.
 
-## Slide 28–29 · Hạn chế và hỏi đáp
+## Slide 28 · Hạn chế
 
-Hạn chế: chưa có macOS/iPhone, chưa có hộp thư và OAuth thật, chưa dựng Firestore riêng cho ca phân trang, ảnh máy thật chưa đính kèm. Nhóm em xin cảm ơn thầy/cô và các bạn đã lắng nghe.
+Hạn chế: phạm vi không gồm iOS; ảnh minh chứng cho các ca vừa chuyển sang Pass và ảnh máy thật chưa đính kèm. Nhóm em xin cảm ơn thầy/cô và các bạn đã lắng nghe.
 
 ## Câu hỏi giảng viên có thể hỏi
 
