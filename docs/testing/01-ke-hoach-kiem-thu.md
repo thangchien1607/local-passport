@@ -4,7 +4,7 @@
 
 ## Mục tiêu và phạm vi
 
-[TỪ CODE] Local Passport là ứng dụng Flutter cho Web, Android và iOS. Bản đồ mặc định là OpenStreetMap. Google Maps là tùy chọn khi có khóa và khởi tạo được. Firebase Auth và Firestore được cấu hình cho Web và Android. Luồng lưu cục bộ được dùng khi không có cấu hình Firebase. Nguồn [README](../../README.md), [cấu hình bản đồ](../../lib/services/maps_config.dart), [MapScreen](../../lib/screens/map_screen.dart), [khởi tạo ứng dụng](../../lib/main.dart) và [currentFirebaseOptions](../../lib/firebase_options.dart#L9).
+[TỪ CODE] Local Passport là ứng dụng Flutter cho Web và Android. Bản đồ mặc định là OpenStreetMap. Google Maps là tùy chọn khi có khóa và khởi tạo được. Firebase Auth và Firestore được cấu hình cho Web và Android. Luồng lưu cục bộ được dùng khi không có cấu hình Firebase. Nguồn [README](../../README.md), [cấu hình bản đồ](../../lib/services/maps_config.dart), [MapScreen](../../lib/screens/map_screen.dart), [khởi tạo ứng dụng](../../lib/main.dart) và [currentFirebaseOptions](../../lib/firebase_options.dart#L9).
 
 | Phân hệ | Hành vi cần kiểm tra |
 | --- | --- |
@@ -13,7 +13,7 @@
 | QR và GPS check-in | Kiểm mã, địa điểm, quyền vị trí và khoảng cách, xử lý vòng đời camera, chế độ demo |
 | Đóng dấu, cảm nhận và ảnh | Nhiệm vụ, đóng dấu, ảnh hợp lệ/ảnh lỗi, chấm và sửa bài, giữ hoặc bỏ ảnh |
 | Cộng đồng, xếp hạng và thông báo | Phân trang, ẩn danh, thao tác đúng chủ sở hữu, thứ hạng và trạng thái đọc |
-| Đồng bộ, offline và TimeLens | Tải/lưu lại, gián đoạn rồi kết nối lại, hành vi iOS cục bộ, ảnh xưa và nay |
+| Đồng bộ, offline và TimeLens | Tải/lưu lại, gián đoạn rồi kết nối lại, ảnh xưa và nay |
 | Đa kích thước màn hình | Các tuyến thao tác chính, vùng cuộn, xoay máy, tăng cỡ chữ và bàn phím |
 | Firestore Rules | Quyền truy cập của chủ hộ chiếu, dữ liệu sai hoặc thiếu trường bắt buộc, giới hạn số ảnh tác vụ |
 
@@ -54,8 +54,6 @@ Các dòng dưới đây là cấu hình yêu cầu thử. [CHƯA XÁC MINH] K�
 | WEB-D | Web, màn hình lớn | 1440×900, cỡ chữ 100% và 130% | Điều hướng, cuộn, dialog, bảng xếp hạng | Minh Khoa |
 | AND-EM | Android Emulator | AVD `LP_390x844_API35` (Android 15 API 35, 390×844 dp), GPS giả lập | Biên khoảng cách, luồng demo, cấp/từ chối quyền | Chiến Thắng, Ngọc Anh, Minh Khoa |
 | AND-REAL | Android thật | Thiết bị/OS [Điền sau], dọc/ngang, cỡ chữ 130% | Camera thật, định vị thực địa, ảnh, ứng dụng quay về foreground | Ngọc Anh |
-| IOS-SIM | iOS Simulator trên macOS/Xcode | Cấu hình Simulator [Điền sau] | Khởi động cục bộ, điều hướng, bố cục, GPS giả lập | Minh Khoa (chưa có máy) |
-| IOS-REAL | iPhone thật | Thiết bị/OS [Điền sau], dọc/ngang, cỡ chữ 130% | Camera/GPS, ảnh, lưu cục bộ, Firebase nếu đã cấu hình | Minh Khoa (chưa có máy) |
 | NET | Web DevTools và thiết bị thật | Online, Slow 3G, offline trước khi mở và rớt mạng giữa chừng | Tải bản đồ/TimeLens, gửi bài, đồng bộ và phục hồi sau kết nối | Minh Khoa |
 | RULES-EMU | CLI và Firestore Emulator | Project `demo-local-passport`, dữ liệu dựng sẵn trong test | Quyền truy cập, schema hộ chiếu, biên số ảnh | Chiến Thắng |
 
