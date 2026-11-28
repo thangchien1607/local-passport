@@ -60,3 +60,4 @@ ios/Flutter/Secrets.xcconfig
 *.pem
 *.p12
 service-account*.json
+tools/icon/.build/

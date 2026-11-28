@@ -70,10 +70,7 @@ class _EditReflectionDialogState extends State<_EditReflectionDialog> {
       if (picked == null) return;
       final bytes = await picked.readAsBytes();
       if (!mounted) return;
-      setState(() {
-        _newPhotoBytes = bytes;
-        _removedExistingPhoto = false;
-      });
+      setState(() => _newPhotoBytes = bytes);
     } catch (_) {
       if (mounted) {
         setState(() => _error = 'Không đọc được ảnh mới.');
@@ -206,10 +203,7 @@ class _EditReflectionDialogState extends State<_EditReflectionDialog> {
                         tooltip: 'Bỏ ảnh mới',
                         onPressed: _saving
                             ? null
-                            : () => setState(() {
-                                _newPhotoBytes = null;
-                                _removedExistingPhoto = true;
-                              }),
+                            : () => setState(() => _newPhotoBytes = null),
                         icon: const Icon(Icons.close_rounded, size: 18),
                       ),
                     ),

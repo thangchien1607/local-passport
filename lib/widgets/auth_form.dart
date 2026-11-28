@@ -87,6 +87,7 @@ class _AuthFormState extends State<AuthForm> {
   }
 
   Future<void> _submit() async {
+    if (_busy) return;
     setState(() {
       _submitted = true;
       _error = null;

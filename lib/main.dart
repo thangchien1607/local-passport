@@ -1,3 +1,4 @@
+import 'dart:async';
 import 'dart:ui' show PointerDeviceKind;
 
 import 'package:firebase_core/firebase_core.dart';
@@ -15,6 +16,7 @@ import 'services/geo.dart';
 import 'services/auth_service.dart';
 import 'services/maps_config.dart';
 import 'services/passport_remote.dart';
+import 'services/phone_notifications.dart';
 import 'data/routes.dart';
 import 'state/passport_store.dart';
 import 'theme.dart';
@@ -29,6 +31,8 @@ Future<void> main() async {
   if (parseQr(link) != null) _pendingCheckinLink = link;
   final (remote, auth) = await _initFirebase();
   final store = await PassportStore.load(remote: remote, auth: auth);
+  unawaited(PhoneNotifications.init());
+  store.onNotify = PhoneNotifications.show;
   await initGoogleMaps();
   runApp(LocalPassportApp(store: store));
 }

@@ -269,7 +269,7 @@ Future<int> runIdempotentChunkedSync({
           'content': r.content,
           'aiScore': r.aiScore.clamp(0, 100),
           'photoBase64': r.photoBase64,
-          'photoUrl': ?r.photoUrl,
+          'photoUrl': r.photoUrl,
         };
         if (estimateFirestoreDocBytes(updateDoc) > maxFirestoreDocBytes) {
           throw const PhotoLimitException(

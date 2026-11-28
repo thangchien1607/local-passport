@@ -65,10 +65,10 @@ class _QrScannerScreenState extends State<QrScannerScreen>
   }
 
   void _startCamera() {
+    if (_handling) return;
     _controller?.dispose();
     setState(() {
       _error = '';
-      _handling = false;
       _controller = MobileScannerController(
         formats: const [BarcodeFormat.qrCode],
       );
@@ -85,6 +85,7 @@ class _QrScannerScreenState extends State<QrScannerScreen>
   void _fail(String message) {
     if (!mounted) return;
     setState(() {
+      _handling = false;
       _status = _Status.error;
       _error = message;
     });
@@ -95,24 +96,29 @@ class _QrScannerScreenState extends State<QrScannerScreen>
         .map((b) => b.rawValue)
         .whereType<String>()
         .firstOrNull;
-    if (raw == null || _handling) return;
+    if (raw == null) return;
     await _handleCode(raw);
   }
 
   Future<void> _handleCode(String raw) async {
+    if (_handling) return;
     _handling = true;
     await _stopCamera();
+    if (!mounted) return;
 
     final qr = parseQr(raw);
     final loc = widget.location;
     if (qr == null) return _fail('Mã QR này không thuộc Local Passport.');
-    if (qr.locationId != loc.id || qr.secret != loc.qrCodeSecret) {
+    if (qr.locationId != loc.id) {
       final other = locationById[qr.locationId];
       return _fail(
         other != null
             ? 'Mã này thuộc "${other.name}", không phải điểm bạn đang mở.'
             : 'Mã QR không hợp lệ.',
       );
+    }
+    if (qr.secret != loc.qrCodeSecret) {
+      return _fail('Mã xác thực QR không hợp lệ.');
     }
 
     if (!mounted) return;
@@ -144,7 +150,10 @@ class _QrScannerScreenState extends State<QrScannerScreen>
   }
 
   Future<void> _simulate() async {
+    if (_handling) return;
+    _handling = true;
     await _stopCamera();
+    if (!mounted) return;
     setState(() {
       _error = '';
       _status = _Status.demo;

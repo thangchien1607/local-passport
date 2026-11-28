@@ -22,13 +22,16 @@ String foldVietnamese(String input) {
       .trim();
 }
 
-/// Mọi từ trong [query] đều xuất hiện trong [text] (không phân biệt hoa thường, dấu).
+/// Mọi từ trong [query] đều khớp đầu từ trong [text] (không phân biệt hoa thường, dấu).
 /// Từ khóa rỗng thì luôn khớp.
 bool matchesQuery(String text, String query) {
   final words = foldVietnamese(query).split(' ').where((w) => w.isNotEmpty);
   if (words.isEmpty) return true;
   final haystack = foldVietnamese(text);
-  return words.every(haystack.contains);
+  final tokens = RegExp(
+    r'[a-z0-9]+',
+  ).allMatches(haystack).map((m) => m.group(0)!).toList();
+  return words.every((w) => tokens.any((t) => t.startsWith(w)));
 }
 
 /// Tìm theo tên, địa chỉ, tuyến, câu chuyện và nhiệm vụ của địa điểm.
