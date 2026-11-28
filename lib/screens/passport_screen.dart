@@ -530,22 +530,28 @@ class PassportScreen extends StatelessWidget {
         ],
         Container(
           decoration: cardDecoration(),
-          child: SwitchListTile(
-            value: store.skipLocationCheck,
-            onChanged: store.setSkipLocationCheck,
-            title: Text(
-              'Bỏ qua kiểm tra vị trí',
-              style: bodyStyle(14, weight: FontWeight.w600),
-            ),
-            subtitle: Text(
-              'Vẫn phải quét mã QR thật của di tích, nhưng không cần đứng '
-              'gần di tích. Dùng khi thử hoặc báo cáo ở lớp. Chỉ áp dụng trên '
-              'máy này.',
-              style: bodyStyle(12, color: AppColors.inkSoft),
-            ),
-            secondary: const Icon(
-              Icons.location_off_outlined,
-              color: AppColors.gold,
+          // Material riêng để hiệu ứng bấm của ListTile không bị nền thẻ che.
+          child: Material(
+            type: MaterialType.transparency,
+            borderRadius: BorderRadius.circular(18),
+            clipBehavior: Clip.antiAlias,
+            child: SwitchListTile(
+              value: store.skipLocationCheck,
+              onChanged: store.setSkipLocationCheck,
+              title: Text(
+                'Bỏ qua kiểm tra vị trí',
+                style: bodyStyle(14, weight: FontWeight.w600),
+              ),
+              subtitle: Text(
+                'Vẫn phải quét mã QR thật của di tích, nhưng không cần đứng '
+                'gần di tích. Dùng khi thử hoặc báo cáo ở lớp. Chỉ áp dụng trên '
+                'máy này.',
+                style: bodyStyle(12, color: AppColors.inkSoft),
+              ),
+              secondary: const Icon(
+                Icons.location_off_outlined,
+                color: AppColors.gold,
+              ),
             ),
           ),
         ),
@@ -553,19 +559,28 @@ class PassportScreen extends StatelessWidget {
         if (store.remote != null) ...[
           Container(
             decoration: cardDecoration(),
-            child: SwitchListTile(
-              value: store.demoQrEnabled,
-              onChanged: store.setDemoQr,
-              title: Text(
-                'Chế độ trình diễn',
-                style: bodyStyle(14, weight: FontWeight.w600),
+            // Material riêng để hiệu ứng bấm của ListTile không bị nền thẻ che.
+            child: Material(
+              type: MaterialType.transparency,
+              borderRadius: BorderRadius.circular(18),
+              clipBehavior: Clip.antiAlias,
+              child: SwitchListTile(
+                value: store.demoQrEnabled,
+                onChanged: store.setDemoQr,
+                title: Text(
+                  'Chế độ trình diễn',
+                  style: bodyStyle(14, weight: FontWeight.w600),
+                ),
+                subtitle: Text(
+                  'Hiện nút "Giả lập quét QR" khi không có mã QR thật. '
+                  'Chỉ áp dụng trên máy này.',
+                  style: bodyStyle(12, color: AppColors.inkSoft),
+                ),
+                secondary: const Icon(
+                  Icons.auto_awesome,
+                  color: AppColors.gold,
+                ),
               ),
-              subtitle: Text(
-                'Hiện nút "Giả lập quét QR" khi không có mã QR thật. '
-                'Chỉ áp dụng trên máy này.',
-                style: bodyStyle(12, color: AppColors.inkSoft),
-              ),
-              secondary: const Icon(Icons.auto_awesome, color: AppColors.gold),
             ),
           ),
           const SizedBox(height: 12),

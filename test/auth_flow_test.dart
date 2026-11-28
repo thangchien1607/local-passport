@@ -437,6 +437,31 @@ void main() {
     expect(again.isUnlocked('dien-hai'), isFalse);
   });
 
+  test('Mỗi thông báo mới đều được đẩy ra điện thoại (onNotify)', () async {
+    final (store, _, _) = await _setup();
+    final sent = <AppNotification>[];
+    store.onNotify = sent.add;
+    await store.register(name: 'A', email: 'a@gmail.com', password: 'abc12345');
+    store.unlock('dien-hai');
+    for (final t in locationById['dien-hai']!.tasks) {
+      store.setTask('dien-hai', t.id, true);
+    }
+    expect(sent.map((n) => n.type), [
+      NotificationType.welcome,
+      NotificationType.stamp,
+    ]);
+    // Đúng những mục trong chuông, mới nhất trước.
+    expect(
+      sent.reversed.map((n) => n.id),
+      store.notifications.map((n) => n.id),
+    );
+
+    // Đọc/xóa trong chuông không đẩy thêm gì.
+    store.markAllNotificationsRead();
+    store.deleteNotification(sent.first.id);
+    expect(sent, hasLength(2));
+  });
+
   test('Nhận dấu mộc và lên hạng sinh thông báo; đọc và xóa được', () async {
     final (store, _, _) = await _setup();
     await store.register(name: 'A', email: 'a@gmail.com', password: 'abc12345');

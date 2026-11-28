@@ -1,0 +1,12 @@
+<?xml version="1.0" encoding="utf-8"?>
+<!-- Cấu hình Firebase cho phần Android gốc (giống file google-services.json sinh ra),
+     để FCM nhận push được cả khi app đang tắt, trước khi Dart khởi động.
+     Phải trùng với _android trong lib/firebase_options.dart. -->
+<resources>
+    <string name="google_app_id" translatable="false">1:343799587256:android:a4ecfafd6eaf11edebaf4d</string>
+    <string name="gcm_defaultSenderId" translatable="false">343799587256</string>
+    <string name="google_api_key" translatable="false">AIzaSyAyxTq-hGOcQ_W0tZq-tu7eiql9nDiDZ0g</string>
+    <string name="google_crash_reporting_api_key" translatable="false">AIzaSyAyxTq-hGOcQ_W0tZq-tu7eiql9nDiDZ0g</string>
+    <string name="project_id" translatable="false">local-passport-danang</string>
+    <string name="google_storage_bucket" translatable="false">local-passport-danang.firebasestorage.app</string>
+</resources>

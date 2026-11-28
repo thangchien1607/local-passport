@@ -3,6 +3,7 @@
     <uses-permission android:name="android.permission.CAMERA" />
     <uses-permission android:name="android.permission.ACCESS_FINE_LOCATION" />
     <uses-permission android:name="android.permission.ACCESS_COARSE_LOCATION" />
+    <uses-permission android:name="android.permission.POST_NOTIFICATIONS" />
     <application
         android:label="Local Passport"
         android:name="${applicationName}"
@@ -29,6 +30,17 @@
                 <category android:name="android.intent.category.LAUNCHER"/>
             </intent-filter>
         </activity>
+        <!-- Push từ Firebase khi app đang tắt: dùng icon, màu và kênh của app
+             (kênh tạo trong lib/services/phone_notifications.dart). -->
+        <meta-data
+            android:name="com.google.firebase.messaging.default_notification_icon"
+            android:resource="@drawable/ic_stat_passport" />
+        <meta-data
+            android:name="com.google.firebase.messaging.default_notification_color"
+            android:resource="@color/notification_accent" />
+        <meta-data
+            android:name="com.google.firebase.messaging.default_notification_channel_id"
+            android:value="local_passport" />
         <!-- Google Maps API key: lấy từ dart-define MAPS_API_KEY lúc build (xem build.gradle.kts). -->
         <meta-data
             android:name="com.google.android.geo.API_KEY"

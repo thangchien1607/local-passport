@@ -43,6 +43,11 @@ Bản đồ Khám phá mặc định dùng **OpenStreetMap** qua `flutter_map`, 
 - Tùy chọn gọi endpoint thẩm định ngoài nếu truyền `--dart-define=REFLECTION_VERIFIER_URL=https://...` (tự đính kèm `Authorization: Bearer <Firebase ID Token>` và tự động fallback về heuristic khi lỗi mạng/HTTP/timeout).
 - Khi tác giả sửa bài cảm nhận, điểm được tính lại trực tiếp bằng cùng hàm `verifyReflection`.
 
+### 5. Thông báo trên điện thoại (`phone_notifications.dart`, chỉ app Android)
+- Mỗi thông báo mới trong chuông (chào mừng, nhận dấu, lên hạng, đăng cảm nhận, tài khoản) hiện thêm lên thanh thông báo của máy (`flutter_local_notifications`, kênh `local_passport`). Android 13+ hỏi quyền khi mở app lần đầu.
+- Push từ xa bằng Firebase Cloud Messaging (miễn phí, không cần Blaze): mọi máy cài app tự đăng ký chủ đề `all`. Gửi thử: Firebase Console → **Messaging** → **Tạo chiến dịch** → **Thông báo Firebase** → nhập tiêu đề, nội dung → **Mục tiêu: Chủ đề** `all` → **Xem lại** → **Xuất bản**. App đang mở, đang chạy nền hay đã tắt đều nhận được.
+- Bản web không hiện thông báo hệ thống, vẫn dùng chuông trong app.
+
 > Xem các đánh đổi kỹ thuật của kiến trúc Spark (anti-cheat, dung lượng document, xóa tài khoản từ client, rate limit) tại [docs/DECISIONS.md](docs/DECISIONS.md).
 
 ---
@@ -214,7 +219,7 @@ npm run generate
 
 ## Quyền ứng dụng
 
-- **Android** (`AndroidManifest.xml`): `INTERNET`, `CAMERA`, `ACCESS_FINE_LOCATION`, `ACCESS_COARSE_LOCATION`.
+- **Android** (`AndroidManifest.xml`): `INTERNET`, `CAMERA`, `ACCESS_FINE_LOCATION`, `ACCESS_COARSE_LOCATION`, `POST_NOTIFICATIONS`.
 - **iOS** (`Info.plist`): `NSCameraUsageDescription`, `NSLocationWhenInUseUsageDescription`, `NSPhotoLibraryUsageDescription`.
 - **Web**: trình duyệt hỏi quyền camera/vị trí; yêu cầu HTTPS hoặc `localhost`.
 
