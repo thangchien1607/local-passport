@@ -102,6 +102,7 @@ class _QrScannerScreenState extends State<QrScannerScreen>
   Future<void> _handleCode(String raw) async {
     _handling = true;
     await _stopCamera();
+    if (!mounted) return;
 
     final qr = parseQr(raw);
     final loc = widget.location;
@@ -148,6 +149,7 @@ class _QrScannerScreenState extends State<QrScannerScreen>
 
   Future<void> _simulate() async {
     await _stopCamera();
+    if (!mounted) return;
     setState(() {
       _error = '';
       _status = _Status.demo;
