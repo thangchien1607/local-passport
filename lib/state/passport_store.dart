@@ -119,6 +119,10 @@ class PassportStore extends ChangeNotifier {
   /// Thông báo trong app, mới nhất trước.
   List<AppNotification> notifications = [];
 
+  /// Gọi mỗi khi có thông báo mới (main.dart dùng để hiện lên thanh thông
+  /// báo của điện thoại).
+  void Function(AppNotification note)? onNotify;
+
   /// Câu báo lỗi khi lưu thất bại (null: đang ổn). Giao diện hiện SnackBar.
   final saveProblem = ValueNotifier<String?>(null);
 
@@ -474,17 +478,16 @@ class PassportStore extends ChangeNotifier {
     String body, {
     String? locationId,
   }) {
-    notifications.insert(
-      0,
-      AppNotification(
-        id: 'n${DateTime.now().millisecondsSinceEpoch}_${_noteSeq++}',
-        type: type,
-        title: title,
-        body: body,
-        createdAt: DateTime.now(),
-        locationId: locationId,
-      ),
+    final note = AppNotification(
+      id: 'n${DateTime.now().millisecondsSinceEpoch}_${_noteSeq++}',
+      type: type,
+      title: title,
+      body: body,
+      createdAt: DateTime.now(),
+      locationId: locationId,
     );
+    notifications.insert(0, note);
+    onNotify?.call(note);
     if (notifications.length > 50) {
       notifications.removeRange(50, notifications.length);
     }

@@ -1,0 +1,4 @@
+<?xml version="1.0" encoding="utf-8"?>
+<!-- Icon thông báo chỉ được gọi tên từ Dart: giữ lại khi build release thu gọn tài nguyên. -->
+<resources xmlns:tools="http://schemas.android.com/tools"
+    tools:keep="@drawable/ic_stat_passport" />
