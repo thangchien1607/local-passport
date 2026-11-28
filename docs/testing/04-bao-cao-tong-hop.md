@@ -100,7 +100,7 @@ Mười ca **Fail** trên bản gốc `065103c` đều gắn trực tiếp với
 | Kết quả test tái hiện trên `develop` | Lỗi | Ý nghĩa |
 | --- | --- | --- |
 | Xanh | `BUG-12`, `BUG-14` | `develop` đã tự sửa qua PR #41 (`28d3f16`) và PR #43 (`ff13324`, `3e75657`). |
-| Đỏ | `BUG-01`, `BUG-02`, `BUG-03`, `BUG-05`, `BUG-06`, `BUG-11`, `BUG-13`, `BUG-15`, `BUG-16` | Bản vá còn nằm trên nhánh `fix/ngocanh-*`, chưa có PR gộp vào `develop`. |
+| Đỏ (trước 28/11) | `BUG-01`, `BUG-02`, `BUG-03`, `BUG-05`, `BUG-06`, `BUG-11`, `BUG-13`, `BUG-15`, `BUG-16` | Bản vá lúc đó còn trên nhánh `fix/ngocanh-*`. Sau khi gộp PR #49–#57 (28/11) các lỗi này đã có trên `develop`. |
 
 Toàn bộ `flutter test` của nhánh báo cáo sau khi gộp `develop` `478505e`: **`+85: All tests passed!`** (thêm các test vị trí mới của `develop`).
 
@@ -109,16 +109,16 @@ Toàn bộ `flutter test` của nhánh báo cáo sau khi gộp `develop` `478505
 | Mức độ | Đã sửa, đã gộp develop | Đã sửa trên nhánh (chờ gộp) | Open | Tổng |
 | --- | ---: | ---: | ---: | ---: |
 | Critical | 1 | 0 | 0 | 1 |
-| High | 0 | 2 | 0 | 2 |
-| Medium | 1 | 6 | 0 | 7 |
-| Low | 0 | 1 | 0 | 1 |
-| **Tổng** | **2** | **9** | **0** | **11** |
+| High | 2 | 0 | 0 | 2 |
+| Medium | 7 | 0 | 0 | 7 |
+| Low | 1 | 0 | 0 | 1 |
+| **Tổng** | **11** | **0** | **0** | **11** |
 
 [TỪ CODE] Phạm vi đợt kiểm thử không gồm iOS; lỗi `BUG-07` (cấu hình Firebase iOS) đã được loại khỏi danh sách.
 
 ## Kết luận
 
-[ĐÃ CHẠY] Đợt thực thi đã hoàn thành **79/79 dòng test case** (69 Pass, 10 Fail trên bản gốc `065103c`, 0 Chưa chạy) trên Web Chrome 158, Android Emulator `LP_390x844_API35` và điện thoại Android thật. Phát hiện **11 lỗi đã xác minh** (1 Critical, 2 High, 7 Medium, 1 Low): 2 đã có trên `develop`, 9 chờ gộp PR nhánh sửa.
+[ĐÃ CHẠY] Đợt thực thi đã hoàn thành **79/79 dòng test case** (69 Pass, 10 Fail trên bản gốc `065103c`, 0 Chưa chạy) trên Web Chrome 158, Android Emulator `LP_390x844_API35` và điện thoại Android thật. Phát hiện **11 lỗi đã xác minh** (1 Critical, 2 High, 7 Medium, 1 Low). Cả 11 lỗi đã có trên `develop`: 2 từ trước (PR #41, #43), 9 từ PR #49–#57 gộp ngày 28/11/2026.
 
 ## KIỂM TRA TÍNH TRUNG THỰC
 
@@ -127,6 +127,6 @@ Toàn bộ `flutter test` của nhánh báo cáo sau khi gộp `develop` `478505
 | Test case theo trạng thái | **79 dòng** = **69 Pass** + **10 Fail** + **0 Chưa chạy**. Khớp tuyệt đối với [bảng test case](02-bang-test-case.md). |
 | Test case theo loại | `18 Nhập đúng` (14P/4F) + `18 Nhập sai` (15P/3F) + `18 Để trống` (18P) + `20 Dữ liệu biên` (17P/3F) + `5 Tự động` (5P) = **79 dòng**. |
 | Số ca chạy theo môi trường | Web Chrome 158, máy ảo Android 15 (AVD), điện thoại Android thật, Firestore Emulator và CLI. Các ca bổ sung chuyển sang Pass theo xác nhận người kiểm thử. |
-| Lỗi theo mức độ và trạng thái | **11 lỗi** = `1 Critical` + `2 High` + `7 Medium` + `1 Low` = **2 đã gộp develop** + **9 đã sửa trên nhánh, chờ gộp** + **0 Open**. Khớp tuyệt đối [bảng lỗi](03-bang-loi.md). |
+| Lỗi theo mức độ và trạng thái | **11 lỗi** = `1 Critical` + `2 High` + `7 Medium` + `1 Low` = **11 đã gộp develop** + **0 Open**. Khớp tuyệt đối [bảng lỗi](03-bang-loi.md). |
 | Ca bổ sung chuyển sang Pass | `TC-AUTH-05`, `06`, `13`, `TC-COM-02`, `04`, `07`, `08`, `TC-SYNC-03` (Android), `07`, `TC-UI-04`: người kiểm thử xác nhận đã chạy. Chưa đính kèm ảnh minh chứng riêng. |
 | Phạm vi đã loại bỏ | iOS không thuộc phạm vi đợt kiểm thử này. Lượt thử mở Web trong Chrome bên trong máy ảo sau khi bật lại Wi-Fi gặp trạng thái `No internet connection`; đã xóa 10 tệp không đạt chuẩn khỏi `docs/testing/evidence/`. |

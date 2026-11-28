@@ -731,7 +731,7 @@ caseSlide("TimeLens, giao diện, Firestore Rules", [
       return [row[0], row[5], commit, repro, row[7] === ST_OPEN ? "—" : "Đạt", retest, develop];
     }), left, 114, [70, 72, 150, 100, 70, 186, 206], 27, 12,
     { boldFirst: true, center: [1, 3, 4], colorStatus: [4, 6], padding: [2, 5, 2, 5], headerHeight: 26 });
-  note(slide, "Hồi quy mỗi nhánh: flutter test +58/+59, Rules " + rulesCount + "/12, build web đạt · “Trên develop mới nhất”: chạy test tái hiện trên develop 478505e (RETEST-DEVELOP-478505e.txt).", 476);
+  note(slide, "Hồi quy mỗi nhánh: flutter test +58/+59, Rules " + rulesCount + "/12, build web đạt · “Trên develop”: trạng thái sau khi gộp PR #49–#57 (28/11/2026).", 476);
 }
 
 // 26. Tình trạng xử lý trên code mới nhất
@@ -744,10 +744,8 @@ caseSlide("TimeLens, giao diện, Firestore Rules", [
     text(slide, title, x + 18, 200, w - 36, 28, { fontSize: 17, bold: true, color });
     text(slide, detail, x + 18, 232, w - 36, 134, { fontSize: 13.5, valign: "top" });
   };
-  card(left, green, merged, "Đã sửa, đã gộp develop", ids(ST_MERGED) + "\n\nĐã có trong develop qua PR #41 và PR #43. Test tái hiện chạy trên develop đã xanh.");
-  card(left + 434, amber, onBranch, "Đã sửa, chờ gộp PR", ids(ST_BRANCH) + "\n\nCó bản sửa, test và retest đạt trên nhánh fix/ngocanh-*, nhưng chưa mở PR nên code chung vẫn còn lỗi.");
-  text(slide, "Việc tiếp theo: mở PR cho " + onBranch + " nhánh sửa còn lại vào develop, chạy lại toàn bộ test và cài APK mới lên máy thật để kiểm lại.",
-    left, 392, contentWidth, 50, { fontSize: 17, bold: true });
+  card(left, green, merged, "Đã gộp vào develop", ids(ST_MERGED) + "\n\nĐã gộp qua PR #41, #43 và PR #49–#57 (28/11/2026). Test tái hiện đều xanh trên develop.", 854);
+  text(slide, "Việc tiếp theo: chạy lại test trên develop mới nhất, cài APK mới lên điện thoại Android để kiểm lại.", left, 392, contentWidth, 50, { fontSize: 17, bold: true });
   note(slide, "Kiểm tra ngày 27/11/2026 trên origin/develop 478505e (= main 2d4e489).", 476);
 }
 
@@ -759,7 +757,7 @@ caseSlide("TimeLens, giao diện, Firestore Rules", [
     ["Viết test case", "79 dòng; mỗi chức năng đủ nhập đúng, nhập sai, để trống, dữ liệu biên", "Đạt"],
     ["Thực hiện kiểm thử", "Máy ảo Android 15, điện thoại Android thật, 5 kích thước + chữ 130%, Offline / Slow 3G; đủ 79 dòng", "Đạt"],
     ["Ghi nhận lỗi", bugRows.length + " lỗi có mô tả, cách tái hiện, mức độ, người phụ trách, vị trí code", "Đạt"],
-    ["Sửa lỗi và kiểm thử lại", (merged + onBranch) + " lỗi có bản sửa, test tái hiện, retest, hồi quy +" + combinedFlutter + "; " + onBranch + " bản sửa chưa gộp develop", "Đạt một phần"],
+    ["Sửa lỗi và kiểm thử lại", bugRows.length + " lỗi có bản sửa, test tái hiện, retest, hồi quy +" + combinedFlutter + "; đã gộp đủ " + bugRows.length + " lỗi vào develop", "Đạt"],
   ], left, 120, [200, 534, 120], 58, 14.5, { boldFirst: true, colorStatus: [2], center: [2] });
 }
 
@@ -772,7 +770,7 @@ caseSlide("TimeLens, giao diện, Firestore Rules", [
     "Chạy thủ công thật phát hiện 4 lỗi mà test tự động gốc bỏ sót, nặng nhất là BUG-14 (Critical) và BUG-16 (High).", 100);
   rule(slide, 457, 140, 457, 450);
   bodyPair(slide, 495, 135, 410, "Việc cần làm tiếp",
-    "Mở PR gộp " + onBranch + " nhánh sửa vào develop. Bổ sung ảnh minh chứng cho các ca vừa chuyển sang Pass.", 100);
+    "Chạy lại test trên develop mới nhất, cài APK mới lên điện thoại. Bổ sung ảnh minh chứng cho các ca vừa chuyển sang Pass.", 100);
   bodyPair(slide, 495, 305, 410, "Hướng phát triển",
     "Đưa Firestore Rules vào CI, thêm kiểm thử E2E chạy trên nhiều thiết bị.", 100);
 }
